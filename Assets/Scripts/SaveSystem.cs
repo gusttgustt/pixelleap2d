@@ -22,6 +22,17 @@ public class SaveData
     public Vector2 player;
     public List<ItemStack> items = new List<ItemStack>();
     public List<NodeSave> nodes = new List<NodeSave>();
+    public int farthest;          // highest island reached (0 = older save: same as island)
+    public List<IslandSave> visited = new List<IslandSave>(); // other islands, as you left them
+}
+
+/// An island you've been to and left: rebuilt from its seed, then its saved objects put back.
+[Serializable]
+public class IslandSave
+{
+    public int island, seed, biomeId;
+    public int stickCap, rockCap, obsidianCap;
+    public List<NodeSave> nodes = new List<NodeSave>();
 }
 
 [Serializable]

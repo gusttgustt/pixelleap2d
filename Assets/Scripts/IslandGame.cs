@@ -118,6 +118,9 @@ public partial class IslandGame : MonoBehaviour
     public int island = 1, tier, level = 1, xp, skillPoints, flaskWater;
     /// 0 = no raft yet. The raft travels with you; Lv N is strong enough to reach island N+1.
     public int raftLevel;
+    /// Highest island reached, and every other island you've visited (kept as you left it).
+    public int farthest = 1;
+    readonly List<IslandSave> visited = new List<IslandSave>();
     /// Clothing recipes taught by the tribe, and what is being worn.
     public readonly HashSet<Item> learned = new HashSet<Item>();
     public Item? hat, outfit;
@@ -147,7 +150,7 @@ public partial class IslandGame : MonoBehaviour
     public float SpeedMultiplier => 1f + 0.08f * SkillLv(Skill.Agility);
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
-    public string BiomeName => biome switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", _ => "เกาะเขตร้อน" };
+    public string BiomeName => BiomeNameOf(biome);
 
     /// The island chain: Tropical -> Jungle -> Tribe -> Volcano, then again with tougher creatures.
     public static Biome BiomeFor(int islandNumber) =>
@@ -251,6 +254,9 @@ public partial class IslandGame : MonoBehaviour
         stickCap = 0; rockCap = 0; obsidianCap = 0; pond = null; seaSpot = null; target = null; enemyTarget = null;
 
         island = Mathf.Max(1, data.island);
+        farthest = Mathf.Max(island, data.farthest);
+        visited.Clear();
+        foreach (var v in data.visited) if (v != null && v.island != island) visited.Add(v);
         // Saves before v6 used a 3-island cycle; keep their island the same biome it was.
         biome = data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island);
         tier = (island - 1) / 4;
@@ -277,7 +283,8 @@ public partial class IslandGame : MonoBehaviour
             // v4 saves had no raft level: a raft already standing on this island counts as ready to sail.
             if (data.version < 5 && raftLevel == 0 && RaftNode != null) { raftLevel = island; RaftNode.Refresh(); }
         }
-        else if (raftLevel > 0) landing = BeachRaft(); // arrived by raft: it's pulled up on the west shore
+        // Arrived by boat (a new island, or one you're coming back to): it's pulled up on the west shore.
+        if (raftLevel > 0 && RaftNode == null) landing = BeachRaft();
         foreach (var st in data.items) if (st.count > 0) inv[st.item] = st.count;
         System.Array.Clear(skills, 0, skills.Length);
         for (int i = 0; i < skills.Length && i < data.skills.Count; i++) skills[i] = data.skills[i];
@@ -285,7 +292,7 @@ public partial class IslandGame : MonoBehaviour
         health = Mathf.Min(data.health, MaxHealth); hunger = data.hunger; thirst = data.thirst; clock = data.clock;
         if (biome == Biome.Tribal) SpawnVillagers();
 
-        Vector2 start = !fresh && IsLand(data.player) ? data.player : landing ?? Center;
+        Vector2 start = landing ?? (!fresh && IsLand(data.player) ? data.player : Center);
         player = new GameObject("Player").AddComponent<PlayerController>();
         player.transform.SetParent(world);
         player.Init(start);
@@ -296,10 +303,11 @@ public partial class IslandGame : MonoBehaviour
         cursor.sortingOrder = -30000; // above ground, below objects
 
         camPos = player.transform.position;
-        if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
+        if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
+        else if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
         else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
         else Hint($"เห็นฝั่งแล้ว! เกาะที่ {island}: {BiomeName} {BiomeIntro()}", 9f);
-        if (fresh) SaveGame(); // replaces any old save right away
+        if (fresh || landing != null) SaveGame(); // replaces any old save right away
         JoinRoom();            // online: meet whoever else is on this island
     }
 
@@ -341,17 +349,60 @@ public partial class IslandGame : MonoBehaviour
         return stand;
     }
 
-    /// Arrive at the next island, keeping inventory, level and skills.
-    void NextIsland()
+    /// Land on island `dest`, keeping inventory, level and skills. A new island is generated;
+    /// one you've been to comes back exactly as you left it.
+    void ArriveAt(int dest)
     {
         var d = Snapshot();
-        d.fresh = true;
-        d.island = island + 1;
-        d.biomeId = (int)BiomeFor(island + 1) + 1;
-        d.seed = new System.Random(seed + island * 7919).Next();
+        d.island = dest;
         d.nodes.Clear();
+        d.player = new Vector2(-99f, -99f); // stand by the boat
+        var known = visited.Find(v => v.island == dest);
+        if (known != null)
+        {
+            d.fresh = false;
+            d.seed = known.seed; d.biomeId = known.biomeId;
+            d.stickCap = known.stickCap; d.rockCap = known.rockCap; d.obsidianCap = known.obsidianCap;
+            d.nodes.AddRange(known.nodes);
+            d.visited.RemoveAll(v => v.island == dest);
+        }
+        else
+        {
+            d.fresh = true;
+            d.biomeId = (int)BiomeFor(dest) + 1;
+            d.seed = NewIslandSeed(dest);
+        }
+        d.farthest = Mathf.Max(farthest, dest);
         StartGame(d);
     }
+
+    /// Island N+1's seed comes from island N's (same chain as before islands were remembered).
+    int NewIslandSeed(int dest)
+    {
+        int from = dest - 1;
+        int s = from == island ? seed : visited.Find(v => v.island == from)?.seed ?? seed;
+        return new System.Random(s + from * 7919).Next();
+    }
+
+    /// Store the island you're leaving so you can come back to it later. The boat goes with you.
+    void RememberIsland()
+    {
+        var keep = new IslandSave
+        {
+            island = island, seed = seed, biomeId = (int)biome + 1,
+            stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap,
+        };
+        foreach (var n in nodes)
+            if (n != null && n.kind != NodeKind.Raft)
+                keep.nodes.Add(new NodeSave { kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining });
+        visited.RemoveAll(v => v.island == island);
+        visited.Add(keep);
+    }
+
+    public Biome BiomeOf(int n) =>
+        n == island ? biome : visited.Find(v => v.island == n) is IslandSave kept && kept.biomeId > 0 ? (Biome)(kept.biomeId - 1) : BiomeFor(n);
+
+    public static string BiomeNameOf(Biome b) => b switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", _ => "เกาะเขตร้อน" };
 
     // ------------------------------------------------------------------ save / load
     SaveData Snapshot()
@@ -363,7 +414,9 @@ public partial class IslandGame : MonoBehaviour
             level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel,
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
+            farthest = farthest,
         };
+        d.visited.AddRange(visited);
         d.skills.AddRange(skills);
         foreach (var l in learned) d.learned.Add((int)l);
         foreach (var kv in inv) if (kv.Value > 0) d.items.Add(new ItemStack { item = kv.Key, count = kv.Value });

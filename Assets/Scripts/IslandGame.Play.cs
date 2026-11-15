@@ -566,7 +566,7 @@ public partial class IslandGame
         {
             RefreshRaftUpgrade(r);
             if (raftLevel == 0) { why = "ต้องสร้างแพก่อน"; return false; }
-            if (raftLevel >= island) { why = $"แพ Lv {raftLevel} พร้อมออกเรือแล้ว"; return false; }
+            if (raftLevel >= farthest) { why = $"เรือ Lv {raftLevel} พร้อมไปเกาะใหม่แล้ว"; return false; }
             var raft = RaftNode;
             if (raft == null || (raft.grid - player.grid).magnitude > 2.2f) { why = "ต้องยืนข้างแพ"; return false; }
         }
@@ -689,7 +689,7 @@ public partial class IslandGame
     void RefreshRaftUpgrade(Recipe r)
     {
         int L = Mathf.Max(1, raftLevel);
-        r.name = $"อัปเกรดแพเป็น Lv {L + 1}";
+        r.name = $"อัปเกรดเรือเป็น Lv {L + 1}";
         (r.cost, r.desc) = biome switch
         {
             Biome.Jungle => (new[] { (Item.Bamboo, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Wood, 4) }, "ตัวแพไม้ไผ่: เบาและเร็วขึ้น"),
@@ -709,22 +709,47 @@ public partial class IslandGame
             raft.Shake();
             Fx.Burst(raft.transform.position + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 16, 1.4f, 1.6f, 1f, 3f);
         }
-        Popup($"แพ Lv {raftLevel}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
-        Hint($"อัปเกรดแพเป็น Lv {raftLevel} แล้ว: เร็วขึ้น {RaftSpeedBonus * 100f:0}% รับดาเมจในทะเลลดลง {RaftArmor * 100f:0}% พร้อมออกเรือ!", 6f);
+        Popup($"{BoatName(raftLevel)} Lv {raftLevel}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        Hint($"อัปเกรดเป็น{BoatName(raftLevel)} Lv {raftLevel} แล้ว: เร็วขึ้น {RaftSpeedBonus * 100f:0}% รับดาเมจในทะเลลดลง {RaftArmor * 100f:0}%", 6f);
     }
+
+    /// What the boat has become at each level (its sprite changes too, see PixelArt.Raft).
+    public static string BoatName(int level) => level switch
+    {
+        <= 1 => "แพไม้", 2 => "แพมีราว", 3 => "เรือแคนู", 4 => "เรือใบ", _ => "เรือใบสองเสา",
+    };
 
     /// Bonuses from raft upgrades while at sea.
     float RaftSpeedBonus => 0.1f * Mathf.Max(0, raftLevel - 1);
     float RaftArmor => Mathf.Min(0.4f, 0.08f * Mathf.Max(0, raftLevel - 1));
 
+    /// Using your boat opens the sea chart: sail back to any island you've visited, or on to a new one.
     void TrySail()
     {
-        if (raftLevel < island)
+        var d = new Dialog { speaker = $"แผนที่ทะเล - {BoatName(raftLevel)} Lv {raftLevel}" };
+        int next = farthest + 1;
+        bool canGoNew = raftLevel >= farthest;
+        d.text = canGoNew
+            ? $"เลือกเกาะที่จะล่องไป เกาะที่เคยไปแล้วจะยังเหมือนตอนที่จากมา"
+            : $"ทะเลไปเกาะที่ {next} คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ต้องอัปเกรดเป็น Lv {farthest} ก่อน (Tab) แต่กลับไปเกาะที่เคยไปได้";
+        for (int n = 1; n <= farthest; n++)
         {
-            Hint($"ทะเลไปเกาะที่ {island + 1} คลื่นแรงเกินไปสำหรับแพ Lv {raftLevel} อัปเกรดแพด้วย{RaftMaterial(biome)} (Tab)", 5f);
-            craftOpen = true; skillsOpen = false;
-            return;
+            int dest = n;
+            if (dest == island) continue;
+            d.options.Add(($"ล่องกลับไปเกาะที่ {dest}: {BiomeNameOf(BiomeOf(dest))}", () => ChooseVoyage(dest), true));
         }
+        d.options.Add((canGoNew ? $"ออกสำรวจเกาะใหม่ (เกาะที่ {next}) ★" : $"เกาะใหม่ (เกาะที่ {next}) - ต้องใช้เรือ Lv {farthest}",
+            () => ChooseVoyage(next), canGoNew));
+        d.options.Add(("ยังไม่ออกเรือ", CloseDialog, true));
+        dialog = d;
+        craftOpen = false; skillsOpen = false;
+    }
+
+    void ChooseVoyage(int dest)
+    {
+        dialog = null;
+        lastInteract = Time.time;
+        destIsland = dest;
         // The voyage takes a while: warn once if the player is low on supplies.
         int food = 0;
         foreach (var kv in inv) if (FoodValue(kv.Key) > 0) food += kv.Value;
@@ -732,7 +757,7 @@ public partial class IslandGame
         if (lowSupplies && Time.time > sailWarnUntil)
         {
             sailWarnUntil = Time.time + 4f;
-            Hint("อาหารหรือน้ำไม่พอสำหรับการเดินทาง! กด E อีกครั้งถ้าจะออกเรือเลย", 4f);
+            Hint("อาหารหรือน้ำไม่พอสำหรับการเดินทาง! เลือกเกาะอีกครั้งถ้าจะออกเรือเลย", 4f);
             return;
         }
         SaveGame(); // if you quit at sea you come back here, next to the raft
@@ -760,7 +785,7 @@ public partial class IslandGame
             else
             {
                 EndVoyage();
-                NextIsland();
+                ArriveAt(destIsland);
                 SaveSystem.Write(Snapshot()); // SaveGame() is skipped while sailing, so save the new island directly
                 savedAt = Time.time;
             }

@@ -25,22 +25,26 @@ public partial class IslandGame
     public Vector2 RaftPos => voyage != null ? voyage.raft : Vector2.zero;
     Vector3 PlayerPos => voyage != null ? (Vector3)voyage.raft + Vector3.up * 0.25f
                        : player != null ? player.transform.position : Vector3.zero;
-    Biome NextBiome => BiomeFor(island + 1);
+    /// Where the current voyage goes (set when you choose it on the sea chart).
+    public int destIsland = 2;
+    bool NewIslandTrip => destIsland > farthest;
     public float VoyageProgress => voyage == null ? 0f : Mathf.Clamp01(voyage.raft.x / voyage.length);
 
     void StartVoyage()
     {
         LeaveRoom(); // online: you're alone at sea until you reach the next island
+        RememberIsland(); // so you can sail back to it later
         if (world != null) Destroy(world.gameObject);
         world = new GameObject("Voyage").transform;
         world.SetParent(transform);
         nodes.Clear(); enemies.Clear(); water.Clear();
         player = null; cursor = null; target = null; enemyTarget = null; pond = null; seaSpot = null;
 
-        // Later islands are further away.
-        voyage = new Voyage { length = 36f + 4f * Mathf.Min(island, 6) };
-        BuildIslet(new Vector2(-7f, 0f), biome, 3.5f);                 // the island you're leaving
-        BuildIslet(new Vector2(voyage.length + 7f, 0f), NextBiome, 5f); // where you're heading
+        // Later islands are further away; going back along a route you know is quicker.
+        float length = NewIslandTrip ? 36f + 4f * Mathf.Min(island, 6) : 22f + 4f * Mathf.Min(Mathf.Abs(destIsland - island), 4);
+        voyage = new Voyage { length = length };
+        BuildIslet(new Vector2(-7f, 0f), biome, 3.5f);                             // the island you're leaving
+        BuildIslet(new Vector2(voyage.length + 7f, 0f), BiomeOf(destIsland), 5f); // where you're heading
 
         var wavesRoot = new GameObject("Waves").transform;
         wavesRoot.SetParent(world);
@@ -66,7 +70,7 @@ public partial class IslandGame
             SpawnSea(SeaKind.Jellyfish, new Vector2(Random.Range(6f, voyage.length - 3f), Random.Range(-5f, 5f)));
 
         camPos = voyage.raft;
-        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไปเกาะที่ {island + 1} ระวังฉลามด้วย!", 6f);
+        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไปเกาะที่ {destIsland} ระวังฉลามด้วย!", 6f);
     }
 
     void EndVoyage() => voyage = null; // the world itself is replaced by StartGame

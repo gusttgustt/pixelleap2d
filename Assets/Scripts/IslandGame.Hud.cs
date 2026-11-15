@@ -83,9 +83,7 @@ public partial class IslandGame
         NodeKind.Rock => "เก็บหิน",
         NodeKind.Campfire => "ใช้กองไฟ",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
-        NodeKind.Raft => raftLevel >= island
-            ? $"ออกเรือไปเกาะที่ {island + 1} (แพ Lv {raftLevel})"
-            : $"แพ Lv {raftLevel} - ต้องการ Lv {island} (อัปเกรดด้วย{RaftMaterial(biome)})",
+        NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
     };
 
@@ -162,12 +160,12 @@ public partial class IslandGame
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
         Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
         Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
-        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {island + 1}" : $"เกาะที่ {island}: {BiomeName}";
+        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}" : $"เกาะที่ {island}: {BiomeName}";
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
-                    : raftLevel < island ? $"เป้าหมาย: อัปเกรดแพเป็น Lv {island} ด้วย{RaftMaterial(biome)}"
-                    : $"เป้าหมาย: แพ Lv {raftLevel} พร้อมแล้ว - ออกเรือไปเกาะที่ {island + 1}";
+                    : raftLevel < farthest ? $"เป้าหมาย: อัปเกรดเรือเป็น Lv {farthest} ด้วย{RaftMaterial(biome)} เพื่อไปเกาะใหม่"
+                    : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
         ShadowLabel(new Rect(14, 106, 400, 18), goal, small, new Color(1f, 1f, 1f, 0.75f));
         if (voyage != null) DrawVoyageBar(W);
         float infoY = 122f;
@@ -242,7 +240,7 @@ public partial class IslandGame
             Fill(new Rect(0, 0, W, H), new Color(0.08f, 0.25f, 0.45f, a));
             string text = arriving
                 ? (sailApplied ? $"เกาะที่ {island}: {BiomeName}" : "เห็นฝั่งแล้ว!")
-                : (sailApplied ? $"ทะเลเปิด - พายไปเกาะที่ {island + 1}" : "กำลังออกเรือ...");
+                : (sailApplied ? $"ทะเลเปิด - พายไปเกาะที่ {destIsland}" : "กำลังออกเรือ...");
             ShadowLabel(new Rect(0, H / 2 - 20, W, 40), text, titleCenter, new Color(1f, 1f, 1f, a));
         }
 
@@ -300,11 +298,13 @@ public partial class IslandGame
         ShadowLabel(new Rect(x, y, w, 20), "ชื่อ", label);
         playerName = GUI.TextField(new Rect(x, y + 22, w, 26), playerName ?? "", 16, new GUIStyle(GUI.skin.textField) { fontSize = 15 });
         y += 60;
-        look.skin = Chooser(x, y, w, "สีผิว", look.skin, CharacterLook.Skins.Length, CharacterLook.Skins[look.skin], null); y += 32;
-        look.style = Chooser(x, y, w, "ทรงผม", look.style, CharacterLook.Styles.Length, null, CharacterLook.Styles[look.style]); y += 32;
-        look.hair = Chooser(x, y, w, "สีผม", look.hair, CharacterLook.Hairs.Length, CharacterLook.Hairs[look.hair], null); y += 32;
-        look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 32;
-        look.pants = Chooser(x, y, w, "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 36;
+        int g = Chooser(x, y, w, "เพศ", look.gender, CharacterLook.Genders.Length, null, CharacterLook.Genders[look.gender]); y += 30;
+        if (g != look.gender) { look.gender = g; look.style = g == 1 ? 1 : 0; } // switching gender also picks a fitting hair style
+        look.skin = Chooser(x, y, w, "สีผิว", look.skin, CharacterLook.Skins.Length, CharacterLook.Skins[look.skin], null); y += 30;
+        look.style = Chooser(x, y, w, "ทรงผม", look.style, CharacterLook.Styles.Length, null, CharacterLook.Styles[look.style]); y += 30;
+        look.hair = Chooser(x, y, w, "สีผม", look.hair, CharacterLook.Hairs.Length, CharacterLook.Hairs[look.hair], null); y += 30;
+        look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 30;
+        look.pants = Chooser(x, y, w, look.gender == 1 ? "กระโปรง" : "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 32;
         if (GUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
 
         // --- play
@@ -449,7 +449,7 @@ public partial class IslandGame
         Fill(new Rect(bar.x, bar.y, bar.width * VoyageProgress, bar.height), new Color(0.4f, 0.75f, 1f));
         Icon(new Rect(bar.x + bar.width * VoyageProgress - 10f, bar.y - 18f, 20f, 20f), PixelArt.Raft(raftLevel));
         ShadowLabel(new Rect(bar.x - 70, bar.y - 6, 66, 20), $"เกาะ {island}", new GUIStyle(small) { alignment = TextAnchor.MiddleRight });
-        ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 80, 20), $"เกาะ {island + 1}", small);
+        ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 80, 20), $"เกาะ {destIsland}", small);
         float left = Mathf.Max(0f, voyage.length - voyage.raft.x);
         ShadowLabel(new Rect(bar.x, bar.y + 10, bar.width, 18), $"เหลืออีก {left * 10f:0} ม.", smallCenter);
     }
