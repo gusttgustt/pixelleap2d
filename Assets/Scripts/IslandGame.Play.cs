@@ -23,6 +23,7 @@ public partial class IslandGame
         UpdateDayNight(dt);
         Fx.Tick(dt);
         hurtT -= dt;
+        UpdateTouch();
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -139,11 +140,11 @@ public partial class IslandGame
 
     void HandleInput(Keyboard kb)
     {
-        if (kb == null) return;
-        HandleCommonKeys(kb);
+        if (chatOpen) return;
+        if (kb != null) HandleCommonKeys(kb);
 
-        bool pressed = kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
-        bool held = kb.eKey.isPressed || kb.spaceKey.isPressed;
+        bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
+        bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
         float since = Time.time - lastInteract;
         bool Trigger(float repeatDelay)
         {

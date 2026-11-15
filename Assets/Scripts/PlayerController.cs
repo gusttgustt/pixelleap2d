@@ -70,6 +70,7 @@ public class PlayerController : MonoBehaviour
         }
         var gp = Gamepad.current;
         if (gp != null) v += gp.leftStick.ReadValue();
+        v += IslandGame.TouchMove; // on-screen joystick (phones, tablets)
         return v;
     }
 

@@ -163,10 +163,10 @@ public partial class IslandGame
             if (d < best) { best = d; v.target = c; }
         }
 
-        if (kb != null)
+        if (!chatOpen)
         {
-            bool pressed = kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
-            bool held = kb.eKey.isPressed || kb.spaceKey.isPressed;
+            bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
+            bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
             float since = Time.time - lastInteract;
             if (v.target != null)
             {

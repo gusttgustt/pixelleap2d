@@ -195,7 +195,9 @@ public partial class IslandGame
 
     void HandleDialog(Keyboard kb)
     {
-        if (kb == null || dialog == null) return;
+        if (dialog == null) return;
+        if (touchActionPressed) { CloseDialog(); return; } // the E button on a touch screen
+        if (kb == null) return;
         if (kb.escapeKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame) { CloseDialog(); return; }
         for (int i = 0; i < dialog.options.Count && i < 9; i++)
             if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame)

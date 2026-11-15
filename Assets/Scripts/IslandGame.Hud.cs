@@ -140,6 +140,7 @@ public partial class IslandGame
         if (!title && player == null && voyage == null) return;
         GameFont.Apply();
         InitStyles();
+        TouchSwallowEvents();
         float s = HudScale; // the HUD is designed for a virtual screen at least 820 x 540
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
         float W = Screen.width / s, H = Screen.height / s;
@@ -221,7 +222,7 @@ public partial class IslandGame
         if (dialog != null) DrawDialog(W, H);
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
-        ShadowLabel(new Rect(14, H - 22, W - 28, 20),
+        if (!touchUsed) ShadowLabel(new Rect(14, H - 22, W - 28, 20),
             "WASD เดิน | E ใช้/โจมตี (กดค้าง) | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
@@ -249,8 +250,14 @@ public partial class IslandGame
         {
             Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.6f));
             ShadowLabel(new Rect(0, H / 2 - 44, W, 40), voyage != null ? "หายไปกลางทะเล..." : "คุณไม่รอด...", titleCenter);
-            ShadowLabel(new Rect(0, H / 2 + 4, W, 24), $"ไปถึงเกาะที่ {island} เลเวล {level} วันที่ {Day} กด R เพื่อเริ่มการผจญภัยใหม่", labelCenter);
+            ShadowLabel(new Rect(0, H / 2 + 4, W, 24), $"ไปถึงเกาะที่ {island} เลเวล {level} วันที่ {Day}", labelCenter);
+            // a real button (mouse or finger); the R key still works too
+            var again = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
+            again.normal.textColor = new Color(1f, 0.85f, 0.3f);
+            again.hover.textColor = Color.white;
+            if (GUI.Button(new Rect(W / 2f - 130f, H / 2 + 40, 260f, 46f), "เริ่มการผจญภัยใหม่ (R)", again)) StartGame(null);
         }
+        DrawTouchControls();
     }
 
     /// Sound on/off button in the top-right corner (also the M key in game).
