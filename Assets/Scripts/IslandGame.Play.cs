@@ -24,13 +24,17 @@ public partial class IslandGame
         Fx.Tick(dt);
         hurtT -= dt;
 
+        if (title) { UpdateTitle(); return; }
+        NetPoll();
+
         if (dead)
         {
             if (kb != null && kb.rKey.wasPressedThisFrame) StartGame(null);
             return;
         }
         if (sailT > 0f) { UpdateSail(dt); return; }
-        if (sleepT > 0f) { UpdateSleep(dt); return; }
+        if (sleepT > 0f) { NetTick(dt); UpdateSleep(dt); return; }
+        var inputKb = chatOpen ? null : kb; // typing a chat message: keys aren't game controls
 
         Now += dt;
 
@@ -47,6 +51,8 @@ public partial class IslandGame
             return;
         }
 
+        NetTick(dt);
+
         if (kb != null)
         {
             if (kb.f5Key.wasPressedThisFrame) { SaveGame(); Hint("Game saved.", 1.5f); }
@@ -62,7 +68,7 @@ public partial class IslandGame
         autosaveTimer += dt;
         if (autosaveTimer >= AutosaveInterval) SaveGame();
         respawnTimer += dt;
-        if (respawnTimer >= RespawnInterval) { respawnTimer = 0f; RespawnMaterials(); }
+        if (respawnTimer >= RespawnInterval) { respawnTimer = 0f; if (IsHost) RespawnMaterials(); } // online the host decides
 
         if (IsNight && nightWarnedDay != Day)
         {
@@ -71,11 +77,12 @@ public partial class IslandGame
         }
 
         if (TickSurvival(dt)) return;
-        if (dialog != null) { HandleDialog(kb); return; } // talking pauses the action
+        if (dialog != null) { HandleDialog(inputKb); return; } // talking pauses the action (just for you)
 
         UpdateEnemies(dt);
         FindTarget();
-        HandleInput(kb);
+        HandleChatKeys(kb);
+        HandleInput(inputKb);
     }
 
     /// Hunger / thirst / health over time. Returns true if the player died.
@@ -123,6 +130,7 @@ public partial class IslandGame
         if (health > 0f) return false;
         health = 0f; dead = true; craftOpen = false; skillsOpen = false;
         if (cursor != null) cursor.enabled = false;
+        if (Shared) { AddChat("", "You died."); LeaveRoom(); } // someone else looks after the creatures now
         Sfx.Play("hurt", 0.8f);
         SaveSystem.Delete(); // death is permanent: next start is a new run
         return true;
@@ -247,40 +255,40 @@ public partial class IslandGame
             case NodeKind.Grass:
                 Give(Item.Fiber, rnd.Next(1, 3) + (knife ? 1 : 0) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.1f, leaf, 6, 0.8f, 1.3f);
-                n.Deplete(40f);
+                DepleteShared(n, 40f);
                 break;
             case NodeKind.Stick:
                 Give(Item.Stick, 1 + Bonus(), n);
                 Fx.Burst(at, wood, 4, 0.6f, 1f);
-                RemoveNode(n); // new ones appear elsewhere
+                RemoveShared(n); // new ones appear elsewhere
                 break;
             case NodeKind.Rock:
                 Give(Item.Stone, 1 + Bonus(), n);
                 Fx.Burst(at, new Color(0.6f, 0.62f, 0.65f), 4, 0.6f, 1f);
-                RemoveNode(n);
+                RemoveShared(n);
                 break;
             case NodeKind.Obsidian:
                 Give(Item.Obsidian, 1 + Bonus(), n);
                 Fx.Burst(at, new Color(0.35f, 0.3f, 0.5f), 5, 0.6f, 1f);
-                RemoveNode(n);
+                RemoveShared(n);
                 break;
             case NodeKind.Bamboo:
                 Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
-                n.Deplete(90f);
+                DepleteShared(n, 90f);
                 break;
             case NodeKind.Bush:
                 Give(Item.Berry, rnd.Next(2, 4) + (knife ? 1 : 0) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.3f, leaf, 6, 1f, 1.2f, 0.7f, 3f);
                 Fx.Burst(at + Vector3.up * 0.3f, new Color(0.75f, 0.15f, 0.25f), 3);
                 n.Shake();
-                n.Deplete(45f);
+                DepleteShared(n, 45f);
                 break;
             case NodeKind.FruitTree:
                 Give(Item.Fruit, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 1f, leaf, 8, 1.2f, 0.8f, 1f, 2f);
                 n.Shake();
-                n.Deplete(60f);
+                DepleteShared(n, 60f);
                 break;
             case NodeKind.Tree:
                 n.Shake();
@@ -294,12 +302,13 @@ public partial class IslandGame
                 else
                 {
                     Fx.Burst(at + Vector3.up * 0.3f, wood, 6, 1.2f, 1.4f);
-                    if (++n.hits >= ChopsNeeded)
+                    if (++n.hits < ChopsNeeded) SendNode(n, "hits"); // friends can chop the same tree
+                    if (n.hits >= ChopsNeeded)
                     {
                         Give(Item.Wood, 3 + Bonus(), n);
                         if (rnd.NextDouble() < 0.5) Give(Item.Stick, 1, n);
                         if (biome != Biome.Volcanic) Fx.Burst(at + Vector3.up * 1f, leaf, 14, 1.6f, 1f, 1.2f, 2f);
-                        n.BecomeStump(180f);
+                        StumpShared(n, 180f);
                     }
                     else Popup("Chop!", at + Vector3.up * 1.1f, Color.white);
                 }
@@ -368,26 +377,41 @@ public partial class IslandGame
         int dmg = WeaponDamage;
         Sfx.Play("hit", 0.6f);
         Vector3 at = e.transform.position;
+        if (e.puppet)
+        {
+            // Online, not the host: show the hit, let the host's game decide (it replies "kill").
+            e.Hit(dmg, player.grid);
+            Send(new NetMsg { t = "hit", to = hostId, id = e.netId, dmg = dmg });
+            Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
+            return;
+        }
         if (e.Hit(dmg, player.grid))
         {
             enemies.Remove(e);
-            var (drop, n) = e.kind switch
-            {
-                EnemyKind.Boar => (Item.RawMeat, 2),
-                EnemyKind.Snake => (Item.RawMeat, 1),
-                _ => (Item.CrabMeat, 1),
-            };
-            inv[drop] = Count(drop) + n;
-            Popup($"+{n} {Name(drop)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
-            // hides for the weaver's clothes: boars always, snakes sometimes
-            if (e.kind == EnemyKind.Boar || (e.kind == EnemyKind.Snake && rnd.NextDouble() < 0.5))
-            {
-                inv[Item.Hide] = Count(Item.Hide) + 1;
-                Popup("+1 Hide", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
-            }
-            AddXp(e.xp, at);
+            if (Shared) Send(new NetMsg { t = "kill", id = e.netId, by = myId, kind = (int)e.kind, x = at.x, y = at.y });
+            GrantKill(e.kind, e.xp, at);
         }
         else Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
+    }
+
+    /// Loot and XP for finishing off a creature.
+    void GrantKill(EnemyKind kind, int xpGain, Vector3 at)
+    {
+        var (drop, n) = kind switch
+        {
+            EnemyKind.Boar => (Item.RawMeat, 2),
+            EnemyKind.Snake => (Item.RawMeat, 1),
+            _ => (Item.CrabMeat, 1),
+        };
+        inv[drop] = Count(drop) + n;
+        Popup($"+{n} {Name(drop)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+        // hides for the weaver's clothes: boars always, snakes sometimes
+        if (kind == EnemyKind.Boar || (kind == EnemyKind.Snake && rnd.NextDouble() < 0.5))
+        {
+            inv[Item.Hide] = Count(Item.Hide) + 1;
+            Popup("+1 Hide", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
+        }
+        AddXp(xpGain, at);
     }
 
     void AddXp(int amount, Vector3 at)
@@ -469,7 +493,7 @@ public partial class IslandGame
             else g = new Vector2(rnd.Next(Size), rnd.Next(Size)) + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f;
 
             if (!IsLand(g) || (g - player.grid).magnitude < 4f || !FreeSpot(g, 0.2f)) continue;
-            Spawn(kind, g);
+            SendSpawn(Spawn(kind, g, false)); // online: tell everyone where it appeared
             return;
         }
     }
@@ -495,6 +519,7 @@ public partial class IslandGame
     void UpdateEnemies(float dt)
     {
         enemies.RemoveAll(e => e == null);
+        if (!IsHost) return; // online, the island's host spawns creatures for everyone
         enemyTimer += dt;
         if (enemyTimer < 5f) return;
         enemyTimer = 0f;
@@ -519,7 +544,7 @@ public partial class IslandGame
             if (d < 7f || d > 15f || DistanceToFire(g) < 4.5f || !CanWalk(g, 0.2f)) continue;
             var e = new GameObject(kind.ToString()).AddComponent<Enemy>();
             e.transform.SetParent(world);
-            e.Init(kind, g, tier);
+            e.Init(kind, g, tier, ++enemyCounter);
             enemies.Add(e);
             Fx.Burst(e.transform.position, kind == EnemyKind.Crab ? new Color(0.7f, 0.85f, 1f) : new Color(0.5f, 0.6f, 0.3f), 6);
             return true;
@@ -585,6 +610,7 @@ public partial class IslandGame
                 if ((g - player.grid).magnitude < own + 0.35f || !FreeSpot(g, own + 0.1f)) continue;
                 var n = Spawn(kind, g, false);
                 Fx.Burst(n.transform.position, new Color(0.8f, 0.7f, 0.5f), 10, 1.2f, 0.8f);
+                if (kind != NodeKind.Raft) SendSpawn(n); // campfires and shelters are shared; your raft is yours
                 return true;
             }
         return false;
@@ -627,16 +653,21 @@ public partial class IslandGame
         if (!sleepApplied && sleepT >= 1.2f)
         {
             sleepApplied = true;
-            float skip = Mathf.Repeat(0.27f - Phase, 1f) * DayLength; // wake up just after sunrise
-            clock += skip;
-            Now += skip; // plants keep growing while you sleep
+            bool alone = !(Shared && remotes.Count > 0);
             hunger = Mathf.Max(1f, hunger - 15f);
             thirst = Mathf.Max(1f, thirst - 20f);
             health = Mathf.Min(MaxHealth, health + 35f);
-            foreach (var e in enemies) if (e != null) Destroy(e.gameObject);
-            enemies.Clear();
+            if (alone)
+            {
+                float skip = Mathf.Repeat(0.27f - Phase, 1f) * DayLength; // wake up just after sunrise
+                clock += skip;
+                Now += skip; // plants keep growing while you sleep
+                foreach (var e in enemies) if (e != null) Destroy(e.gameObject);
+                enemies.Clear();
+                Hint($"You slept until morning. Day {Day}.", 3f);
+            }
+            else Hint("You took a nap (the night goes on while others are awake).", 3f); // time is shared online
             SaveGame();
-            Hint($"You slept until morning. Day {Day}.", 3f);
         }
         if (sleepT >= 2.6f) sleepT = 0f;
     }

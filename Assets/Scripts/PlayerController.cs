@@ -22,12 +22,17 @@ public class PlayerController : MonoBehaviour
 
     public void Flash() => hurtT = 0.2f;
 
+    // What other players need to draw this player (sent over the network).
+    public int Dir => dir;
+    public int Frame { get; private set; }
+    public bool Flip => sr != null && sr.flipX;
+
     void Update()
     {
         var game = IslandGame.I;
         int frame = 0;
         hurtT -= Time.deltaTime;
-        if (!game.dead && !game.Busy)
+        if (!game.dead && !game.InputBlocked)
         {
             Vector2 input = ReadInput();
             if (input.sqrMagnitude > 0.01f)
@@ -72,6 +77,7 @@ public class PlayerController : MonoBehaviour
 
     void Apply(int frame)
     {
+        Frame = frame;
         // Smoothly step up/down terrain levels.
         height = Mathf.Lerp(height, IslandGame.I.HeightAt(grid), 1f - Mathf.Exp(-14f * Time.deltaTime));
         Vector3 flat = IslandGame.GridToWorld(grid);

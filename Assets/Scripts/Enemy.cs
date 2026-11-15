@@ -20,12 +20,22 @@ public class Enemy : MonoBehaviour
     Vector2 wanderDir;
     int frame;
 
-    public string DisplayName => kind.ToString();
+    // Online: the island's host runs every creature; other players see "puppets" that just
+    // follow the positions the host sends, and pass their hits on to the host.
+    public int netId;
+    public bool puppet;
+    Vector2 netTarget;
 
-    public void Init(EnemyKind k, Vector2 g, int tier)
+    public string DisplayName => kind.ToString();
+    public bool Flip => sr != null && sr.flipX;
+
+    public void Init(EnemyKind k, Vector2 g, int tier, int id = 0, bool asPuppet = false)
     {
         kind = k;
         grid = g;
+        netId = id;
+        puppet = asPuppet;
+        netTarget = g;
         (maxHp, damage, speed, aggro, xp) = k switch
         {
             EnemyKind.Snake => (4, 6f, 1.7f, 6f, 15),
@@ -43,15 +53,35 @@ public class Enemy : MonoBehaviour
         Apply();
     }
 
+    /// Puppets: the latest state from the host.
+    public void SetNetState(Vector2 g, int newHp, int newMax, bool flip)
+    {
+        netTarget = g;
+        hp = newHp;
+        maxHp = Mathf.Max(1, newMax);
+        if (sr != null) sr.flipX = flip;
+    }
+
     void Update()
     {
         var game = IslandGame.I;
-        if (game.dead || game.Busy) { Apply(); return; }
+        if (puppet)
+        {
+            hurtT -= Time.deltaTime;
+            Vector2 before = grid;
+            grid = Vector2.Lerp(grid, netTarget, 1f - Mathf.Exp(-10f * Time.deltaTime));
+            if ((grid - before).sqrMagnitude > 0.00001f) { animT += Time.deltaTime * 10f; frame = (int)animT & 1; }
+            Apply();
+            return;
+        }
+        // Offline, pauses (talking, sleeping...) freeze the creatures. Online the host keeps them going for everyone.
+        if (game.player == null || (!game.Online && (game.dead || game.Busy))) { Apply(); return; }
         float dt = Time.deltaTime;
         attackCd -= dt;
         hurtT -= dt;
 
-        Vector2 toPlayer = game.player.grid - grid;
+        var (targetGrid, targetWho) = game.NearestPlayer(grid); // chase whichever player is closest
+        Vector2 toPlayer = targetGrid - grid;
         float dist = toPlayer.magnitude;
         Vector2 dir = Vector2.zero;
         float pace = 1f;
@@ -99,7 +129,8 @@ public class Enemy : MonoBehaviour
             if (dist < 0.65f && attackCd <= 0f)
             {
                 attackCd = 1.3f;
-                game.DamagePlayer(damage, $"{DisplayName}!");
+                if (targetWho == 0) game.DamagePlayer(damage, $"{DisplayName}!");
+                else game.NetDamage(targetWho, damage, $"{DisplayName}!"); // bite another player
             }
         }
 
@@ -128,9 +159,10 @@ public class Enemy : MonoBehaviour
     /// Returns true if the enemy died.
     public bool Hit(int dmg, Vector2 from)
     {
-        hp -= dmg;
         hurtT = 0.15f;
         Fx.Burst(transform.position + Vector3.up * 0.15f, kind == EnemyKind.Snake ? new Color(0.4f, 0.7f, 0.3f) : new Color(1f, 0.5f, 0.3f), 6);
+        if (puppet) return false; // the host decides; it tells everyone when it dies
+        hp -= dmg;
         Vector2 knock = (grid - from).normalized * (kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);

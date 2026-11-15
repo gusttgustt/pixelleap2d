@@ -30,6 +30,7 @@ public partial class IslandGame
 
     void StartVoyage()
     {
+        LeaveRoom(); // online: you're alone at sea until you reach the next island
         if (world != null) Destroy(world.gameObject);
         world = new GameObject("Voyage").transform;
         world.SetParent(transform);

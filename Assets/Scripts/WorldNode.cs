@@ -9,6 +9,7 @@ public class WorldNode : MonoBehaviour
     public bool available = true; // false = already harvested, waiting to regrow
     public int hits;
     public bool flip;
+    public int id;                // same on every player's machine (online sync)
 
     // Regrow timers run on game time (IslandGame.Now) so sleeping through the night makes plants grow.
     float regrowAt, shakeT, animT;

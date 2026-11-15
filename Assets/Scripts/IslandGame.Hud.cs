@@ -131,11 +131,14 @@ public partial class IslandGame
 
     void OnGUI()
     {
-        if (player == null && voyage == null) return;
+        if (!title && player == null && voyage == null) return;
         InitStyles();
         float s = Screen.height / 540f; // design the HUD for a 540px-tall virtual screen
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
         float W = Screen.width / s, H = 540f;
+        if (title) { DrawTitle(W, H); return; }
+        if (player != null) DrawPlayerTags(s);
+        DrawOnlineInfo(W, H);
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
 
@@ -233,6 +236,97 @@ public partial class IslandGame
             ShadowLabel(new Rect(0, H / 2 - 44, W, 40), voyage != null ? "Lost at sea..." : "You didn't survive...", titleCenter);
             ShadowLabel(new Rect(0, H / 2 + 4, W, 24), $"Reached island {island} at level {level}, day {Day}. Press R to start a new adventure.", labelCenter);
         }
+    }
+
+    // ------------------------------------------------------------------ online UI
+    void DrawTitle(float W, float H)
+    {
+        Fill(new Rect(0, 0, W, H), new Color(0.02f, 0.08f, 0.15f, 0.55f));
+        var big = new GUIStyle(titleCenter) { fontSize = 40 };
+        ShadowLabel(new Rect(0, 70, W, 50), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
+        ShadowLabel(new Rect(0, 118, W, 22), "Gather, craft, survive - and sail from island to island with friends", labelCenter, new Color(1f, 1f, 1f, 0.8f));
+
+        var box = new Rect(W / 2f - 170, 170, 340, 210);
+        Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.85f));
+        Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
+        ShadowLabel(new Rect(box.x + 20, box.y + 14, 300, 20), "Your name", label);
+        GUI.enabled = !connecting;
+        playerName = GUI.TextField(new Rect(box.x + 20, box.y + 38, 300, 26), playerName ?? "", 16,
+            new GUIStyle(GUI.skin.textField) { fontSize = 15 });
+        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
+        if (GUI.Button(new Rect(box.x + 20, box.y + 80, 300, 36), "Play Online (meet other players)", btn)) PlayOnline();
+        if (GUI.Button(new Rect(box.x + 20, box.y + 124, 300, 30), "Play Offline", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
+        GUI.enabled = true;
+        var status = new GUIStyle(smallCenter) { wordWrap = true };
+        ShadowLabel(new Rect(box.x + 10, box.y + 160, 320, 40), netStatus, status, new Color(1f, 0.9f, 0.6f));
+        if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 10, 120, 24), "Cancel")) PlayOffline();
+
+        ShadowLabel(new Rect(0, H - 26, W, 20), "Your progress is saved in this browser. Online, everyone on the same island shares it.", smallCenter, new Color(1f, 1f, 1f, 0.6f));
+    }
+
+    /// Names (and chat bubbles) over other players and yourself.
+    void DrawPlayerTags(float s)
+    {
+        foreach (var r in remotes.Values)
+        {
+            if (r == null) continue;
+            var gp = ToGui(r.transform.position + Vector3.up * 0.85f, s);
+            ShadowLabel(new Rect(gp.x - 70, gp.y - 18, 140, 18), $"{r.playerName}  <size=10>Lv {r.level}</size>", smallCenter, new Color(0.7f, 0.9f, 1f));
+            if (Time.time < r.chatUntil) ChatBubble(gp, r.chat);
+        }
+        if (Time.time < myChatUntil && player != null) ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat);
+    }
+
+    void ChatBubble(Vector2 gp, string text)
+    {
+        var st = new GUIStyle(small) { wordWrap = true, alignment = TextAnchor.MiddleCenter, fontSize = 11 };
+        float w = Mathf.Min(200f, 14f + st.CalcSize(new GUIContent(text)).x);
+        float h = st.CalcHeight(new GUIContent(text), w - 8f) + 6f;
+        var r = new Rect(gp.x - w / 2f, gp.y - 22 - h, w, h);
+        Fill(r, new Color(1f, 1f, 1f, 0.92f));
+        st.normal.textColor = new Color(0.1f, 0.08f, 0.06f);
+        GUI.Label(new Rect(r.x + 4, r.y + 3, r.width - 8, r.height - 6), text, st);
+    }
+
+    void DrawOnlineInfo(float W, float H)
+    {
+        string state = !Online ? "Offline"
+                     : voyage != null ? "Online - at sea"
+                     : !inRoom ? "Online - joining island..."
+                     : $"Online - {remotes.Count + 1} on this island{(IsHost && remotes.Count > 0 ? " (host)" : "")}";
+        ShadowLabel(new Rect(W - 330, 30, 316, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight },
+            Online ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.5f));
+
+        // recent chat
+        float y = H - 140;
+        for (int i = chatLog.Count - 1; i >= 0 && y > H - 260; i--)
+        {
+            var c = chatLog[i];
+            float age = Time.time - c.t;
+            if (age > 20f && !chatOpen) continue;
+            float a = chatOpen ? 1f : Mathf.Clamp01((20f - age) / 3f);
+            string line = string.IsNullOrEmpty(c.who) ? $"<i>{c.text}</i>" : $"<b>{c.who}:</b> {c.text}";
+            ShadowLabel(new Rect(14, y, 420, 18), line, small, new Color(1f, 1f, 1f, a));
+            y -= 16;
+        }
+
+        if (chatOpen)
+        {
+            var e = Event.current;
+            bool justOpened = Time.time - chatOpenedAt < 0.2f;
+            if (e.type == EventType.KeyDown && !justOpened)
+            {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { SubmitChat(); e.Use(); return; }
+                if (e.keyCode == KeyCode.Escape) { chatOpen = false; e.Use(); return; }
+            }
+            Fill(new Rect(10, H - 120, 430, 26), new Color(0f, 0f, 0f, 0.6f));
+            GUI.SetNextControlName("chat");
+            chatText = GUI.TextField(new Rect(14, H - 117, 422, 20), chatText ?? "", 80);
+            GUI.FocusControl("chat");
+            ShadowLabel(new Rect(14, H - 96, 420, 16), "Enter to send, Esc to cancel", small, new Color(1f, 1f, 1f, 0.6f));
+        }
+        else if (Shared && remotes.Count > 0)
+            ShadowLabel(new Rect(W - 330, 46, 316, 18), "Enter: chat", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 0.5f));
     }
 
     static string ClothingBonus(Item it) => it switch

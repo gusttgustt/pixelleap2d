@@ -204,7 +204,7 @@ public partial class IslandGame : MonoBehaviour
         SetupCamera();
         SetupSun();
         Sfx.Init(gameObject);
-        StartGame(SaveSystem.Read());
+        InitTitle(); // choose a name and online / offline first (IslandGame.Net.cs)
     }
 
     static SaveData NewRun() => new SaveData
@@ -218,8 +218,17 @@ public partial class IslandGame : MonoBehaviour
     void StartGame(SaveData data)
     {
         if (data == null) data = NewRun();
+        if (Online)
+        {
+            // Online everyone shares the island: build it fresh from the shared seed, then
+            // catch up on what other players already changed (see "room" in IslandGame.Net.cs).
+            data.seed = SeedFor(Mathf.Max(1, data.island));
+            data.fresh = true;
+        }
         bool fresh = data.fresh;
         voyage = null; // always start on land
+        nodeById.Clear();
+        genCounter = 0; localCounter = 0;
 
         if (world != null) Destroy(world.gameObject);
         world = new GameObject("World").transform;
@@ -243,8 +252,10 @@ public partial class IslandGame : MonoBehaviour
         villagers.Clear();
         dialog = null;
         rnd = new System.Random(seed);
+        genPhase = true; // nodes made from the seed get the same ids on every machine
         BuildIsland(Center, spawnResources: fresh);
         if (fresh && biome == Biome.Tribal) BuildVillage();
+        genPhase = false;
 
         Vector2? landing = null;
         if (!fresh)
@@ -277,6 +288,7 @@ public partial class IslandGame : MonoBehaviour
         else if (island == 1) Hint("Find fresh water (light-blue ponds) and food. Gather materials, Tab to craft.", 8f);
         else Hint($"Land ho! Island {island}: {BiomeName}. {BiomeIntro()}", 9f);
         if (fresh) SaveGame(); // replaces any old save right away
+        JoinRoom();            // online: meet whoever else is on this island
     }
 
     string BiomeIntro() => biome switch
@@ -528,17 +540,20 @@ public partial class IslandGame : MonoBehaviour
                 }
     }
 
-    public WorldNode Spawn(NodeKind k, Vector2 g, bool? flip = null)
+    public WorldNode Spawn(NodeKind k, Vector2 g, bool? flip = null, int? id = null)
     {
         var n = new GameObject(k.ToString()).AddComponent<WorldNode>();
         n.transform.SetParent(world);
+        n.id = id ?? (genPhase ? ++genCounter : NewLocalId());
         n.Init(k, g, flip ?? rnd.Next(2) == 0);
         nodes.Add(n);
+        nodeById[n.id] = n;
         return n;
     }
 
     void RemoveNode(WorldNode n)
     {
+        nodeById.Remove(n.id);
         nodes.Remove(n);
         if (target == n) target = null;
         Destroy(n.gameObject);
