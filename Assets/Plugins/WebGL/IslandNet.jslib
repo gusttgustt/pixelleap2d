@@ -37,6 +37,10 @@ mergeInto(LibraryManager.library, {
     return buf;
   },
 
+  IS_ReloadPage: function () {
+    window.location.reload();
+  },
+
   IS_WsClose: function (h) {
     var e = Module.isWs && Module.isWs.socks[h];
     if (!e) return;

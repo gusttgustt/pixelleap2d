@@ -66,41 +66,43 @@ public partial class IslandGame : MonoBehaviour
     const float RespawnInterval = 15f;     // how often a new stick / rock may appear
     const int FlaskSize = 3;
 
+    public const string MissingMaterials = "ขาดวัตถุดิบ";
+
     public static readonly Recipe[] Recipes =
     {
-        new Recipe { name = "Rope", output = Item.Rope, cost = new[] { (Item.Fiber, 3) }, desc = "Twist plant fibers together" },
-        new Recipe { name = "Stone Knife", output = Item.StoneKnife, cost = new[] { (Item.Stone, 1), (Item.Stick, 1) }, desc = "More fiber from grass, more berries" },
-        new Recipe { name = "Stone Axe", output = Item.StoneAxe, cost = new[] { (Item.Stick, 2), (Item.Stone, 2), (Item.Rope, 1) }, desc = "Chop trees for wood" },
-        new Recipe { name = "Spear", output = Item.Spear, cost = new[] { (Item.Stick, 3), (Item.Stone, 1), (Item.Rope, 1) }, desc = "Fish at the sea, 3 damage" },
-        new Recipe { name = "Campfire", places = NodeKind.Campfire, cost = new[] { (Item.Wood, 3), (Item.Stone, 4), (Item.Stick, 2) }, desc = "Light, cooking, scares enemies" },
-        new Recipe { name = "Shelter", places = NodeKind.Shelter, cost = new[] { (Item.Wood, 6), (Item.Rope, 3), (Item.Fiber, 6) }, desc = "Sleep through the night" },
-        new Recipe { name = "Cooked Fruit", output = Item.CookedFruit, cost = new[] { (Item.Fruit, 1) }, needsFire = true, desc = "+40 hunger, +10 health" },
-        new Recipe { name = "Cooked Fish", output = Item.CookedFish, cost = new[] { (Item.RawFish, 1) }, needsFire = true, desc = "+35 hunger, +10 health" },
-        new Recipe { name = "Cooked Crab", output = Item.CookedCrab, cost = new[] { (Item.CrabMeat, 1) }, needsFire = true, desc = "+45 hunger, +15 health" },
-        new Recipe { name = "Raft", places = NodeKind.Raft, atShore = true, cost = new[] { (Item.Wood, 12), (Item.Rope, 6), (Item.Stick, 4) }, desc = "Your boat for the whole journey. Build at the shore" },
-        new Recipe { name = "Upgrade Raft", raftUpgrade = true, cost = new (Item, int)[0], desc = "" },
-        new Recipe { name = "Cooked Meat", output = Item.CookedMeat, cost = new[] { (Item.RawMeat, 1) }, needsFire = true, desc = "+50 hunger, +15 health" },
-        new Recipe { name = "Water Flask", output = Item.WaterFlask, cost = new[] { (Item.Bamboo, 2), (Item.Rope, 1) }, desc = "Carry 3 drinks (Q). Refills at ponds" },
-        new Recipe { name = "Obsidian Spear", output = Item.ObsidianSpear, cost = new[] { (Item.Obsidian, 2), (Item.Stick, 2), (Item.Rope, 1) }, desc = "Sharp! 6 damage, fishing" },
-        new Recipe { name = "Obsidian Axe", output = Item.ObsidianAxe, cost = new[] { (Item.Obsidian, 2), (Item.Stick, 2), (Item.Rope, 1) }, desc = "Fells trees in 2 fewer hits" },
+        new Recipe { name = "เชือก", output = Item.Rope, cost = new[] { (Item.Fiber, 3) }, desc = "ฟั่นใยพืชเข้าด้วยกัน" },
+        new Recipe { name = "มีดหิน", output = Item.StoneKnife, cost = new[] { (Item.Stone, 1), (Item.Stick, 1) }, desc = "ได้ใยพืชจากหญ้าและเบอร์รี่มากขึ้น" },
+        new Recipe { name = "ขวานหิน", output = Item.StoneAxe, cost = new[] { (Item.Stick, 2), (Item.Stone, 2), (Item.Rope, 1) }, desc = "ตัดต้นไม้เอาไม้" },
+        new Recipe { name = "หอก", output = Item.Spear, cost = new[] { (Item.Stick, 3), (Item.Stone, 1), (Item.Rope, 1) }, desc = "แทงปลาในทะเล ดาเมจ 3" },
+        new Recipe { name = "กองไฟ", places = NodeKind.Campfire, cost = new[] { (Item.Wood, 3), (Item.Stone, 4), (Item.Stick, 2) }, desc = "ให้แสง ใช้ทำอาหาร ไล่ศัตรู" },
+        new Recipe { name = "เพิงพัก", places = NodeKind.Shelter, cost = new[] { (Item.Wood, 6), (Item.Rope, 3), (Item.Fiber, 6) }, desc = "นอนหลับข้ามคืน" },
+        new Recipe { name = "ผลไม้ปิ้ง", output = Item.CookedFruit, cost = new[] { (Item.Fruit, 1) }, needsFire = true, desc = "อิ่ม +40, พลังชีวิต +10" },
+        new Recipe { name = "ปลาย่าง", output = Item.CookedFish, cost = new[] { (Item.RawFish, 1) }, needsFire = true, desc = "อิ่ม +35, พลังชีวิต +10" },
+        new Recipe { name = "ปูย่าง", output = Item.CookedCrab, cost = new[] { (Item.CrabMeat, 1) }, needsFire = true, desc = "อิ่ม +45, พลังชีวิต +15" },
+        new Recipe { name = "แพ", places = NodeKind.Raft, atShore = true, cost = new[] { (Item.Wood, 12), (Item.Rope, 6), (Item.Stick, 4) }, desc = "เรือคู่ใจตลอดการเดินทาง สร้างที่ริมทะเล" },
+        new Recipe { name = "อัปเกรดแพ", raftUpgrade = true, cost = new (Item, int)[0], desc = "" },
+        new Recipe { name = "เนื้อย่าง", output = Item.CookedMeat, cost = new[] { (Item.RawMeat, 1) }, needsFire = true, desc = "อิ่ม +50, พลังชีวิต +15" },
+        new Recipe { name = "กระบอกน้ำ", output = Item.WaterFlask, cost = new[] { (Item.Bamboo, 2), (Item.Rope, 1) }, desc = "พกน้ำได้ 3 ครั้ง (Q) เติมที่บ่อน้ำ" },
+        new Recipe { name = "หอกออบซิเดียน", output = Item.ObsidianSpear, cost = new[] { (Item.Obsidian, 2), (Item.Stick, 2), (Item.Rope, 1) }, desc = "คมกริบ! ดาเมจ 6 แทงปลาได้" },
+        new Recipe { name = "ขวานออบซิเดียน", output = Item.ObsidianAxe, cost = new[] { (Item.Obsidian, 2), (Item.Stick, 2), (Item.Rope, 1) }, desc = "ตัดต้นไม้เร็วขึ้น 2 ครั้ง" },
         // Taught by the tribe (Tribe Island):
-        new Recipe { name = "Cloth", output = Item.Cloth, learn = true, cost = new[] { (Item.Fiber, 4) }, desc = "Woven fiber for clothes and sails" },
-        new Recipe { name = "Straw Hat", output = Item.StrawHat, learn = true, cost = new[] { (Item.Fiber, 6), (Item.Rope, 1) }, desc = "Hat: thirst drains 15% slower" },
-        new Recipe { name = "Tribal Headband", output = Item.TribalHeadband, learn = true, cost = new[] { (Item.Cloth, 2), (Item.Hide, 1) }, desc = "Hat: +1 attack damage" },
-        new Recipe { name = "Leaf Tunic", output = Item.LeafTunic, learn = true, cost = new[] { (Item.Fiber, 8), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "Body: +15 max health" },
-        new Recipe { name = "Hide Vest", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "Body: take 20% less damage" },
+        new Recipe { name = "ผ้า", output = Item.Cloth, learn = true, cost = new[] { (Item.Fiber, 4) }, desc = "ทอจากใยพืช ใช้ทำเสื้อผ้าและใบเรือ" },
+        new Recipe { name = "หมวกฟาง", output = Item.StrawHat, learn = true, cost = new[] { (Item.Fiber, 6), (Item.Rope, 1) }, desc = "หมวก: หิวน้ำช้าลง 15%" },
+        new Recipe { name = "ผ้าคาดหัวชนเผ่า", output = Item.TribalHeadband, learn = true, cost = new[] { (Item.Cloth, 2), (Item.Hide, 1) }, desc = "หมวก: ดาเมจโจมตี +1" },
+        new Recipe { name = "เสื้อใบไม้", output = Item.LeafTunic, learn = true, cost = new[] { (Item.Fiber, 8), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: พลังชีวิตสูงสุด +15" },
+        new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
     };
 
     public static readonly (string name, string desc, int max, bool combat)[] SkillInfo =
     {
-        ("Strength", "+1 attack damage", 5, true),
-        ("Toughness", "+15 max health", 5, true),
-        ("Agility", "+8% move speed", 3, true),
-        ("Evasion", "+10% chance to dodge a hit", 3, true),
-        ("Forager", "+30% chance of an extra item when gathering", 3, false),
-        ("Lumberjack", "1 fewer chop per tree", 2, false),
-        ("Iron Stomach", "Hunger & thirst drain 12% slower", 3, false),
-        ("Fisher", "+15% fishing success", 3, false),
+        ("พละกำลัง", "ดาเมจโจมตี +1", 5, true),
+        ("ความอึด", "พลังชีวิตสูงสุด +15", 5, true),
+        ("ความว่องไว", "เดินเร็วขึ้น 8%", 3, true),
+        ("หลบหลีก", "โอกาสหลบการโจมตี +10%", 3, true),
+        ("นักเก็บของ", "โอกาสได้ของเพิ่มตอนเก็บ +30%", 3, false),
+        ("คนตัดไม้", "ตัดต้นไม้ใช้น้อยลง 1 ครั้ง", 2, false),
+        ("ท้องเหล็ก", "หิวข้าวและหิวน้ำช้าลง 12%", 3, false),
+        ("ชาวประมง", "แทงปลาติดง่ายขึ้น 15%", 3, false),
     };
 
     // ------------------------------------------------------------------ state
@@ -145,7 +147,7 @@ public partial class IslandGame : MonoBehaviour
     public float SpeedMultiplier => 1f + 0.08f * SkillLv(Skill.Agility);
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
-    public string BiomeName => biome switch { Biome.Jungle => "Jungle Island", Biome.Volcanic => "Volcano Island", Biome.Tribal => "Tribe Island", _ => "Tropical Island" };
+    public string BiomeName => biome switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", _ => "เกาะเขตร้อน" };
 
     /// The island chain: Tropical -> Jungle -> Tribe -> Volcano, then again with tougher creatures.
     public static Biome BiomeFor(int islandNumber) =>
@@ -176,24 +178,34 @@ public partial class IslandGame : MonoBehaviour
 
     public static string Name(Item it) => it switch
     {
-        Item.Fiber => "Plant Fiber",
-        Item.Berry => "Berries",
-        Item.CookedFruit => "Cooked Fruit",
-        Item.StoneAxe => "Stone Axe",
-        Item.StoneKnife => "Stone Knife",
-        Item.RawFish => "Raw Fish",
-        Item.CookedFish => "Cooked Fish",
-        Item.CrabMeat => "Crab Meat",
-        Item.CookedCrab => "Cooked Crab",
-        Item.RawMeat => "Raw Meat",
-        Item.CookedMeat => "Cooked Meat",
-        Item.WaterFlask => "Water Flask",
-        Item.ObsidianSpear => "Obsidian Spear",
-        Item.ObsidianAxe => "Obsidian Axe",
-        Item.StrawHat => "Straw Hat",
-        Item.LeafTunic => "Leaf Tunic",
-        Item.HideVest => "Hide Vest",
-        Item.TribalHeadband => "Tribal Headband",
+        Item.Fiber => "ใยพืช",
+        Item.Stick => "กิ่งไม้",
+        Item.Stone => "หิน",
+        Item.Wood => "ไม้",
+        Item.Berry => "เบอร์รี่",
+        Item.Fruit => "ผลไม้",
+        Item.Rope => "เชือก",
+        Item.Spear => "หอก",
+        Item.Bamboo => "ไม้ไผ่",
+        Item.Obsidian => "ออบซิเดียน",
+        Item.Hide => "หนังสัตว์",
+        Item.Cloth => "ผ้า",
+        Item.CookedFruit => "ผลไม้ปิ้ง",
+        Item.StoneAxe => "ขวานหิน",
+        Item.StoneKnife => "มีดหิน",
+        Item.RawFish => "ปลาดิบ",
+        Item.CookedFish => "ปลาย่าง",
+        Item.CrabMeat => "เนื้อปู",
+        Item.CookedCrab => "ปูย่าง",
+        Item.RawMeat => "เนื้อดิบ",
+        Item.CookedMeat => "เนื้อย่าง",
+        Item.WaterFlask => "กระบอกน้ำ",
+        Item.ObsidianSpear => "หอกออบซิเดียน",
+        Item.ObsidianAxe => "ขวานออบซิเดียน",
+        Item.StrawHat => "หมวกฟาง",
+        Item.LeafTunic => "เสื้อใบไม้",
+        Item.HideVest => "เสื้อกั๊กหนัง",
+        Item.TribalHeadband => "ผ้าคาดหัวชนเผ่า",
         _ => it.ToString(),
     };
 
@@ -284,19 +296,19 @@ public partial class IslandGame : MonoBehaviour
         cursor.sortingOrder = -30000; // above ground, below objects
 
         camPos = player.transform.position;
-        if (!fresh) Hint($"Welcome back! {BiomeName} (island {island}), day {Day}.", 4f);
-        else if (island == 1) Hint("Find fresh water (light-blue ponds) and food. Gather materials, Tab to craft.", 8f);
-        else Hint($"Land ho! Island {island}: {BiomeName}. {BiomeIntro()}", 9f);
+        if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
+        else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
+        else Hint($"เห็นฝั่งแล้ว! เกาะที่ {island}: {BiomeName} {BiomeIntro()}", 9f);
         if (fresh) SaveGame(); // replaces any old save right away
         JoinRoom();            // online: meet whoever else is on this island
     }
 
     string BiomeIntro() => biome switch
     {
-        Biome.Jungle => "Snakes hide in the grass. Upgrade your raft with Bamboo to go on.",
-        Biome.Volcanic => "Wild boars roam the ash. Upgrade your raft with Obsidian to go on.",
-        Biome.Tribal => "Smoke rises from a village in the middle of the island. Go and meet the tribe!",
-        _ => tier > 0 ? "The creatures here look stronger than before..." : "Upgrade your raft with wood to go on.",
+        Biome.Jungle => "มีงูซ่อนอยู่ในหญ้า อัปเกรดแพด้วยไม้ไผ่เพื่อไปต่อ",
+        Biome.Volcanic => "หมูป่าเดินเพ่นพ่านบนเถ้าภูเขาไฟ อัปเกรดแพด้วยออบซิเดียนเพื่อไปต่อ",
+        Biome.Tribal => "มีควันลอยขึ้นจากหมู่บ้านกลางเกาะ ไปทักทายชนเผ่ากันเถอะ!",
+        _ => tier > 0 ? "สัตว์ที่นี่ดูแข็งแกร่งกว่าเดิม..." : "อัปเกรดแพด้วยไม้เพื่อไปต่อ",
     };
 
     public WorldNode RaftNode => nodes.Find(n => n != null && n.kind == NodeKind.Raft);

@@ -20,7 +20,7 @@ public class RemotePlayer : MonoBehaviour
     public void Init(int id, string name)
     {
         netId = id;
-        playerName = string.IsNullOrEmpty(name) ? "Player " + id : name;
+        playerName = string.IsNullOrEmpty(name) ? "ผู้เล่น " + id : name;
         sr = gameObject.AddComponent<SpriteRenderer>();
         sr.enabled = false; // until the first position arrives
     }

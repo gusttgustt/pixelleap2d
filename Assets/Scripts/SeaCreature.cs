@@ -18,7 +18,7 @@ public class SeaCreature : MonoBehaviour
     SpriteRenderer sr;
     int frame;
 
-    public string DisplayName => kind == SeaKind.Shark ? "Shark" : "Jellyfish";
+    public string DisplayName => kind == SeaKind.Shark ? "ฉลาม" : "แมงกะพรุน";
 
     public void Init(SeaKind k, Vector2 p, int tier)
     {
@@ -65,7 +65,7 @@ public class SeaCreature : MonoBehaviour
                     pos = Vector2.MoveTowards(pos, raft, speed * 1.9f * dt);
                     if (dist < 0.6f)
                     {
-                        game.DamagePlayer(damage, "Shark bite!");
+                        game.DamagePlayer(damage, "ฉลามกัด!");
                         Retreat();
                     }
                     else if (stateT <= 0f) Retreat();
@@ -83,7 +83,7 @@ public class SeaCreature : MonoBehaviour
             if (dist < 0.6f && stingCd <= 0f)
             {
                 stingCd = 1.5f;
-                game.DamagePlayer(damage, "Jellyfish sting!");
+                game.DamagePlayer(damage, "แมงกะพรุนต่อย!");
             }
             animT += dt * 2.5f;
         }

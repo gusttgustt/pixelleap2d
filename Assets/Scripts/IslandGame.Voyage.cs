@@ -66,7 +66,7 @@ public partial class IslandGame
             SpawnSea(SeaKind.Jellyfish, new Vector2(Random.Range(6f, voyage.length - 3f), Random.Range(-5f, 5f)));
 
         camPos = voyage.raft;
-        Hint($"Paddle east (D / right) to reach island {island + 1}. Watch out for sharks!", 6f);
+        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไปเกาะที่ {island + 1} ระวังฉลามด้วย!", 6f);
     }
 
     void EndVoyage() => voyage = null; // the world itself is replaced by StartGame

@@ -55,11 +55,11 @@ public partial class IslandGame
 
         if (kb != null)
         {
-            if (kb.f5Key.wasPressedThisFrame) { SaveGame(); Hint("Game saved.", 1.5f); }
+            if (kb.f5Key.wasPressedThisFrame) { SaveGame(); Hint("บันทึกเกมแล้ว", 1.5f); }
             if (kb.f9Key.wasPressedThisFrame)
             {
                 var data = SaveSystem.Read();
-                if (data != null) StartGame(data); else Hint("No save file found.", 2f);
+                if (data != null) StartGame(data); else Hint("ไม่พบไฟล์เซฟ", 2f);
                 return;
             }
             if (kb.f8Key.wasPressedThisFrame) { SaveSystem.Delete(); StartGame(null); return; }
@@ -73,7 +73,7 @@ public partial class IslandGame
         if (IsNight && nightWarnedDay != Day)
         {
             nightWarnedDay = Day;
-            Hint("Night falls... creatures grow bolder. Stay near a campfire!", 6f);
+            Hint("ตกกลางคืนแล้ว... สัตว์ร้ายเริ่มดุขึ้น อยู่ใกล้กองไฟไว้!", 6f);
         }
 
         if (TickSurvival(dt)) return;
@@ -106,7 +106,7 @@ public partial class IslandGame
         if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; }
         if (kb.fKey.wasPressedThisFrame) EatBest();
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
-        if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "Sound off (M)" : "Sound on (M)", 1.5f); }
+        if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
         if (craftOpen)
             for (int i = 0; i < Recipes.Length && i < 10; i++)
                 if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(Recipes[i]);
@@ -131,7 +131,7 @@ public partial class IslandGame
         if (health > 0f) return false;
         health = 0f; dead = true; craftOpen = false; skillsOpen = false;
         if (cursor != null) cursor.enabled = false;
-        if (Shared) { AddChat("", "You died."); LeaveRoom(); } // someone else looks after the creatures now
+        if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
         Sfx.Play("hurt", 0.8f);
         SaveSystem.Delete(); // death is permanent: next start is a new run
         return true;
@@ -162,7 +162,7 @@ public partial class IslandGame
         else if (seaSpot != null)
         {
             if (HasSpear) { if (Trigger(0.8f)) FishAt(GridToWorld(seaSpot.Value)); }
-            else if (pressed) Hint("Seawater is too salty to drink. Craft a Spear to fish here.", 3f);
+            else if (pressed) Hint("น้ำทะเลเค็มเกินไป ดื่มไม่ได้ ทำหอกเพื่อแทงปลาตรงนี้", 3f);
         }
     }
 
@@ -298,7 +298,7 @@ public partial class IslandGame
                 if (!HasAxe)
                 {
                     if (rnd.NextDouble() < 0.35) Give(Item.Stick, 1, n);
-                    else Hint("Craft an axe to chop trees for wood.", 3f);
+                    else Hint("ทำขวานเพื่อตัดต้นไม้เอาไม้", 3f);
                 }
                 else
                 {
@@ -311,7 +311,7 @@ public partial class IslandGame
                         if (biome != Biome.Volcanic) Fx.Burst(at + Vector3.up * 1f, leaf, 14, 1.6f, 1f, 1.2f, 2f);
                         StumpShared(n, 180f);
                     }
-                    else Popup("Chop!", at + Vector3.up * 1.1f, Color.white);
+                    else Popup("ฉับ!", at + Vector3.up * 1.1f, Color.white);
                 }
                 break;
             case NodeKind.Campfire: craftOpen = true; skillsOpen = false; break;
@@ -332,17 +332,17 @@ public partial class IslandGame
     void Drink()
     {
         bool refill = Count(Item.WaterFlask) > 0 && flaskWater < FlaskSize;
-        if (thirst >= 99f && !refill) { Hint("You're not thirsty.", 1.5f); return; }
+        if (thirst >= 99f && !refill) { Hint("ยังไม่หิวน้ำ", 1.5f); return; }
         Vector3 at = GridToWorld(pond.Value);
         if (thirst < 99f)
         {
             thirst = Mathf.Min(100f, thirst + 20f);
-            Popup("+20 water", at + Vector3.up * 0.4f, new Color(0.55f, 0.85f, 1f));
+            Popup("+20 น้ำ", at + Vector3.up * 0.4f, new Color(0.55f, 0.85f, 1f));
         }
         if (refill)
         {
             flaskWater = FlaskSize;
-            Popup("Flask filled", at + Vector3.up * 0.65f, new Color(0.55f, 0.85f, 1f));
+            Popup("เติมกระบอกน้ำแล้ว", at + Vector3.up * 0.65f, new Color(0.55f, 0.85f, 1f));
         }
         Fx.Burst(at, new Color(0.7f, 0.9f, 1f), 6, 0.6f, 1.2f);
         Sfx.Play("drink", 0.6f);
@@ -351,11 +351,11 @@ public partial class IslandGame
     void DrinkFlask()
     {
         if (Count(Item.WaterFlask) == 0) return;
-        if (flaskWater <= 0) { Hint("Your flask is empty. Refill it at a pond.", 2f); return; }
-        if (thirst >= 99f) { Hint("You're not thirsty.", 1.5f); return; }
+        if (flaskWater <= 0) { Hint("กระบอกน้ำหมดแล้ว ไปเติมที่บ่อน้ำ", 2f); return; }
+        if (thirst >= 99f) { Hint("ยังไม่หิวน้ำ", 1.5f); return; }
         flaskWater--;
         thirst = Mathf.Min(100f, thirst + 25f);
-        Popup("+25 water", PlayerPos + Vector3.up * 0.9f, new Color(0.55f, 0.85f, 1f));
+        Popup("+25 น้ำ", PlayerPos + Vector3.up * 0.9f, new Color(0.55f, 0.85f, 1f));
         Sfx.Play("drink", 0.6f);
     }
 
@@ -366,10 +366,10 @@ public partial class IslandGame
         if (rnd.NextDouble() < 0.35 + 0.15 * SkillLv(Skill.Fisher))
         {
             inv[Item.RawFish] = Count(Item.RawFish) + 1;
-            Popup("+1 Raw Fish", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+            Popup("+1 ปลาดิบ", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
             Sfx.Play("pickup", 0.4f);
         }
-        else Popup("Missed!", at + Vector3.up * 0.5f, new Color(0.8f, 0.9f, 1f));
+        else Popup("พลาด!", at + Vector3.up * 0.5f, new Color(0.8f, 0.9f, 1f));
     }
 
     // ------------------------------------------------------------------ combat & XP
@@ -410,7 +410,7 @@ public partial class IslandGame
         if (kind == EnemyKind.Boar || (kind == EnemyKind.Snake && rnd.NextDouble() < 0.5))
         {
             inv[Item.Hide] = Count(Item.Hide) + 1;
-            Popup("+1 Hide", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
+            Popup("+1 หนังสัตว์", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
         }
         AddXp(xpGain, at);
     }
@@ -425,18 +425,18 @@ public partial class IslandGame
             level++;
             skillPoints++;
             health = Mathf.Min(MaxHealth, health + 25f);
-            Popup($"LEVEL {level}!", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.85f, 0.3f));
+            Popup($"เลเวล {level}!", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.85f, 0.3f));
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
             Sfx.Play("levelup", 0.7f);
-            Hint($"Level {level}! You have {skillPoints} skill point(s). Press K to upgrade skills.", 5f);
+            Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม กด K เพื่ออัปสกิล", 5f);
         }
     }
 
     void UpgradeSkill(Skill s)
     {
         int i = (int)s;
-        if (skillPoints <= 0) { Hint("No skill points. Defeat creatures to level up.", 2f); return; }
-        if (skills[i] >= SkillInfo[i].max) { Hint($"{SkillInfo[i].name} is already maxed.", 2f); return; }
+        if (skillPoints <= 0) { Hint("ไม่มีแต้มสกิล ล้มสัตว์ร้ายเพื่อเลเวลอัป", 2f); return; }
+        if (skills[i] >= SkillInfo[i].max) { Hint($"{SkillInfo[i].name} เต็มแล้ว", 2f); return; }
         skills[i]++;
         skillPoints--;
         if (s == Skill.Toughness) health += 15f;
@@ -449,7 +449,7 @@ public partial class IslandGame
         if (Busy || dead) return;
         if (rnd.NextDouble() < 0.1 * SkillLv(Skill.Evasion))
         {
-            Popup("Dodge!", PlayerPos + Vector3.up * 0.9f, new Color(0.7f, 1f, 0.7f));
+            Popup("หลบได้!", PlayerPos + Vector3.up * 0.9f, new Color(0.7f, 1f, 0.7f));
             return;
         }
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
@@ -557,33 +557,33 @@ public partial class IslandGame
     public bool CanCraft(Recipe r, out string why)
     {
         why = null;
-        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = "Learn it from the tribe's weaver"; return false; }
-        if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "Already owned"; return false; }
-        if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "Can't do that at sea"; return false; }
-        if (r.places == NodeKind.Raft && raftLevel > 0) { why = "You already have a raft"; return false; }
+        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+        if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
+        if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
+        if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }
         if (r.raftUpgrade)
         {
             RefreshRaftUpgrade(r);
-            if (raftLevel == 0) { why = "Build a raft first"; return false; }
-            if (raftLevel >= island) { why = $"Raft Lv {raftLevel} is ready to sail"; return false; }
+            if (raftLevel == 0) { why = "ต้องสร้างแพก่อน"; return false; }
+            if (raftLevel >= island) { why = $"แพ Lv {raftLevel} พร้อมออกเรือแล้ว"; return false; }
             var raft = RaftNode;
-            if (raft == null || (raft.grid - player.grid).magnitude > 2.2f) { why = "Stand next to your raft"; return false; }
+            if (raft == null || (raft.grid - player.grid).magnitude > 2.2f) { why = "ต้องยืนข้างแพ"; return false; }
         }
-        if (r.needsFire && DistanceToFire(player.grid) > 2.2f) { why = "Stand near a campfire"; return false; }
-        if (r.atShore && NearestSea(player.grid, 1.8f) == null) { why = "Stand next to the sea"; return false; }
-        foreach (var c in r.cost) if (Count(c.item) < c.n) { why = "Missing materials"; return false; }
+        if (r.needsFire && DistanceToFire(player.grid) > 2.2f) { why = "ต้องอยู่ใกล้กองไฟ"; return false; }
+        if (r.atShore && NearestSea(player.grid, 1.8f) == null) { why = "ต้องยืนริมทะเล"; return false; }
+        foreach (var c in r.cost) if (Count(c.item) < c.n) { why = MissingMaterials; return false; }
         return true;
     }
 
     void Craft(Recipe r)
     {
         if (!CanCraft(r, out var why)) { Hint(why, 2f); return; }
-        if (r.places != null && !TryPlace(r.places.Value, r.atShore)) { Hint($"No room here to build a {r.name}.", 2f); return; }
+        if (r.places != null && !TryPlace(r.places.Value, r.atShore)) { Hint($"ไม่มีที่ว่างพอจะสร้าง{r.name}ตรงนี้", 2f); return; }
         foreach (var c in r.cost) inv[c.item] -= c.n;
         Sfx.Play("craft", 0.5f);
         if (r.raftUpgrade) { UpgradeRaft(); return; }
         if (r.output != null) Give(r.output.Value, 1, null);
-        else Popup($"Built {r.name}!", PlayerPos + Vector3.up * 0.9f, Color.white);
+        else Popup($"สร้าง{r.name}แล้ว!", PlayerPos + Vector3.up * 0.9f, Color.white);
         if (r.output != null && IsClothing(r.output.Value)) // put it straight on if that slot is free
         {
             var it = r.output.Value;
@@ -594,7 +594,7 @@ public partial class IslandGame
         {
             raftLevel = 1;
             RaftNode?.Refresh();
-            Hint("Raft built! It will carry you from island to island. Stock up on food and water, then set sail.", 6f);
+            Hint("สร้างแพเสร็จแล้ว! แพจะพาคุณข้ามจากเกาะสู่เกาะ เตรียมอาหารกับน้ำให้พร้อม แล้วออกเรือได้เลย", 6f);
         }
     }
 
@@ -621,28 +621,28 @@ public partial class IslandGame
     {
         foreach (var it in new[] { Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.Fruit, Item.Berry, Item.RawFish, Item.CrabMeat, Item.RawMeat })
             if (Count(it) > 0) { Eat(it); return; }
-        Hint("No food! Pick berries or fruit.", 2f);
+        Hint("ไม่มีอาหาร! ไปเก็บเบอร์รี่หรือผลไม้", 2f);
     }
 
     void Eat(Item it)
     {
         int food = FoodValue(it);
         if (food <= 0 || Count(it) == 0) return;
-        if (hunger >= 99f) { Hint("You're not hungry.", 1.5f); return; }
+        if (hunger >= 99f) { Hint("ยังไม่หิว", 1.5f); return; }
         inv[it]--;
         hunger = Mathf.Min(100f, hunger + food);
         thirst = Mathf.Min(100f, thirst + ThirstValue(it));
         health = Mathf.Min(MaxHealth, health + HealValue(it));
         Sfx.Play("eat", 0.6f);
-        Popup($"+{food} hunger", PlayerPos + Vector3.up * 0.9f, new Color(1f, 0.7f, 0.3f));
+        Popup($"+{food} อิ่ม", PlayerPos + Vector3.up * 0.9f, new Color(1f, 0.7f, 0.3f));
     }
 
     // ------------------------------------------------------------------ sleep
     void TrySleep()
     {
-        if (!IsNight) { Hint("You can only sleep at night.", 2f); return; }
+        if (!IsNight) { Hint("นอนได้เฉพาะตอนกลางคืน", 2f); return; }
         foreach (var e in enemies)
-            if (e != null && (e.grid - player.grid).magnitude < 5f) { Hint("You can't sleep with enemies nearby!", 2f); return; }
+            if (e != null && (e.grid - player.grid).magnitude < 5f) { Hint("นอนไม่ได้ มีศัตรูอยู่ใกล้ๆ!", 2f); return; }
         sleepT = 0.0001f;
         sleepApplied = false;
         craftOpen = false; skillsOpen = false;
@@ -665,9 +665,9 @@ public partial class IslandGame
                 Now += skip; // plants keep growing while you sleep
                 foreach (var e in enemies) if (e != null) Destroy(e.gameObject);
                 enemies.Clear();
-                Hint($"You slept until morning. Day {Day}.", 3f);
+                Hint($"นอนจนถึงเช้า วันที่ {Day}", 3f);
             }
-            else Hint("You took a nap (the night goes on while others are awake).", 3f); // time is shared online
+            else Hint("งีบไปพักหนึ่ง (คืนยังไม่จบเพราะคนอื่นยังไม่นอน)", 3f); // time is shared online
             SaveGame();
         }
         if (sleepT >= 2.6f) sleepT = 0f;
@@ -682,19 +682,19 @@ public partial class IslandGame
     /// Tropical = timber, Jungle = bamboo, Tribe = woven cloth sail, Volcano = obsidian. Costs grow with every level.
     public static string RaftMaterial(Biome b) => b switch
     {
-        Biome.Jungle => "Bamboo", Biome.Volcanic => "Obsidian", Biome.Tribal => "Cloth", _ => "Wood",
+        Biome.Jungle => "ไม้ไผ่", Biome.Volcanic => "ออบซิเดียน", Biome.Tribal => "ผ้า", _ => "ไม้",
     };
 
     void RefreshRaftUpgrade(Recipe r)
     {
         int L = Mathf.Max(1, raftLevel);
-        r.name = $"Upgrade Raft to Lv {L + 1}";
+        r.name = $"อัปเกรดแพเป็น Lv {L + 1}";
         (r.cost, r.desc) = biome switch
         {
-            Biome.Jungle => (new[] { (Item.Bamboo, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Wood, 4) }, "Bamboo hull: lighter and faster"),
-            Biome.Volcanic => (new[] { (Item.Obsidian, 4 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "Obsidian prow: shrugs off bites"),
-            Biome.Tribal => (new[] { (Item.Cloth, 3 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "Woven sail: catches more wind"),
-            _ => (new[] { (Item.Wood, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Stone, 4) }, "Reinforced deck for rougher seas"),
+            Biome.Jungle => (new[] { (Item.Bamboo, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Wood, 4) }, "ตัวแพไม้ไผ่: เบาและเร็วขึ้น"),
+            Biome.Volcanic => (new[] { (Item.Obsidian, 4 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "หัวแพออบซิเดียน: ทนการกัด"),
+            Biome.Tribal => (new[] { (Item.Cloth, 3 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "ใบเรือผ้าทอ: รับลมได้มากขึ้น"),
+            _ => (new[] { (Item.Wood, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Stone, 4) }, "เสริมพื้นแพให้ฝ่าคลื่นแรงได้"),
         };
     }
 
@@ -708,8 +708,8 @@ public partial class IslandGame
             raft.Shake();
             Fx.Burst(raft.transform.position + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 16, 1.4f, 1.6f, 1f, 3f);
         }
-        Popup($"Raft Lv {raftLevel}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
-        Hint($"Raft upgraded to Lv {raftLevel}: {RaftSpeedBonus * 100f:0}% faster, {RaftArmor * 100f:0}% less damage at sea. Ready to sail!", 6f);
+        Popup($"แพ Lv {raftLevel}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        Hint($"อัปเกรดแพเป็น Lv {raftLevel} แล้ว: เร็วขึ้น {RaftSpeedBonus * 100f:0}% รับดาเมจในทะเลลดลง {RaftArmor * 100f:0}% พร้อมออกเรือ!", 6f);
     }
 
     /// Bonuses from raft upgrades while at sea.
@@ -720,7 +720,7 @@ public partial class IslandGame
     {
         if (raftLevel < island)
         {
-            Hint($"The sea to island {island + 1} is too rough for a Lv {raftLevel} raft. Upgrade it with {RaftMaterial(biome)} (Tab).", 5f);
+            Hint($"ทะเลไปเกาะที่ {island + 1} คลื่นแรงเกินไปสำหรับแพ Lv {raftLevel} อัปเกรดแพด้วย{RaftMaterial(biome)} (Tab)", 5f);
             craftOpen = true; skillsOpen = false;
             return;
         }
@@ -731,7 +731,7 @@ public partial class IslandGame
         if (lowSupplies && Time.time > sailWarnUntil)
         {
             sailWarnUntil = Time.time + 4f;
-            Hint("Low on food or water for the voyage! Press E again to set sail anyway.", 4f);
+            Hint("อาหารหรือน้ำไม่พอสำหรับการเดินทาง! กด E อีกครั้งถ้าจะออกเรือเลย", 4f);
             return;
         }
         SaveGame(); // if you quit at sea you come back here, next to the raft

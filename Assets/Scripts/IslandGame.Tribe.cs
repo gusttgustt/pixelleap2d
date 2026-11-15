@@ -36,12 +36,12 @@ public partial class IslandGame
 
     static readonly string[] Chatter =
     {
-        "The fire keeps the crabs away at night. Stay close to the village!",
-        "Nala weaves the finest cloth on all the islands.",
-        "Old Tamu says the sea beyond the volcano is the wildest of all.",
-        "My father fished with a spear until he was very old.",
-        "A woven sail makes a raft fly over the waves!",
-        "Have you tasted cooked boar? Nothing better.",
+        "กองไฟช่วยไล่ปูตอนกลางคืน อยู่ใกล้หมู่บ้านไว้นะ!",
+        "นาลาทอผ้าได้สวยที่สุดในทุกเกาะเลย",
+        "ตาทามูบอกว่าทะเลหลังภูเขาไฟดุที่สุด",
+        "พ่อของข้าแทงปลาด้วยหอกจนแก่เฒ่าเลยล่ะ",
+        "ใบเรือผ้าทอทำให้แพแล่นฉิวเหนือคลื่นเลย!",
+        "เคยกินหมูป่าย่างไหม? อร่อยที่สุดแล้ว",
     };
 
     // ------------------------------------------------------------------ village
@@ -107,32 +107,32 @@ public partial class IslandGame
             case VillagerRole.Weaver:
                 bool any = WeaverHasLessons;
                 d.text = text ?? (learned.Count == 0
-                    ? "Welcome, traveler! I am Nala, the weaver. Your clothes are torn to rags - let me teach you to make new ones. Bring me a small gift and I'll show you how."
-                    : any ? "What shall I teach you next?" : "I have taught you everything I know. Wear your clothes with pride!");
+                    ? "ยินดีต้อนรับ นักเดินทาง! ข้าคือนาลา ช่างทอผ้า เสื้อผ้าเจ้าขาดรุ่งริ่งหมดแล้ว ให้ข้าสอนทำชุดใหม่สิ แค่นำของขวัญเล็กๆ มาให้ ข้าจะสอนให้"
+                    : any ? "อยากเรียนอะไรต่อดีล่ะ?" : "ข้าสอนทุกอย่างที่รู้ให้หมดแล้ว สวมชุดของเจ้าอย่างภาคภูมิใจนะ!");
                 foreach (var lesson in Lessons)
                 {
                     if (learned.Contains(lesson.item)) continue;
                     var l = lesson;
-                    d.options.Add(($"Learn {Name(l.item)} ({PriceText(l.price)})", () => Learn(v, l.item, l.price), CanPay(l.price)));
+                    d.options.Add(($"เรียนทำ{Name(l.item)} ({PriceText(l.price)})", () => Learn(v, l.item, l.price), CanPay(l.price)));
                 }
                 break;
 
             case VillagerRole.Elder:
                 d.text = text ?? (raftLevel < island
-                    ? "Ah, a sailor. The sea grows angrier the further you go. Weave Cloth into a sail - a raft with a woven sail flies over rough water."
-                    : "Your raft is strong. Go, and may the waves be kind to you.");
+                    ? "อา นักเดินเรือ ยิ่งไปไกลทะเลยิ่งดุ ทอผ้าทำใบเรือสิ แพที่มีใบเรือผ้าทอจะแล่นฝ่าคลื่นแรงได้"
+                    : "แพของเจ้าแข็งแรงดี ไปเถิด ขอให้คลื่นลมเป็นใจ");
                 bool canHeal = elderHealDay != Day;
-                d.options.Add((canHeal ? "Ask for healing" : "Ask for healing (tomorrow)", () => ElderHeal(v), canHeal));
-                d.options.Add(("Ask about the islands", () => OpenDialog(v,
-                    "Our elders tell of four islands: the green beach, the jungle of snakes, our home, and the burning mountain where boars roam. Beyond them... the same islands, but wilder."), true));
+                d.options.Add((canHeal ? "ขอให้รักษา" : "ขอให้รักษา (พรุ่งนี้)", () => ElderHeal(v), canHeal));
+                d.options.Add(("ถามเรื่องหมู่เกาะ", () => OpenDialog(v,
+                    "ผู้เฒ่าเล่าว่ามีสี่เกาะ: หาดเขียวขจี ป่างู บ้านของเรา และภูเขาไฟที่หมูป่าเดินเพ่นพ่าน ไกลออกไป... ก็เป็นเกาะแบบเดิม แต่ดุร้ายกว่า"), true));
                 break;
 
             case VillagerRole.Trader:
-                d.text = text ?? "Fish for hides, fruit for meat! Kai always makes a fair trade.";
+                d.text = text ?? "ปลาแลกหนัง ผลไม้แลกเนื้อ! ไคแลกของยุติธรรมเสมอ";
                 foreach (var trade in Trades)
                 {
                     var t = trade;
-                    d.options.Add(($"Give {t.give.n} {Name(t.give.item)} -> get {t.get.n} {Name(t.get.item)}  (have {Count(t.give.item)})",
+                    d.options.Add(($"ให้{Name(t.give.item)} {t.give.n} -> ได้{Name(t.get.item)} {t.get.n}  (มี {Count(t.give.item)})",
                         () => Trade(v, t.give, t.get), Count(t.give.item) >= t.give.n));
                 }
                 break;
@@ -141,7 +141,7 @@ public partial class IslandGame
                 d.text = text ?? Chatter[Random.Range(0, Chatter.Length)];
                 break;
         }
-        d.options.Add(("Goodbye", CloseDialog, true));
+        d.options.Add(("ลาก่อน", CloseDialog, true));
         dialog = d;
     }
 
@@ -155,10 +155,10 @@ public partial class IslandGame
 
     static string PriceText((Item item, int n)[] price)
     {
-        if (price.Length == 0) return "free";
+        if (price.Length == 0) return "ฟรี";
         var parts = new List<string>();
-        foreach (var p in price) parts.Add($"{p.n} {Name(p.item)}");
-        return "gift: " + string.Join(", ", parts);
+        foreach (var p in price) parts.Add($"{Name(p.item)} {p.n}");
+        return "ของขวัญ: " + string.Join(", ", parts);
     }
 
     void Learn(Villager v, Item item, (Item item, int n)[] price)
@@ -167,8 +167,8 @@ public partial class IslandGame
         foreach (var p in price) inv[p.item] -= p.n;
         learned.Add(item);
         Sfx.Play("levelup", 0.5f);
-        Popup($"Learned: {Name(item)}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
-        OpenDialog(v, $"Watch closely... like this! Now you can make a {Name(item)}. Craft it with Tab, then click it in your bag to wear it.");
+        Popup($"เรียนรู้แล้ว: {Name(item)}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        OpenDialog(v, $"ดูให้ดีนะ... แบบนี้! ตอนนี้เจ้าทำ{Name(item)}ได้แล้ว กด Tab เพื่อประดิษฐ์ แล้วคลิกในกระเป๋าเพื่อสวม");
     }
 
     void ElderHeal(Villager v)
@@ -179,8 +179,8 @@ public partial class IslandGame
         thirst = Mathf.Min(100f, thirst + 20f);
         Sfx.Play("drink", 0.6f);
         Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.6f, 1f, 0.6f), 16, 1f, 1.6f, 1f, 2f);
-        Popup("Fully healed", PlayerPos + Vector3.up * 1f, new Color(0.6f, 1f, 0.6f));
-        OpenDialog(v, "Drink this, and rest by the fire. There - strong again. Come back tomorrow if you need me.");
+        Popup("หายดีแล้ว", PlayerPos + Vector3.up * 1f, new Color(0.6f, 1f, 0.6f));
+        OpenDialog(v, "ดื่มนี่ แล้วพักข้างกองไฟ... นั่นไง แข็งแรงแล้ว ถ้าต้องการข้าอีก มาใหม่พรุ่งนี้นะ");
     }
 
     void Trade(Villager v, (Item item, int n) give, (Item item, int n) get)
@@ -190,7 +190,7 @@ public partial class IslandGame
         inv[get.item] = Count(get.item) + get.n;
         Sfx.Play("pickup", 0.5f);
         Popup($"+{get.n} {Name(get.item)}", PlayerPos + Vector3.up * 1f, new Color(1f, 0.95f, 0.6f));
-        OpenDialog(v, "A pleasure! Anything else?");
+        OpenDialog(v, "ยินดีที่ได้แลก! เอาอะไรอีกไหม?");
     }
 
     void HandleDialog(Keyboard kb)
@@ -216,6 +216,6 @@ public partial class IslandGame
         else { on = outfit != it; outfit = on ? it : (Item?)null; }
         health = Mathf.Min(health, MaxHealth);
         Sfx.Play("craft", 0.4f);
-        Popup(on ? $"Wearing {Name(it)}" : $"Took off {Name(it)}", PlayerPos + Vector3.up * 1f, Color.white);
+        Popup(on ? $"สวม{Name(it)}" : $"ถอด{Name(it)}", PlayerPos + Vector3.up * 1f, Color.white);
     }
 }

@@ -7,7 +7,7 @@ public struct CharacterLook
     public int skin, style, hair, shirt, pants;
 
     public static readonly string[] Skins = { "#f1c27d", "#ffdbac", "#e0ac69", "#c68642", "#8d5524" };
-    public static readonly string[] Styles = { "Short", "Long", "Spiky", "Bun" };
+    public static readonly string[] Styles = { "สั้น", "ยาว", "ตั้งชี้", "มวย" };
     public static readonly string[] Hairs = { "#4a2c1a", "#1a1010", "#d8b04a", "#a83a1e", "#e8e8e8", "#5a7ad8" };
     public static readonly string[] Shirts = { "#d9534f", "#3b7dd8", "#4f9a3f", "#e0b030", "#7a3f8a", "#e8e8e8", "#d9822b", "#2aa198" };
     public static readonly string[] Pants = { "#3b4a7a", "#6b4226", "#2b2b2b", "#6b6b6b", "#3a5a2a", "#a08c5a" };

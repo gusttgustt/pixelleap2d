@@ -26,7 +26,7 @@ public class Enemy : MonoBehaviour
     public bool puppet;
     Vector2 netTarget;
 
-    public string DisplayName => kind.ToString();
+    public string DisplayName => kind switch { EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", _ => "หมูป่า" };
     public bool Flip => sr != null && sr.flipX;
 
     public void Init(EnemyKind k, Vector2 g, int tier, int id = 0, bool asPuppet = false)

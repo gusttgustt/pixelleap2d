@@ -51,7 +51,7 @@ public partial class IslandGame
     {
         title = true;
         playerName = PlayerPrefs.GetString("playerName", "");
-        if (string.IsNullOrEmpty(playerName)) playerName = "Islander" + Random.Range(100, 1000);
+        if (string.IsNullOrEmpty(playerName)) playerName = "ชาวเกาะ" + Random.Range(100, 1000);
         // first visit: a random look to start from
         lookCode = PlayerPrefs.HasKey("look") ? PlayerPrefs.GetInt("look") : CharacterLook.Random().Code;
         look = CharacterLook.FromCode(lookCode);
@@ -74,7 +74,7 @@ public partial class IslandGame
         helloSent = false;
         connecting = true;
         connectStart = Time.time;
-        netStatus = "Connecting...";
+        netStatus = "กำลังเชื่อมต่อ...";
     }
 
     void PlayOffline()
@@ -91,7 +91,7 @@ public partial class IslandGame
     {
         n = (n ?? "").Trim();
         if (n.Length > 16) n = n.Substring(0, 16);
-        return n.Length == 0 ? "Islander" : n;
+        return n.Length == 0 ? "ชาวเกาะ" : n;
     }
 
     void UpdateTitle()
@@ -108,13 +108,13 @@ public partial class IslandGame
             return;
         }
         if (link.Dead && waited < 70f) { link = NetLink.Open(NetLink.ServerUrl()); helloSent = false; } // server still waking up
-        if (waited > 6f) netStatus = $"Waking up the server... this can take up to a minute ({waited:0}s)";
+        if (waited > 6f) netStatus = $"กำลังปลุกเซิร์ฟเวอร์... อาจใช้เวลาถึง 1 นาที ({waited:0} วิ)";
         if (waited > 75f)
         {
             link.Close();
             link = null;
             connecting = false;
-            netStatus = "Couldn't reach the server. Try again, or play offline.";
+            netStatus = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง หรือเล่นออฟไลน์";
         }
     }
 
@@ -145,7 +145,7 @@ public partial class IslandGame
         ClearRemotes();
         foreach (var e in enemies) if (e != null && e.puppet) Destroy(e.gameObject);
         enemies.RemoveAll(e => e == null || e.puppet);
-        if (!title) Hint("Lost connection to the server - you're playing offline now.", 5f);
+        if (!title) Hint("หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 5f);
     }
 
     void JoinRoom()
@@ -187,7 +187,7 @@ public partial class IslandGame
         {
             // take over the creatures we could see
             foreach (var e in enemies) if (e != null && e.puppet) { e.puppet = false; enemyCounter = Mathf.Max(enemyCounter, e.netId); }
-            Hint("You are now looking after this island's creatures.", 3f);
+            Hint("ตอนนี้คุณเป็นคนดูแลสัตว์บนเกาะนี้", 3f);
         }
     }
 
@@ -208,20 +208,20 @@ public partial class IslandGame
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
                 if (m.events != null) foreach (var e in m.events) ApplyEvent(e);
                 int others = m.players?.Length ?? 0;
-                if (others > 0) Hint($"{others} other player(s) on this island! Press Enter to chat.", 5f);
+                if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! กด Enter เพื่อแชต", 5f);
                 break;
 
             case "joined":
                 if (!inRoom) break;
                 AddRemote(m.from, m.name);
-                AddChat("", $"{m.name} arrived on the island");
+                AddChat("", $"{m.name} มาถึงเกาะแล้ว");
                 if (IsHost) { clockSendT = 0f; enemySendT = 0f; }
                 break;
 
             case "left":
                 if (remotes.TryGetValue(m.from, out var gone))
                 {
-                    AddChat("", $"{gone.playerName} left the island");
+                    AddChat("", $"{gone.playerName} ออกจากเกาะไปแล้ว");
                     if (gone != null) Destroy(gone.gameObject);
                     remotes.Remove(m.from);
                 }

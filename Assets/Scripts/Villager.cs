@@ -32,9 +32,9 @@ public class Villager : MonoBehaviour
 
     public string Title => role switch
     {
-        VillagerRole.Weaver => $"{npcName} the Weaver",
-        VillagerRole.Elder => $"Elder {npcName}",
-        VillagerRole.Trader => $"{npcName} the Trader",
+        VillagerRole.Weaver => $"{npcName} ช่างทอผ้า",
+        VillagerRole.Elder => $"ผู้เฒ่า{npcName}",
+        VillagerRole.Trader => $"{npcName} พ่อค้า",
         _ => npcName,
     };
 

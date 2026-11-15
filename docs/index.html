@@ -1,133 +1,85 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | Island Survival</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">Island Survival</div>
-      </div>
-    </div>
-    <script>
-      var canvas = document.querySelector("#unity-canvas");
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Island Survival</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b1c2c; }
+    body { font-family: "Kanit", "Leelawadee UI", "Tahoma", sans-serif; color: #f5e6b8; }
+    /* The game fills the whole browser window at any size; Unity follows the canvas size. */
+    #game { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; outline: none; touch-action: none; }
+    #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; text-align: center; }
+    #loading h1 { margin: 0; font-size: clamp(24px, 6vw, 44px); color: #ffe08a; text-shadow: 2px 2px 0 #000; }
+    #bar { width: min(360px, 80vw); height: 14px; border: 2px solid #ffe08a; background: #1d3347; }
+    #fill { width: 0; height: 100%; background: #ffd34d; transition: width .2s; }
+    #msg { font-size: 15px; opacity: .85; }
+    #note { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px; font-size: 14px; text-align: center; background: rgba(0,0,0,.7); display: none; }
+    #error { color: #ff9a8a; }
+  </style>
+</head>
+<body>
+  <canvas id="game" tabindex="-1"></canvas>
+  <div id="loading">
+    <h1>Island Survival</h1>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="msg">กำลังโหลดเกม...</div>
+  </div>
+  <div id="note"></div>
+  <script>
+    var canvas = document.getElementById("game");
+    var note = document.getElementById("note");
+    var touch = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
+    // Phones and tablets: the game is played with a keyboard; ask for landscape to get more room.
+    function updateNote() {
+      var portrait = window.innerHeight > window.innerWidth;
+      var text = "";
+      if (touch && portrait) text = "หมุนจอเป็นแนวนอนเพื่อให้เห็นเกมเต็มจอ";
+      else if (touch) text = "เกมนี้เล่นด้วยคีย์บอร์ด (WASD, E) เหมาะกับคอมพิวเตอร์";
+      note.textContent = text;
+      note.style.display = text ? "block" : "none";
+    }
+    window.addEventListener("resize", updateNote);
+    updateNote();
+    if (touch) setTimeout(function () { if (window.innerHeight <= window.innerWidth) note.style.display = "none"; }, 8000);
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/docs.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/docs.data.unityweb",
-        frameworkUrl: buildUrl + "/docs.framework.js.unityweb",
-        codeUrl: buildUrl + "/docs.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Island Survival",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
+    function showBanner(msg, type) {
+      if (type === "error") { document.getElementById("msg").innerHTML = '<span id="error">' + msg + "</span>"; }
+      else console.warn(msg);
+    }
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+    var buildUrl = "Build";
+    var config = {
+      arguments: [],
+      dataUrl: buildUrl + "/docs.data.unityweb",
+      frameworkUrl: buildUrl + "/docs.framework.js.unityweb",
+      codeUrl: buildUrl + "/docs.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Island Survival",
+      productVersion: "1.0",
+      showBanner: showBanner,
+      // Sharp on high-density screens, but no more than 2x so phones stay smooth.
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+    };
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
+    // Keyboard goes to the game after any click/tap on it.
+    canvas.addEventListener("pointerdown", function () { canvas.focus(); });
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
-      }
-
-      document.querySelector("#unity-loading-bar").style.display = "block";
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                document.querySelector("#unity-loading-bar").style.display = "none";
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
-    </script>
-  </body>
+    var script = document.createElement("script");
+    script.src = buildUrl + "/docs.loader.js";
+    script.onload = function () {
+      createUnityInstance(canvas, config, function (p) {
+        document.getElementById("fill").style.width = (100 * p) + "%";
+      }).then(function () {
+        document.getElementById("loading").style.display = "none";
+        canvas.focus();
+      }).catch(function (message) {
+        showBanner("โหลดเกมไม่สำเร็จ: " + message, "error");
+      });
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
 </html>
