@@ -43,6 +43,15 @@ public class Enemy : MonoBehaviour
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
     float sporeT = 3f;
+    float stunT;
+
+    /// Rooted in place (thorns): can't move or bite.
+    public void Stun(float seconds) => stunT = Mathf.Max(stunT, seconds);
+    /// Knocked away (magnet pulse), stopping at walls and water.
+    public void Push(Vector2 by)
+    {
+        for (int i = 0; i < 8; i++) { var next = grid + by / 8f; if (CanGo(next)) grid = next; else break; }
+    }
     /// Hermit crab: its shell soaks up blows until it breaks.
     public int shellHp;
     /// Chime bird: what it ran off with.
@@ -75,9 +84,11 @@ public class Enemy : MonoBehaviour
         Disguised = k == EnemyKind.Mimic && !asPuppet;
         shellHp = k == EnemyKind.HermitCrab ? Mathf.RoundToInt(8 * (1f + 0.5f * tier)) : 0;
         // Later islands (second lap and beyond) are tougher and give more XP.
-        maxHp = Mathf.RoundToInt(maxHp * (1f + 0.5f * tier));
-        damage *= 1f + 0.3f * tier;
-        xp = Mathf.RoundToInt(xp * (1f + 0.5f * tier));
+        // further islands (higher island level) have tougher creatures that give more XP
+        var isl = IslandGame.I;
+        maxHp = Mathf.RoundToInt(maxHp * isl.EnemyHpScale);
+        damage *= isl.EnemyDamageScale;
+        xp = Mathf.RoundToInt(xp * isl.EnemyHpScale);
         hp = maxHp;
 
         sr = gameObject.AddComponent<SpriteRenderer>();
@@ -111,6 +122,7 @@ public class Enemy : MonoBehaviour
         float dt = Time.deltaTime;
         attackCd -= dt;
         hurtT -= dt;
+        if (stunT > 0f) { stunT -= dt; Apply(); return; }
 
         var (targetGrid, targetWho) = game.NearestPlayer(grid); // chase whichever player is closest
         Vector2 toPlayer = targetGrid - grid;

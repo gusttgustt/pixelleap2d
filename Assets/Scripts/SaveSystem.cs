@@ -27,6 +27,8 @@ public class SaveData
     public List<string> flags = new List<string>();      // quests and story (see IslandGame.Quest.cs)
     public List<string> questKills = new List<string>(); // "<quest>|<enemy kind>|<count>"
     public int powerId, powerLv = 1, powerXp;            // special-fruit power (IslandGame.Power.cs)
+    public int weaponId;                                 // equipped weapon + 1 (0 = none)
+    public List<int> hotbar = new List<int>();           // shortcut slots: item + 1 (0 = empty)
 }
 
 /// An island you've been to and left: rebuilt from its seed, then its saved objects put back.
@@ -53,6 +55,7 @@ public class NodeSave
     public bool available, flip;
     public int hits;
     public float regrow; // seconds left until it regrows
+    public int item, count; // dropped items (NodeKind.Drop)
 }
 
 /// Reads and writes the save file as JSON in Application.persistentDataPath.

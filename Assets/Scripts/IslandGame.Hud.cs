@@ -19,7 +19,7 @@ public partial class IslandGame
     void UpdateCamera()
     {
         var m = Mouse.current;
-        if (m != null && !craftOpen && !skillsOpen) // the wheel scrolls the panels while they're open
+        if (m != null && !craftOpen && !skillsOpen && !bagOpen) // the wheel scrolls the panels while they're open
         {
             float s = m.scroll.ReadValue().y;
             if (s > 0.1f && zoom < 8) zoomOffset++;
@@ -88,6 +88,10 @@ public partial class IslandGame
         NodeKind.GlowTree => "เก็บผลไม้เรืองแสง",
         NodeKind.Shell => "เก็บเปลือกหอย",
         NodeKind.CloudPlant => "เก็บปุยเมฆ",
+        NodeKind.Drop => $"เก็บ{Name(n.dropItem)} x{n.dropCount}",
+        NodeKind.Well => "ดื่มน้ำจากบ่อ",
+        NodeKind.Fountain => "ดื่มน้ำพุ",
+        NodeKind.Farm => "เก็บผักผลไม้",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -167,7 +171,7 @@ public partial class IslandGame
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
         Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
         Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
-        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}" : $"เกาะที่ {island}: {BiomeName}";
+        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}" : $"เกาะที่ {island}: {BiomeName}  <size=11>Lv {IslandLevel} · {ProsperityName(Prosperity)}</size>";
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
@@ -221,7 +225,8 @@ public partial class IslandGame
             ShadowLabel(new Rect(gp.x - 100, gp.y - 20 - t * 25f, 200, 20), p.text, labelCenter, col);
         }
 
-        DrawInventory(W, H);
+        DrawHotbar(W, H);
+        if (bagOpen) DrawBag(W, H);
         if (craftOpen) DrawCrafting(W, H);
         if (skillsOpen) DrawSkills(W, H);
 
@@ -237,7 +242,7 @@ public partial class IslandGame
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
         if (!touchUsed) ShadowLabel(new Rect(14, H - 22, W - 28, 20),
-            "WASD เดิน | E ใช้/โจมตี (กดค้าง) | R พลัง | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
+            "WASD เดิน | E ใช้/โจมตี | R พลัง | T ท่าพิเศษ | B กระเป๋า | 1-8 ช่องลัด | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));

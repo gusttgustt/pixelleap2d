@@ -10,6 +10,8 @@ public class WorldNode : MonoBehaviour
     public int hits;
     public bool flip;
     public int id;                // same on every player's machine (online sync)
+    public Item dropItem;         // NodeKind.Drop: what's lying here, and how many
+    public int dropCount;
 
     // Regrow timers run on game time (IslandGame.Now) so sleeping through the night makes plants grow.
     float regrowAt, shakeT, animT;
@@ -22,7 +24,8 @@ public class WorldNode : MonoBehaviour
     public float RegrowRemaining => regrowAt > 0f ? Mathf.Max(0.01f, regrowAt - IslandGame.I.Now) : 0f;
 
     public bool Blocking => kind is NodeKind.Tree or NodeKind.FruitTree or NodeKind.Bush or NodeKind.Stump
-                                 or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree;
+                                 or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree
+                                 or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue;
 
     public float BlockRadius => kind switch
     {
@@ -33,12 +36,19 @@ public class WorldNode : MonoBehaviour
         NodeKind.Raft => 0.55f,
         NodeKind.Hut => 0.85f,
         NodeKind.Totem => 0.25f,
+        NodeKind.House => 0.95f,
+        NodeKind.Fountain => 0.85f,
+        NodeKind.Stall => 0.6f,
+        NodeKind.Well => 0.45f,
+        NodeKind.Lamp => 0.18f,
+        NodeKind.Statue => 0.35f,
         _ => 0.32f,
     };
 
     public bool CanTarget => kind switch
     {
-        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem => false,
+        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue => false,
+        NodeKind.Well or NodeKind.Fountain => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
         _ => available,
     };
@@ -50,6 +60,8 @@ public class WorldNode : MonoBehaviour
         NodeKind.Bush => 0.65f,
         NodeKind.Bamboo => 0.95f,
         NodeKind.Campfire => 0.85f,
+        NodeKind.Well or NodeKind.Fountain => 0.9f,
+        NodeKind.Farm => 0.5f,
         _ => 0.45f,
     };
 
@@ -74,7 +86,15 @@ public class WorldNode : MonoBehaviour
             fireLight.pointLightInnerRadius = 0.3f;
             fireLight.pointLightOuterRadius = 3.5f;
         }
-        if (k == NodeKind.GlowTree) // the special-fruit tree glows gold
+        if (k == NodeKind.Lamp) // street lamps light up at night
+        {
+            fireLight = IslandGame.CreateLight("LampLight", Light2D.LightType.Point, transform);
+            fireLight.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+            fireLight.color = new Color(1f, 0.8f, 0.5f);
+            fireLight.pointLightInnerRadius = 0.3f;
+            fireLight.pointLightOuterRadius = 2.8f;
+        }
+        else if (k == NodeKind.GlowTree) // the special-fruit tree glows gold
         {
             fireLight = IslandGame.CreateLight("TreeGlow", Light2D.LightType.Point, transform);
             fireLight.transform.localPosition = new Vector3(0f, 0.9f, 0f);
@@ -117,6 +137,14 @@ public class WorldNode : MonoBehaviour
             NodeKind.Totem => PixelArt.Totem(),
             NodeKind.GlowShroom => PixelArt.GlowShroom(available),
             NodeKind.Shell => PixelArt.Shell(),
+            NodeKind.Drop => PixelArt.Icon(dropItem),
+            NodeKind.House => PixelArt.House(),
+            NodeKind.Lamp => PixelArt.Lamp(),
+            NodeKind.Farm => PixelArt.Farm(available),
+            NodeKind.Well => PixelArt.Well(),
+            NodeKind.Stall => PixelArt.Stall(),
+            NodeKind.Fountain => PixelArt.Fountain(),
+            NodeKind.Statue => PixelArt.Statue(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
@@ -176,6 +204,8 @@ public class WorldNode : MonoBehaviour
             p.x += Mathf.Sin(Time.time * 70f) * 0.04f * (shakeT / 0.25f);
         }
         transform.position = p;
+
+        if (kind == NodeKind.Lamp && fireLight != null) fireLight.intensity = (1f - game.Daylight) * 1.2f;
 
         if (kind == NodeKind.Campfire)
         {

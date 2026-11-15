@@ -577,6 +577,104 @@ public static class PixelArt
         _ => Crab(frame),
     };
 
+    // ------------------------------------------------------------------ towns (island prosperity)
+    /// Stone house with a red tiled roof (towns and cities).
+    public static Sprite House() => Get("house", () =>
+    {
+        var c = new Canvas(44, 44);
+        c.Ellipse(22, 40, 20, 4, Shadow);
+        Color st = Hex("#d8cdb8"), stD = Hex("#b0a48c"), line = Hex("#a0947c");
+        c.Rect(8, 22, 28, 18, st); c.Rect(28, 22, 8, 18, stD);
+        for (int y = 25; y < 40; y += 4) c.Rect(8, y, 28, 1, line);
+        c.Rect(18, 29, 7, 11, Hex("#6b4226")); c.Set(23, 34, Hex("#f2c43a"));            // door
+        c.Rect(10, 26, 5, 5, Hex("#7ab0d8")); c.Rect(30, 26, 4, 5, Hex("#5a90b8"));      // windows
+        Color roof = Hex("#b5452c"), roofD = Hex("#8a3020"), roofL = Hex("#d86a4a");
+        for (int y = 6; y <= 22; y++)
+        {
+            int hw = (y - 6) + 6;
+            for (int x = 22 - hw; x <= 22 + hw; x++) if (x >= 2 && x < 42) c.Set(x, y, x > 22 ? roofD : (y % 3 == 0 ? roofL : roof));
+        }
+        c.Rect(30, 4, 4, 8, Hex("#8a7e70"));                                              // chimney
+        return c.ToSprite(22, 40);
+    });
+
+    /// Street lamp (it lights up at night).
+    public static Sprite Lamp() => Get("lamp", () =>
+    {
+        var c = new Canvas(10, 34);
+        c.Ellipse(5, 32, 3, 1, Shadow);
+        c.Rect(4, 8, 2, 24, Hex("#3a3a40")); c.Rect(3, 30, 4, 2, Hex("#3a3a40"));
+        c.Rect(2, 2, 6, 6, Hex("#3a3a40")); c.Rect(3, 3, 4, 4, Hex("#ffd27a"));
+        c.Rect(1, 1, 8, 1, Hex("#3a3a40"));
+        return c.ToSprite(5, 32);
+    });
+
+    /// Vegetable patch: rows of crops (ripe = ready to pick).
+    public static Sprite Farm(bool ripe) => Get(ripe ? "farm" : "farm_empty", () =>
+    {
+        var c = new Canvas(32, 18);
+        Color soil = Hex("#6b4a2b"), soilD = Hex("#523720");
+        for (int y = 4; y < 16; y++) { int hw = 14 - Mathf.Abs(y - 10) * 2; c.Rect(16 - hw, y, hw * 2, 1, y % 3 == 0 ? soilD : soil); }
+        if (ripe)
+            for (int i = 0; i < 6; i++)
+            {
+                int x = 7 + i * 3 + (i % 2), y = 7 + (i % 3) * 2;
+                c.Line(x, y + 3, x, y, Hex("#4f9a3f")); c.Set(x - 1, y, Hex("#7cc95c")); c.Set(x + 1, y + 1, Hex("#7cc95c"));
+                c.Set(x, y - 1, i % 2 == 0 ? Hex("#e0522c") : Hex("#f2c43a"));
+            }
+        return c.ToSprite(16, 10);
+    });
+
+    public static Sprite Well() => Get("well", () =>
+    {
+        var c = new Canvas(24, 30);
+        c.Ellipse(12, 27, 10, 2.5f, Shadow);
+        c.Ellipse(12, 20, 9, 4, Hex("#8a8a90")); c.Ellipse(12, 19, 7, 2.6f, Hex("#3a6a9a"));
+        c.Rect(3, 20, 18, 6, Hex("#9a9aa0")); c.Rect(3, 22, 18, 1, Hex("#7a7a80"));
+        c.Rect(4, 6, 2, 15, Bark); c.Rect(18, 6, 2, 15, Bark);
+        for (int y = 2; y <= 7; y++) { int hw = 11 - (7 - y) * 2; c.Rect(12 - hw, y, hw * 2, 1, Hex("#8a3020")); }
+        c.Rect(11, 8, 1, 7, RopeC); c.Rect(10, 14, 3, 3, Hex("#6b4226"));
+        return c.ToSprite(12, 27);
+    });
+
+    /// Market stall with a striped awning.
+    public static Sprite Stall() => Get("stall", () =>
+    {
+        var c = new Canvas(36, 32);
+        c.Ellipse(18, 29, 16, 3, Shadow);
+        c.Rect(5, 12, 2, 17, Bark); c.Rect(29, 12, 2, 17, Bark);
+        c.Rect(4, 20, 28, 6, Hex("#9a7048")); c.Rect(4, 20, 28, 1, Hex("#c79a64"));
+        for (int i = 0; i < 5; i++) c.Ball(8 + i * 5, 18, 2, 2, Hex("#c4501b"), Hex("#f08a24"), Hex("#ffd27a")); // goods
+        for (int x = 2; x < 34; x++) for (int y = 6; y < 12; y++) c.Set(x, y, ((x / 4) % 2 == 0) ? Hex("#d9534f") : Hex("#f0e6c8"));
+        for (int x = 2; x < 34; x += 4) c.Rect(x, 12, 2, 1, Hex("#d9534f"));
+        return c.ToSprite(18, 29);
+    });
+
+    public static Sprite Fountain() => Get("fountain", () =>
+    {
+        var c = new Canvas(40, 32);
+        c.Ellipse(20, 28, 18, 3.5f, Shadow);
+        c.Ellipse(20, 22, 17, 6, Hex("#a8a8b0")); c.Ellipse(20, 21, 14, 4.5f, Hex("#5a9ad8"));
+        c.Rect(18, 8, 4, 13, Hex("#c8c8d0")); c.Ellipse(20, 9, 6, 2, Hex("#a8a8b0"));
+        var spray = new Color(0.8f, 0.92f, 1f, 0.9f);
+        c.Line(20, 2, 14, 10, spray); c.Line(20, 2, 26, 10, spray); c.Line(20, 2, 20, 8, spray);
+        return c.ToSprite(20, 28);
+    });
+
+    /// A statue of a famous sailor on a plinth (city plaza).
+    public static Sprite Statue() => Get("statue", () =>
+    {
+        var c = new Canvas(20, 40);
+        c.Ellipse(10, 37, 8, 2, Shadow);
+        c.Rect(3, 28, 14, 9, Hex("#a8a8b0")); c.Rect(3, 28, 14, 1, Hex("#c8c8d0"));
+        var inner = new Canvas(14, 24);
+        Color s = Hex("#b8c0b0"), sd = Hex("#909888");
+        Person(inner, 0, 0, s, sd, sd, s, sd, s, sd, false, false, 2);
+        for (int y = 0; y < 24; y++) for (int x = 0; x < 14; x++) { var col = inner.GetPixel(x, y); if (col.a > 0f) c.Set(x + 3, y + 4, col); }
+        c.Line(16, 6, 18, 2, sd); // raised arm with a spyglass
+        return c.ToSprite(10, 37);
+    });
+
     // ------------------------------------------------------------------ Sky island
     /// A tile of the cloud sea around the floating island.
     public static Sprite CloudTile(int v) => Get("cloud_tile_" + v, () =>
@@ -1134,6 +1232,18 @@ public static class PixelArt
                 Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#f0f0f0"), Hex("#4f8ad8"), Hex("#2a5a9a"), Hex("#4f8ad8"), Hex("#2a5a9a"), true, false);
                 inner.Rect(5, 8, 4, 4, Hex("#f0f0f0"));
                 inner.Ball(12, 4, 1.6f, 1.6f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0"));
+                break;
+            case 9: // townsfolk: farmer in a straw hat
+                Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#4a2c1a"), Hex("#4f9a3f"), Hex("#3a7a30"), Hex("#6b4226"), Hex("#4a2c1a"), false, false);
+                inner.Rect(1, 3, 12, 1, Hex("#e8c66a")); inner.Rect(4, 0, 6, 3, Hex("#e8c66a"));
+                break;
+            case 10: // townsfolk: woman in a blue dress
+                Person(inner, 0, frame, Hex("#ffdbac"), Hex("#e0b890"), Hex("#1a1010"), Hex("#3b7dd8"), Hex("#2a5aa8"), Hex("#3b7dd8"), Hex("#2a5aa8"), true, false, 1);
+                break;
+            case 11: // townsfolk: sailor in a striped shirt
+                Person(inner, 0, frame, Hex("#c68642"), Hex("#a86a30"), Hex("#2b2b2b"), Hex("#e8e8e8"), Hex("#c8c8c8"), Hex("#2a4a7a"), Hex("#1a3a5a"), false, false);
+                for (int y = 11; y <= 16; y += 2) inner.Rect(3, y, 8, 1, Hex("#2a5aa8"));
+                inner.Rect(3, 2, 8, 2, Hex("#2a4a7a"));
                 break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);

@@ -128,6 +128,7 @@ public partial class IslandGame
     void TickPower(float dt)
     {
         powerCd -= dt;
+        powerAtkCd -= dt;
         if (invisibleT > 0f) invisibleT -= dt;
         if (bubbleT > 0f) { bubbleT -= dt; if (bubbleT <= 0f) bubbleHits = 0; }
     }
@@ -295,6 +296,10 @@ public partial class IslandGame
         Bar(new Rect(14, y + 2, 180, 12), ready, ready >= 1f ? new Color(1f, 0.8f, 0.25f) : new Color(0.55f, 0.5f, 0.35f),
             ready >= 1f ? $"พลัง{PowerName(power)} {lv} [R]" : $"พลัง{PowerName(power)} {lv}");
         y += 18f;
+        float atk = PowerAttackReady;
+        Bar(new Rect(14, y + 2, 180, 10), atk, atk >= 1f ? PowerColor(power) : new Color(0.45f, 0.42f, 0.38f),
+            atk >= 1f ? $"ท่าพิเศษ: {PowerAttackName(power)} [T]" : $"ท่าพิเศษ: {PowerAttackName(power)}");
+        y += 16f;
         if (Invisible) { ShadowLabel(new Rect(14, y, 300, 18), $"ล่องหนอยู่ {invisibleT:0.0} วิ", small, new Color(0.75f, 0.7f, 1f)); y += 16f; }
         if (Bubbled) { ShadowLabel(new Rect(14, y, 300, 18), $"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง", small, new Color(0.6f, 0.9f, 1f)); y += 16f; }
         return y;

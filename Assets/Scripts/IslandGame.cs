@@ -15,7 +15,8 @@ public enum Item
     Feather, CloudCotton, Balloon, // Sky island
 }
 
-public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant }
+public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
+    Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue }
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky }
 
@@ -294,6 +295,7 @@ public partial class IslandGame : MonoBehaviour
         outfit = data.outfitId > 0 ? (Item)(data.outfitId - 1) : (Item?)null;
         elderHealDay = data.elderHealDay;
         LoadQuests(data);
+        LoadBag(data);
         power = (Power)data.powerId; powerLv = Mathf.Clamp(data.powerLv, 1, 5); powerXp = data.powerXp;
         powerCd = 0f; invisibleT = 0f; bubbleT = 0f; bubbleHits = 0;
         poisonT = 0f;
@@ -311,7 +313,12 @@ public partial class IslandGame : MonoBehaviour
         Vector2? landing = null;
         if (!fresh)
         {
-            foreach (var ns in data.nodes) Spawn(ns.kind, ns.grid, ns.flip).Restore(ns.available, ns.hits, ns.regrow);
+            foreach (var ns in data.nodes)
+            {
+                var node = Spawn(ns.kind, ns.grid, ns.flip);
+                if (ns.kind == NodeKind.Drop) { node.dropItem = (Item)ns.item; node.dropCount = ns.count; }
+                node.Restore(ns.available, ns.hits, ns.regrow);
+            }
             stickCap = data.stickCap; rockCap = data.rockCap; obsidianCap = data.obsidianCap;
             // v4 saves had no raft level: a raft already standing on this island counts as ready to sail.
             if (data.version < 5 && raftLevel == 0 && RaftNode != null) { raftLevel = island; RaftNode.Refresh(); }
@@ -319,6 +326,7 @@ public partial class IslandGame : MonoBehaviour
         // Arrived by boat (a new island, or one you're coming back to): it's pulled up on the west shore.
         if (raftLevel > 0 && RaftNode == null) landing = BeachRaft();
         foreach (var st in data.items) if (st.count > 0) inv[st.item] = st.count;
+        AutoEquipWeapon(); // old saves and empty hands: hold the best weapon you own
         System.Array.Clear(skills, 0, skills.Length);
         for (int i = 0; i < skills.Length && i < data.skills.Count; i++) skills[i] = data.skills[i];
         level = Mathf.Max(1, data.level); xp = data.xp; skillPoints = data.skillPoints; flaskWater = data.flaskWater;
@@ -326,6 +334,7 @@ public partial class IslandGame : MonoBehaviour
         if (biome == Biome.Tribal) SpawnVillagers();
         SpawnIslandPeople(); // the shipwright (every island), and the mushroom doctor and her child
         BuildTurtle();       // flood water and the turtle's head (Turtle island only)
+        SpawnTownsfolk();
         SpawnBoss();
 
         Vector2 start = landing ?? (!fresh && IsLand(data.player) ? data.player : Center);
@@ -433,7 +442,7 @@ public partial class IslandGame : MonoBehaviour
         };
         foreach (var n in nodes)
             if (n != null && n.kind != NodeKind.Raft)
-                keep.nodes.Add(new NodeSave { kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining });
+                keep.nodes.Add(ToSave(n));
         visited.RemoveAll(v => v.island == island);
         visited.Add(keep);
     }
@@ -458,14 +467,21 @@ public partial class IslandGame : MonoBehaviour
         };
         d.visited.AddRange(visited);
         SaveQuests(d);
+        SaveBag(d);
         d.skills.AddRange(skills);
         foreach (var l in learned) d.learned.Add((int)l);
         foreach (var kv in inv) if (kv.Value > 0) d.items.Add(new ItemStack { item = kv.Key, count = kv.Value });
         foreach (var n in nodes)
             if (n != null)
-                d.nodes.Add(new NodeSave { kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining });
+                d.nodes.Add(ToSave(n));
         return d;
     }
+
+    static NodeSave ToSave(WorldNode n) => new NodeSave
+    {
+        kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining,
+        item = (int)n.dropItem, count = n.dropCount,
+    };
 
     public void SaveGame()
     {
@@ -484,7 +500,7 @@ public partial class IslandGame : MonoBehaviour
     {
         float ox = (float)rnd.NextDouble() * 1000f, oy = (float)rnd.NextDouble() * 1000f;
         float hx = (float)rnd.NextDouble() * 1000f, hy = (float)rnd.NextDouble() * 1000f;
-        float radius = Size * 0.36f;
+        float radius = Size * IslandRadiusFactor; // further islands are bigger (IslandGame.Town.cs)
         tiles = new int[Size, Size];
         heights = new int[Size, Size];
 
@@ -550,6 +566,7 @@ public partial class IslandGame : MonoBehaviour
             }
 
         PlaceGlowingTree(); // a rare special-fruit tree (IslandGame.Power.cs)
+        BuildProsperity();  // houses, lamps, farms... by island level (IslandGame.Town.cs)
 
         // A starter kit close to the landing point
         Spawn(NodeKind.Stick, center + new Vector2(2.2f, -0.4f));

@@ -174,7 +174,7 @@ public partial class IslandGame
             float since = Time.time - lastInteract;
             if (v.target != null)
             {
-                if ((pressed && since > 0.15f) || (held && since > 0.4f)) { lastInteract = Time.time; AttackSea(v.target); }
+                if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; AttackSea(v.target); }
             }
             else if (HasSpear && ((pressed && since > 0.15f) || (held && since > 0.8f)))
             {

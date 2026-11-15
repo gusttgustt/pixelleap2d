@@ -144,7 +144,8 @@ public partial class IslandGame
                 break;
 
             default:
-                d.text = text ?? Chatter[Random.Range(0, Chatter.Length)];
+                var lines = biome == Biome.Tribal ? Chatter : TownChatter;
+                d.text = text ?? lines[Random.Range(0, lines.Length)];
                 break;
         }
         d.options.Add(("ลาก่อน", CloseDialog, true));

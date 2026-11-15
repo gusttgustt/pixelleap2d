@@ -106,9 +106,10 @@ public partial class IslandGame
     /// Keys that work both on land and at sea.
     void HandleCommonKeys(Keyboard kb)
     {
-        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; skillsOpen = false; }
-        if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; }
-        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; }
+        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; skillsOpen = false; bagOpen = false; }
+        if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
+        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; }
+        HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
         if (kb.fKey.wasPressedThisFrame) EatBest();
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
         if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
@@ -147,6 +148,7 @@ public partial class IslandGame
         if (chatOpen) return;
         if (kb != null) HandleCommonKeys(kb);
         if (kb != null && kb.rKey.wasPressedThisFrame) UsePower();
+        if (kb != null && kb.tKey.wasPressedThisFrame) UsePowerAttack();
 
         bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
@@ -157,7 +159,8 @@ public partial class IslandGame
             return false;
         }
 
-        if (enemyTarget != null) { if (Trigger(0.4f)) Attack(enemyTarget); }
+        // attacks: one per AttackInterval whether you tap or hold (max 3 a second)
+        if (enemyTarget != null) { if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; Attack(enemyTarget); } }
         else if (villagerTarget != null) { if (pressed && since > 0.15f) OpenDialog(villagerTarget); }
         else if (target != null)
         {
@@ -246,8 +249,7 @@ public partial class IslandGame
     bool HasSpear => Count(Item.Spear) > 0 || Count(Item.ObsidianSpear) > 0;
     bool HasAxe => Count(Item.StoneAxe) > 0 || Count(Item.ObsidianAxe) > 0;
     int ChopsNeeded => Mathf.Max(1, 4 - (Count(Item.ObsidianAxe) > 0 ? 2 : 0) - SkillLv(Skill.Lumberjack));
-    int WeaponDamage => (Count(Item.ObsidianSpear) > 0 ? 6 : Count(Item.Spear) > 0 ? 3 : 1) + SkillLv(Skill.Strength)
-                        + (hat == Item.TribalHeadband ? 1 : 0);
+    int WeaponDamage => (weapon != null && Count(weapon.Value) > 0 ? 0 : 1) + GearDamage + SkillLv(Skill.Strength); // bare hands hit for 1
 
     /// Forager skill: chance of one extra item.
     int Bonus() => rnd.NextDouble() < 0.3 * SkillLv(Skill.Forager) ? 1 : 0;
@@ -283,6 +285,14 @@ public partial class IslandGame
                 Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
                 DepleteShared(n, 90f);
+                break;
+            case NodeKind.Drop: PickUpDrop(n); break;
+            case NodeKind.Well:
+            case NodeKind.Fountain: DrinkFromWell(n); break;
+            case NodeKind.Farm:
+                Give(rnd.NextDouble() < 0.5 ? Item.Fruit : Item.Berry, rnd.Next(2, 4) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.3f, leaf, 6, 0.8f, 1f);
+                DepleteShared(n, 120f);
                 break;
             case NodeKind.CloudPlant:
                 Give(Item.CloudCotton, rnd.Next(1, 3) + Bonus(), n);
@@ -347,6 +357,7 @@ public partial class IslandGame
     void Give(Item it, int amount, WorldNode from)
     {
         inv[it] = Count(it) + amount;
+        AutoHotbar(it);
         Vector3 pos = from != null ? from.transform.position + Vector3.up * from.PromptHeight * 0.8f
                                    : PlayerPos + Vector3.up * 0.9f;
         Popup($"+{amount} {Name(it)}", pos, new Color(1f, 0.95f, 0.6f));
@@ -488,7 +499,7 @@ public partial class IslandGame
             return;
         }
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
-        if (outfit == Item.HideVest) amount *= 0.8f;
+        amount *= 1f - GearArmor; // hide vest and other armour
         if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves
         health -= amount;
         hurtT = 0.3f;
@@ -630,6 +641,7 @@ public partial class IslandGame
         Sfx.Play("craft", 0.5f);
         if (r.raftUpgrade) { UpgradeRaft(); return; }
         if (r.output != null) Give(r.output.Value, 1, null);
+        if (r.output != null && IsWeapon(r.output.Value)) AutoEquipWeapon();
         else Popup($"สร้าง{r.name}แล้ว!", PlayerPos + Vector3.up * 0.9f, Color.white);
         if (r.output != null && IsClothing(r.output.Value)) // put it straight on if that slot is free
         {
@@ -762,7 +774,8 @@ public partial class IslandGame
     /// What the boat has become at each level (its sprite changes too, see PixelArt.Raft).
     public static string BoatName(int level) => level switch
     {
-        <= 1 => "แพไม้", 2 => "แพมีราว", 3 => "เรือแคนู", 4 => "เรือใบ", _ => "เรือใบสองเสา",
+        <= 1 => "แพไม้", 2 => "แพมีราว", 3 => "เรือแคนู", 4 => "เรือใบ", 5 => "เรือใบสองเสา",
+        <= 9 => "เรือสำเภา", <= 19 => "เรือกำปั่น", _ => "เรือมหาสมุทร",
     };
 
     /// Bonuses from raft upgrades while at sea.
@@ -770,7 +783,7 @@ public partial class IslandGame
     float RaftArmor => Mathf.Min(0.4f, 0.08f * Mathf.Max(0, raftLevel - 1));
 
     /// Using your boat opens the sea chart: sail back to any island you've visited, or on to a new one.
-    void TrySail()
+    void TrySail(int page = 0)
     {
         var d = new Dialog { speaker = $"แผนที่ทะเล - {BoatName(raftLevel)} Lv {raftLevel}" };
         int next = farthest + 1;
@@ -778,12 +791,18 @@ public partial class IslandGame
         d.text = canGoNew
             ? $"เลือกเกาะที่จะล่องไป เกาะที่เคยไปแล้วจะยังเหมือนตอนที่จากมา"
             : $"ทะเลไปเกาะที่ {next} คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ต้องให้ช่างต่อเรืออัปเกรดเป็น Lv {farthest} ก่อน แต่กลับไปเกาะที่เคยไปได้";
-        for (int n = 1; n <= farthest; n++)
+        // visited islands, nearest first, a page at a time (there can be a hundred of them)
+        var known = new System.Collections.Generic.List<int>();
+        for (int n = farthest; n >= 1; n--) if (n != island) known.Add(n);
+        known.Sort((a, b) => Mathf.Abs(a - island).CompareTo(Mathf.Abs(b - island)));
+        const int perPage = 6;
+        for (int i = page * perPage; i < known.Count && i < (page + 1) * perPage; i++)
         {
-            int dest = n;
-            if (dest == island) continue;
-            d.options.Add(($"ล่องกลับไปเกาะที่ {dest}: {BiomeNameOf(BiomeOf(dest))}", () => ChooseVoyage(dest), true));
+            int dest = known[i];
+            d.options.Add(($"ล่องไปเกาะที่ {dest}: {BiomeNameOf(BiomeOf(dest))}", () => ChooseVoyage(dest), true));
         }
+        if (page > 0) d.options.Add(("◀ หน้าก่อน", () => TrySail(page - 1), true));
+        if ((page + 1) * perPage < known.Count) d.options.Add(($"หน้าถัดไป ▶ (อีก {known.Count - (page + 1) * perPage} เกาะ)", () => TrySail(page + 1), true));
         d.options.Add((canGoNew ? $"ออกสำรวจเกาะใหม่ (เกาะที่ {next}) ★" : $"เกาะใหม่ (เกาะที่ {next}) - ต้องใช้เรือ Lv {farthest}",
             () => ChooseVoyage(next), canGoNew));
         d.options.Add(("ยังไม่ออกเรือ", CloseDialog, true));
