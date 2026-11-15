@@ -24,6 +24,7 @@ public partial class IslandGame
         Fx.Tick(dt);
         hurtT -= dt;
         UpdateTouch();
+        UpdateLantern();
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -95,6 +96,7 @@ public partial class IslandGame
         thirst = Mathf.Max(0f, thirst - dt * drain * sun * 100f / ThirstSeconds);
         if (hunger <= 0f) health -= dt * 2f;
         if (thirst <= 0f) health -= dt * 2.5f;
+        if (poisonT > 0f) { poisonT -= dt; health -= dt * 1.5f; } // spider bites and spore clouds
         if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f);
         return CheckDeath();
     }
@@ -176,7 +178,7 @@ public partial class IslandGame
         float bestEnemy = InteractRange;
         foreach (var e in enemies)
         {
-            if (e == null) continue;
+            if (e == null || e.Disguised) continue;
             float d = (e.grid - pg).magnitude;
             if (d < bestEnemy) { bestEnemy = d; enemyTarget = e; }
         }
@@ -278,6 +280,11 @@ public partial class IslandGame
                 Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
                 DepleteShared(n, 90f);
+                break;
+            case NodeKind.GlowShroom:
+                Give(Item.GlowSpore, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.3f, new Color(0.5f, 1f, 0.9f), 8, 1f, 1.2f, 0.8f, 2f);
+                DepleteShared(n, 100f);
                 break;
             case NodeKind.Bush:
                 Give(Item.Berry, rnd.Next(2, 4) + (knife ? 1 : 0) + Bonus(), n);
@@ -403,8 +410,13 @@ public partial class IslandGame
         {
             EnemyKind.Boar => (Item.RawMeat, 2),
             EnemyKind.Snake => (Item.RawMeat, 1),
+            EnemyKind.Mimic => (Item.GlowSpore, 2),
+            EnemyKind.SporeSpider => (Item.GlowSpore, 1),
+            EnemyKind.ShroomKing => (Item.GlowSpore, 6),
             _ => (Item.CrabMeat, 1),
         };
+        QuestKill(kind);
+        if (kind == EnemyKind.ShroomKing) Hint("ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ", 6f);
         inv[drop] = Count(drop) + n;
         Popup($"+{n} {Name(drop)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
         // hides for the weaver's clothes: boars always, snakes sometimes
@@ -506,6 +518,8 @@ public partial class IslandGame
         EnemyKind.Crab => IsNight ? Mathf.Min(6, 2 + tier + Day / 3) : 0,
         EnemyKind.Snake => (IsNight ? 4 : 2) + tier,
         EnemyKind.Boar => (IsNight ? 3 : 2) + tier,
+        EnemyKind.Mimic => 3 + tier,
+        EnemyKind.SporeSpider => (IsNight ? 4 : 2) + tier,
         _ => 0,
     };
 
@@ -514,6 +528,7 @@ public partial class IslandGame
         (Biome.Jungle, false) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         (Biome.Jungle, true) => new[] { EnemyKind.Crab, EnemyKind.Snake, EnemyKind.Boar },
         (Biome.Volcanic, _) => new[] { EnemyKind.Crab, EnemyKind.Boar },
+        (Biome.Mushroom, _) => new[] { EnemyKind.Crab, EnemyKind.Mimic, EnemyKind.SporeSpider },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -558,7 +573,7 @@ public partial class IslandGame
     public bool CanCraft(Recipe r, out string why)
     {
         why = null;
-        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }
@@ -731,7 +746,7 @@ public partial class IslandGame
         bool canGoNew = raftLevel >= farthest;
         d.text = canGoNew
             ? $"เลือกเกาะที่จะล่องไป เกาะที่เคยไปแล้วจะยังเหมือนตอนที่จากมา"
-            : $"ทะเลไปเกาะที่ {next} คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ต้องอัปเกรดเป็น Lv {farthest} ก่อน (Tab) แต่กลับไปเกาะที่เคยไปได้";
+            : $"ทะเลไปเกาะที่ {next} คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ต้องให้ช่างต่อเรืออัปเกรดเป็น Lv {farthest} ก่อน แต่กลับไปเกาะที่เคยไปได้";
         for (int n = 1; n <= farthest; n++)
         {
             int dest = n;

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum VillagerRole { Weaver, Elder, Trader, Villager }
+public enum VillagerRole { Weaver, Elder, Trader, Villager, Shipwright, Doctor, Child }
 
 /// A friendly member of the tribe. Strolls around their hut and stops to face you when you're near.
 public class Villager : MonoBehaviour
@@ -35,6 +35,8 @@ public class Villager : MonoBehaviour
         VillagerRole.Weaver => $"{npcName} ช่างทอผ้า",
         VillagerRole.Elder => $"ผู้เฒ่า{npcName}",
         VillagerRole.Trader => $"{npcName} พ่อค้า",
+        VillagerRole.Shipwright => $"{npcName} ช่างต่อเรือ",
+        VillagerRole.Doctor => npcName,
         _ => npcName,
     };
 
@@ -46,7 +48,8 @@ public class Villager : MonoBehaviour
         var player = game.player;
         bool playerNear = player != null && (player.grid - grid).magnitude < 2f;
 
-        if (!game.Busy && !playerNear)
+        bool lost = role == VillagerRole.Child && !game.Flag("child" + game.island); // waits where she got lost
+        if (!game.Busy && !playerNear && !lost)
         {
             wanderT -= dt;
             if (wanderT <= 0f)
@@ -74,6 +77,15 @@ public class Villager : MonoBehaviour
         }
         else if (playerNear) sr.flipX = player.transform.position.x < transform.position.x; // look at the player
         frame = moving ? 1 + ((int)animT & 1) : 0;
+        Apply();
+    }
+
+    /// Jump straight to a new home (the lost child going back to the village).
+    public void Teleport(Vector2 g)
+    {
+        home = g;
+        grid = g;
+        height = IslandGame.I.HeightAt(g);
         Apply();
     }
 

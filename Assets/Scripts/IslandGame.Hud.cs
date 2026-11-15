@@ -53,7 +53,9 @@ public partial class IslandGame
         float c = Mathf.Cos((Phase - 0.5f) * Mathf.PI * 2f);
         daylight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((c + 0.3f) / 0.6f));
         Color night = new Color(0.45f, 0.55f, 1f), dusk = new Color(1f, 0.7f, 0.5f);
+        if (biome == Biome.Mushroom && voyage == null) daylight = Mathf.Min(daylight, 0.42f); // the mushroom canopy keeps it dim
         Color col = Color.Lerp(night, Color.white, daylight);
+        if (biome == Biome.Mushroom && voyage == null) col = Color.Lerp(col, new Color(0.7f, 0.55f, 1f), 0.35f);
         col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
         float intensity = Mathf.Lerp(0.22f, 1f, daylight);
         if (sun != null) { sun.color = col; sun.intensity = intensity; }
@@ -82,6 +84,7 @@ public partial class IslandGame
         NodeKind.Stick => "เก็บกิ่งไม้",
         NodeKind.Rock => "เก็บหิน",
         NodeKind.Campfire => "ใช้กองไฟ",
+        NodeKind.GlowShroom => "เก็บเห็ดเรืองแสง",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -153,6 +156,7 @@ public partial class IslandGame
         }
         if (player != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
+        DrawQuestTracker(W);
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
 
@@ -164,7 +168,7 @@ public partial class IslandGame
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
-                    : raftLevel < farthest ? $"เป้าหมาย: อัปเกรดเรือเป็น Lv {farthest} ด้วย{RaftMaterial(biome)} เพื่อไปเกาะใหม่"
+                    : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
                     : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
         ShadowLabel(new Rect(14, 106, 400, 18), goal, small, new Color(1f, 1f, 1f, 0.75f));
         if (voyage != null) DrawVoyageBar(W);
@@ -180,6 +184,12 @@ public partial class IslandGame
         if (Count(Item.WaterFlask) > 0)
         {
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
+            infoY += 16f;
+        }
+        if (poisonT > 0f)
+        {
+            ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,
+                new Color(0.6f, 1f, 0.4f, 0.6f + 0.4f * Mathf.Sin(Time.time * 6f)));
             infoY += 16f;
         }
         if (skillPoints > 0)
@@ -211,7 +221,7 @@ public partial class IslandGame
 
         // "!" over the weaver while she has something to teach
         foreach (var v in villagers)
-            if (v != null && v.role == VillagerRole.Weaver && WeaverHasLessons && dialog == null)
+            if (v != null && HasNews(v) && dialog == null)
             {
                 var gp = ToGui(v.transform.position + Vector3.up * 0.95f, s);
                 float bounce = Mathf.Sin(Time.time * 4f) * 2f;
@@ -416,19 +426,23 @@ public partial class IslandGame
     void DrawDialog(float W, float H)
     {
         var d = dialog;
-        const float pw = 560f, optH = 26f;
-        float ph = 92f + d.options.Count * (optH + 3f);
-        var box = new Rect(W / 2f - pw / 2f, H - ph - 92f, pw, ph);
+        float pw = Mathf.Min(620f, W - 20f);
+        const float optH = 26f;
+        var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
+        // the box grows with the text (quest objectives can take a few lines)
+        float textH = Mathf.Max(40f, textStyle.CalcHeight(new GUIContent(d.text), pw - 28f) + 6f);
+        float ph = 38f + textH + d.options.Count * (optH + 3f) + 6f;
+        var box = new Rect(W / 2f - pw / 2f, Mathf.Max(8f, H - ph - 92f), pw, ph);
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
         Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 28, 20), d.speaker, label, new Color(1f, 0.85f, 0.3f));
-        var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12 };
-        GUI.Label(new Rect(box.x + 14, box.y + 30, pw - 28, 54), d.text, textStyle);
+        GUI.Label(new Rect(box.x + 14, box.y + 30, pw - 28, textH), d.text, textStyle);
+        float optY = box.y + 32f + textH;
         for (int i = 0; i < d.options.Count; i++)
         {
             var o = d.options[i];
             GUI.enabled = o.enabled;
-            var r = new Rect(box.x + 14, box.y + 86 + i * (optH + 3f), pw - 28, optH);
+            var r = new Rect(box.x + 14, optY + i * (optH + 3f), pw - 28, optH);
             if (GUI.Button(r, $"{i + 1}.  {o.label}", new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 })) o.act();
             GUI.enabled = true;
         }
@@ -529,6 +543,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
             if (r.Contains(Event.current.mousePosition)) hover = it;
             if (FoodValue(it) > 0 && GUI.Button(r, GUIContent.none, GUIStyle.none)) Eat(it);
+            else if (it == Item.Antidote && GUI.Button(r, GUIContent.none, GUIStyle.none)) UseAntidote();
             else if (IsClothing(it) && GUI.Button(r, GUIContent.none, GUIStyle.none)) ToggleWear(it);
         }
         if (hover != null)
@@ -536,6 +551,7 @@ public partial class IslandGame
             var h = hover.Value;
             string extra = FoodValue(h) > 0 ? $"  (คลิกเพื่อกิน, อิ่ม +{FoodValue(h)})"
                          : IsClothing(h) ? (IsWorn(h) ? "  (สวมอยู่ - คลิกเพื่อถอด)" : "  (คลิกเพื่อสวม)") + $"  {ClothingBonus(h)}"
+                         : h == Item.Antidote ? "  (คลิกเพื่อใช้ รักษาพิษ)"
                          : IsTool(h) ? "  (เครื่องมือ)" : "";
             ShadowLabel(new Rect(0, y - 22, W, 20), Name(h) + extra, labelCenter);
         }

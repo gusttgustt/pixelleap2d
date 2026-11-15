@@ -1,11 +1,14 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
 ///   Snake - Jungle, fast but fragile.
 ///   Boar  - Volcano, slow to kill and hits hard.
+///   Mimic       - Mushroom island: sits still looking like a glowing mushroom, jumps you up close.
+///   SporeSpider - Mushroom island: poisonous bite, leaves clouds of poison spores behind.
+///   ShroomKing  - Mushroom island boss: big, slow, puffs spore clouds all around. Never wanders off.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -26,7 +29,14 @@ public class Enemy : MonoBehaviour
     public bool puppet;
     Vector2 netTarget;
 
-    public string DisplayName => kind switch { EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", _ => "หมูป่า" };
+    public string DisplayName => kind switch
+    {
+        EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
+        EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", _ => "ราชาเห็ด",
+    };
+    /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
+    public bool Disguised { get; private set; }
+    float sporeT = 3f;
     public bool Flip => sr != null && sr.flipX;
 
     public void Init(EnemyKind k, Vector2 g, int tier, int id = 0, bool asPuppet = false)
@@ -40,8 +50,12 @@ public class Enemy : MonoBehaviour
         {
             EnemyKind.Snake => (4, 6f, 1.7f, 6f, 15),
             EnemyKind.Boar => (8, 12f, 1.5f, 7f, 25),
+            EnemyKind.Mimic => (5, 9f, 1.9f, 6f, 18),
+            EnemyKind.SporeSpider => (5, 5f, 1.6f, 7f, 20),
+            EnemyKind.ShroomKing => (45, 16f, 0.9f, 8f, 120),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
+        Disguised = k == EnemyKind.Mimic && !asPuppet;
         // Later islands (second lap and beyond) are tougher and give more XP.
         maxHp = Mathf.RoundToInt(maxHp * (1f + 0.5f * tier));
         damage *= 1f + 0.3f * tier;
@@ -83,6 +97,26 @@ public class Enemy : MonoBehaviour
         var (targetGrid, targetWho) = game.NearestPlayer(grid); // chase whichever player is closest
         Vector2 toPlayer = targetGrid - grid;
         float dist = toPlayer.magnitude;
+
+        if (Disguised)
+        {
+            if (dist > 1.7f) { Apply(); return; } // just a mushroom... nothing to see here
+            Reveal();
+        }
+        if (kind is EnemyKind.SporeSpider or EnemyKind.ShroomKing)
+        {
+            sporeT -= dt;
+            if (sporeT <= 0f && dist < 14f)
+            {
+                if (kind == EnemyKind.SporeSpider) { sporeT = Random.Range(3.5f, 5.5f); game.SpawnSporeCloud(grid); }
+                else
+                {
+                    sporeT = 5.5f; // the king puffs a ring of spores
+                    for (int i = 0; i < 4; i++) game.SpawnSporeCloud(grid + new Vector2(Mathf.Cos(i * 1.57f + Time.time), Mathf.Sin(i * 1.57f + Time.time)) * 1.6f);
+                    Fx.Burst(transform.position + Vector3.up * 0.6f, new Color(0.6f, 1f, 0.5f), 14, 1.4f, 1.2f, 1f, 2f);
+                }
+            }
+        }
         Vector2 dir = Vector2.zero;
         float pace = 1f;
 
@@ -96,7 +130,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -129,7 +163,11 @@ public class Enemy : MonoBehaviour
             if (dist < 0.65f && attackCd <= 0f)
             {
                 attackCd = 1.3f;
-                if (targetWho == 0) game.DamagePlayer(damage, $"{DisplayName}!");
+                if (targetWho == 0)
+                {
+                    game.DamagePlayer(damage, $"{DisplayName}!");
+                    if (kind == EnemyKind.SporeSpider) game.Poison(5f);
+                }
                 else game.NetDamage(targetWho, damage, $"{DisplayName}!"); // bite another player
             }
         }
@@ -144,6 +182,14 @@ public class Enemy : MonoBehaviour
         Apply();
     }
 
+    void Reveal()
+    {
+        Disguised = false;
+        attackCd = 0.4f;
+        Fx.Burst(transform.position + Vector3.up * 0.3f, new Color(0.5f, 1f, 0.9f), 10, 1.2f, 1.4f);
+        Sfx.Play("hurt", 0.4f);
+    }
+
     bool CanGo(Vector2 g) => IslandGame.I.CanWalk(g, 0.2f) && IslandGame.I.CanClimb(grid, g);
 
     void Apply()
@@ -152,7 +198,7 @@ public class Enemy : MonoBehaviour
         Vector3 flat = IslandGame.GridToWorld(grid);
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
-        sr.sprite = PixelArt.Enemy(kind, frame);
+        sr.sprite = PixelArt.Enemy(kind, Disguised ? 2 : frame);
         sr.color = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : Color.white;
     }
 
@@ -160,10 +206,11 @@ public class Enemy : MonoBehaviour
     public bool Hit(int dmg, Vector2 from)
     {
         hurtT = 0.15f;
+        if (Disguised) Reveal();
         Fx.Burst(transform.position + Vector3.up * 0.15f, kind == EnemyKind.Snake ? new Color(0.4f, 0.7f, 0.3f) : new Color(1f, 0.5f, 0.3f), 6);
         if (puppet) return false; // the host decides; it tells everyone when it dies
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind == EnemyKind.ShroomKing ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
         if (hp > 0) return false;

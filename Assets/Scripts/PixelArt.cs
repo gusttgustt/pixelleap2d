@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Mushroom, true) => new[] { "#4a5a8a", "#3d4a78", "#6a7ab0", "#5a4a6a", "#463a54", "#3a4870" },  // blue-violet moss
+            (Biome.Mushroom, false) => new[] { "#b8aec8", "#a498b8", "#d0c8dc", "#8a7e9e", "#6e6482", "#a498b8" }, // pale spore sand
             (Biome.Tribal, true) => new[] { "#7fb04a", "#6c9a3c", "#9cc860", "#8a5a35", "#6b4327", "#5a8a34" },
             (Biome.Tribal, false) => new[] { "#f0d9a0", "#dcc286", "#faecc4", "#cfae70", "#ae8e54", "#dcc286" },
             (_, true) => new[] { "#5fae4a", "#4f9a3f", "#7cc95c", "#8a5a35", "#6b4327", "#3f7f33" },
@@ -273,6 +275,7 @@ public static class PixelArt
     public static Sprite Tree(Biome biome = Biome.Tropical) => biome switch
     {
         Biome.Volcanic => DeadTree(),
+        Biome.Mushroom => GiantMushroom(),
         Biome.Jungle => LeafyTree("tree_jungle", "#1f4d26", "#2f6e33", "#4f9a45"),
         _ => LeafyTree("tree", "#2c6431", "#3e8a3e", "#6bb85c"),
     };
@@ -302,7 +305,7 @@ public static class PixelArt
     });
 
     public static Sprite FruitTree(bool fruit, Biome biome = Biome.Tropical) =>
-        biome == Biome.Jungle ? Palm(fruit) : RoundFruitTree(fruit);
+        biome == Biome.Jungle ? Palm(fruit) : biome == Biome.Mushroom ? GiantMushroom() : RoundFruitTree(fruit);
 
     static Sprite Palm(bool fruit) => Get(fruit ? "palm" : "palm_empty", () =>
     {
@@ -559,8 +562,130 @@ public static class PixelArt
     {
         EnemyKind.Snake => Snake(frame),
         EnemyKind.Boar => Boar(frame),
+        EnemyKind.Mimic => Mimic(frame),
+        EnemyKind.SporeSpider => SporeSpider(frame),
+        EnemyKind.ShroomKing => ShroomKing(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Glowing Mushroom island
+    /// Giant mushroom "tree": pale stalk, wide violet cap with glowing spots.
+    static Sprite GiantMushroom() => Get("tree_mushroom", () =>
+    {
+        var c = new Canvas(32, 46);
+        c.Ellipse(16, 42.5f, 9, 2.5f, Shadow);
+        Color st = Hex("#d9cfe8"), stD = Hex("#a99cc0"), gill = Hex("#8a6fa8");
+        for (int y = 16; y <= 42; y++)
+        {
+            int w = 3 + (y > 36 ? (y - 36) / 2 : 0);
+            c.Rect(16 - w / 2 - 1, y, w + 1, 1, st);
+            c.Set(16 + w / 2, y, stD);
+        }
+        c.Ball(16, 13, 15, 8, Hex("#3a1f5c"), Hex("#6a3fa0"), Hex("#9a6fd0"));
+        c.Rect(4, 17, 24, 2, gill);
+        Color glow = Hex("#7ff5e6"), glowL = Hex("#d8fff8");
+        int[,] spots = { { 9, 10 }, { 16, 7 }, { 23, 11 }, { 13, 14 }, { 20, 15 }, { 6, 14 }, { 26, 15 } };
+        for (int i = 0; i < spots.GetLength(0); i++)
+        {
+            c.Rect(spots[i, 0], spots[i, 1], 2, 2, glow);
+            c.Set(spots[i, 0], spots[i, 1], glowL);
+        }
+        return c.ToSprite(16, 42);
+    });
+
+    /// Small glowing mushroom you can pick (gives glow spores). Picked = a dim stub.
+    public static Sprite GlowShroom(bool ripe) => Get(ripe ? "glowshroom" : "glowshroom_empty", () =>
+    {
+        var c = new Canvas(16, 16);
+        c.Ellipse(8, 14, 5, 1.5f, Shadow);
+        if (!ripe)
+        {
+            c.Rect(7, 11, 2, 3, Hex("#8a7fa0"));
+            return c.ToSprite(8, 14);
+        }
+        Color st = Hex("#e8f0f0"), cap = Hex("#2fb8a8"), capL = Hex("#7ff5e6"), capD = Hex("#1a7a70");
+        c.Rect(5, 9, 2, 5, st); c.Rect(10, 10, 2, 4, st);
+        c.Ball(6, 7, 4, 2.6f, capD, cap, capL);
+        c.Ball(11, 9, 3, 2, capD, cap, capL);
+        c.Set(5, 6, Color.white); c.Set(11, 8, Color.white);
+        return c.ToSprite(8, 14);
+    });
+
+    /// Mimic: frame 2 = disguised (looks like a glowing mushroom, but redder), 0/1 = hopping.
+    static Sprite Mimic(int frame) => Get("mimic_" + frame, () =>
+    {
+        var c = new Canvas(18, 18);
+        c.Ellipse(9, 16, 6, 1.5f, Shadow);
+        Color cap = Hex("#c0397a"), capL = Hex("#ff7ab8"), capD = Hex("#6a1a40"), st = Hex("#f0e0e8");
+        if (frame == 2)
+        {
+            c.Rect(7, 10, 4, 6, st);
+            c.Ball(9, 8, 6, 3.5f, capD, cap, capL);
+            c.Set(6, 7, Color.white); c.Set(12, 8, Color.white);
+            return c.ToSprite(9, 16);
+        }
+        int hop = frame == 1 ? 2 : 0;
+        c.Rect(6, 9 - hop, 6, 6, st);
+        c.Rect(5, 15 - hop, 2, 1, st); c.Rect(11, 15 - hop, 2, 1, st); // little feet
+        c.Ball(9, 7 - hop, 7, 4, capD, cap, capL);
+        c.Rect(7, 10 - hop, 1, 2, Color.black); c.Rect(10, 10 - hop, 1, 2, Color.black); // eyes
+        for (int x = 7; x <= 11; x += 2) c.Set(x, 13 - hop, Hex("#ffffff"));          // teeth
+        c.Rect(7, 12 - hop, 5, 1, Hex("#3a0a1a"));
+        return c.ToSprite(9, 16);
+    });
+
+    static Sprite SporeSpider(int frame) => Get("spore_spider_" + frame, () =>
+    {
+        var c = new Canvas(20, 14);
+        c.Ellipse(10, 12, 8, 1.5f, Shadow);
+        Color d = Hex("#2a1a3a"), m = Hex("#4a2f6a"), l = Hex("#7a5aa0"), spot = Hex("#9bff6a");
+        for (int i = 0; i < 4; i++)
+        {
+            int off = (i + frame) % 2;
+            c.Line(8, 8, 2 + i, 11 - off - i % 2, d);
+            c.Line(12, 8, 18 - i, 11 - (1 - off) - i % 2, d);
+        }
+        c.Ball(10, 7, 5, 3.5f, d, m, l);   // body
+        c.Ball(14, 8, 2.5f, 2, d, m, l);   // head
+        c.Set(15, 7, Hex("#ff4040")); c.Set(13, 7, Hex("#ff4040"));
+        c.Set(8, 5, spot); c.Set(10, 4, spot); c.Set(11, 6, spot); // glowing spores on its back
+        return c.ToSprite(10, 12);
+    });
+
+    /// The Mushroom King: a huge purple toadstool with a crown and angry eyes.
+    static Sprite ShroomKing(int frame) => Get("shroom_king_" + frame, () =>
+    {
+        var c = new Canvas(40, 40);
+        c.Ellipse(20, 37, 14, 3, Shadow);
+        int bob = frame;
+        Color st = Hex("#e8dcc8"), stD = Hex("#b8a890");
+        c.Rect(13, 20 + bob, 14, 16 - bob, st); c.Rect(24, 20 + bob, 3, 16 - bob, stD);
+        c.Rect(11, 34, 6, 3, st); c.Rect(23, 34, 6, 3, stD); // feet
+        c.Rect(15, 25 + bob, 2, 3, Color.black); c.Rect(23, 25 + bob, 2, 3, Color.black);
+        c.Line(14, 23 + bob, 17, 24 + bob, Color.black); c.Line(26, 23 + bob, 23, 24 + bob, Color.black); // angry brows
+        c.Rect(17, 30 + bob, 6, 1, Hex("#5a2a2a"));
+        c.Ball(20, 13 + bob, 19, 10, Hex("#3a0f4a"), Hex("#7a2a9a"), Hex("#b46ae0"));
+        Color glow = Hex("#9bff6a");
+        int[,] spots = { { 8, 12 }, { 15, 7 }, { 24, 6 }, { 31, 11 }, { 12, 17 }, { 28, 17 }, { 20, 13 } };
+        for (int i = 0; i < spots.GetLength(0); i++) c.Ball(spots[i, 0], spots[i, 1] + bob, 2, 1.6f, glow, glow, Color.white);
+        Color gold = Hex("#f2c43a"), goldD = Hex("#b88a1a");
+        c.Rect(14, 1 + bob, 12, 3, gold); c.Rect(14, 3 + bob, 12, 1, goldD);
+        c.Set(14, 0 + bob, gold); c.Set(19, 0 + bob, gold); c.Set(20, 0 + bob, gold); c.Set(25, 0 + bob, gold);
+        c.Set(17, 2 + bob, Hex("#d9534f")); c.Set(22, 2 + bob, Hex("#3b7dd8"));
+        return c.ToSprite(20, 37);
+    });
+
+    /// A drifting patch of poisonous spores on the ground.
+    public static Sprite SporeCloud() => Get("spore_cloud", () =>
+    {
+        var c = new Canvas(28, 16);
+        Color a = new Color(0.55f, 1f, 0.35f, 0.35f), b = new Color(0.75f, 1f, 0.5f, 0.55f);
+        c.Ellipse(14, 9, 12, 5, a);
+        c.Ellipse(9, 8, 5, 3, b); c.Ellipse(18, 10, 6, 3, b); c.Ellipse(14, 6, 4, 2.5f, b);
+        var r = new System.Random(5);
+        for (int i = 0; i < 10; i++) c.Set(r.Next(4, 24), r.Next(3, 13), new Color(0.9f, 1f, 0.7f, 0.9f));
+        return c.ToSprite(14, 9);
+    });
 
     static Sprite Snake(int frame) => Get("snake_" + frame, () =>
     {
@@ -794,6 +919,21 @@ public static class PixelArt
                 inner.Rect(3, 4, 8, 1, Hex("#2e86c1"));
                 inner.Rect(9, 13, 3, 3, Hex("#8a5a36"));
                 break;
+            case 4: // shipwright: tanned, blue overalls, red bandana
+                Person(inner, 0, frame, Hex("#d8a070"), Hex("#b88050"), Hex("#4a2c1a"), Hex("#2e6aa8"), Hex("#1e4a78"), Hex("#2e6aa8"), Hex("#1e4a78"), false, false);
+                inner.Rect(3, 3, 8, 2, Hex("#d9534f"));
+                inner.Rect(5, 11, 4, 1, Hex("#f0e6c8"));
+                break;
+            case 5: // mushroom doctor: violet robe, big glowing mushroom hat
+                Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#e8e8e8"), Hex("#5a3a8a"), Hex("#3e2868"), Hex("#5a3a8a"), Hex("#3e2868"), true, false, 1);
+                inner.Rect(1, 1, 12, 2, Hex("#2fb8a8")); inner.Rect(3, 0, 8, 1, Hex("#7ff5e6"));
+                inner.Set(4, 1, Color.white); inner.Set(9, 2, Color.white);
+                break;
+            case 6: // lost child: little mushroom cap, yellow dress
+                Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#4a2c1a"), Hex("#e0b030"), Hex("#b08a20"), Hex("#f1c27d"), Hex("#d0a060"), false, false, 3);
+                inner.Rect(2, 1, 10, 3, Hex("#c0397a")); inner.Set(4, 2, Color.white); inner.Set(9, 1, Color.white);
+                for (int x = 3; x <= 10; x++) inner.Rect(x, 15, 1, 3, x % 2 == 0 ? Hex("#e0b030") : Hex("#b08a20"));
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -864,6 +1004,23 @@ public static class PixelArt
         var steam = new Color(1f, 1f, 1f, 0.6f);
         switch (it)
         {
+            case Item.GlowSpore:
+                c.Ball(6, 9, 3.5f, 3.5f, Hex("#1a7a70"), Hex("#2fb8a8"), Hex("#7ff5e6"));
+                c.Ball(11, 6, 2.5f, 2.5f, Hex("#1a7a70"), Hex("#2fb8a8"), Hex("#d8fff8"));
+                c.Ball(11, 12, 2, 2, Hex("#1a7a70"), Hex("#7ff5e6"), Color.white);
+                break;
+            case Item.Antidote:
+                c.Rect(6, 1, 4, 3, Hex("#8a5a36"));                     // cork
+                c.Ball(8, 10, 5, 5, Hex("#2a6a3a"), Hex("#4fbf6a"), Hex("#b8ffc8")); // green potion
+                c.Rect(7, 4, 2, 2, Hex("#cfe8e0"));
+                c.Set(6, 8, Color.white);
+                break;
+            case Item.MushroomLantern:
+                c.Rect(7, 0, 2, 3, Bark); c.Rect(4, 2, 8, 1, Bark);      // handle
+                c.Rect(4, 3, 8, 11, Hex("#3e2b1a")); c.Rect(5, 4, 6, 9, Hex("#7ff5e6"));
+                c.Ball(8, 9, 2, 2, Hex("#2fb8a8"), Hex("#7ff5e6"), Color.white);
+                c.Rect(4, 14, 8, 1, Bark);
+                break;
             case Item.Wood:
                 c.Rect(1, 6, 12, 6, Bark); c.Rect(1, 6, 12, 1, Hex("#9a6a3e")); c.Rect(1, 11, 12, 1, BarkD);
                 c.Ellipse(13, 9, 2.6f, 3.2f, Hex("#c79a64")); c.Set(13, 9, Hex("#a87a48"));

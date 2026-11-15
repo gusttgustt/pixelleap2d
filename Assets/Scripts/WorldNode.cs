@@ -74,6 +74,15 @@ public class WorldNode : MonoBehaviour
             fireLight.pointLightInnerRadius = 0.3f;
             fireLight.pointLightOuterRadius = 3.5f;
         }
+        if (k == NodeKind.GlowShroom && ((int)(g.x * 7f) + (int)(g.y * 13f)) % 3 == 0) // some of them light the ground
+        {
+            fireLight = IslandGame.CreateLight("ShroomLight", Light2D.LightType.Point, transform);
+            fireLight.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+            fireLight.color = new Color(0.4f, 1f, 0.9f);
+            fireLight.intensity = 0.9f;
+            fireLight.pointLightInnerRadius = 0.2f;
+            fireLight.pointLightOuterRadius = 2.2f;
+        }
         Refresh();
     }
 
@@ -97,8 +106,10 @@ public class WorldNode : MonoBehaviour
             NodeKind.Raft => PixelArt.Raft(IslandGame.I.raftLevel),
             NodeKind.Hut => PixelArt.Hut(),
             NodeKind.Totem => PixelArt.Totem(),
+            NodeKind.GlowShroom => PixelArt.GlowShroom(available),
             _ => PixelArt.Campfire(fireFrame),
         };
+        if (kind == NodeKind.GlowShroom && fireLight != null) fireLight.enabled = available;
         if (!available && kind is NodeKind.Grass or NodeKind.Stick or NodeKind.Rock or NodeKind.Bamboo or NodeKind.Obsidian)
             sr.enabled = false;
     }

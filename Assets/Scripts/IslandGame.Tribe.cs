@@ -102,6 +102,12 @@ public partial class IslandGame
         villagerTarget = v;
         craftOpen = false; skillsOpen = false;
         var d = new Dialog { speaker = v.Title };
+        if (QuestDialog(v, d, text)) // shipwright, doctor, lost child
+        {
+            d.options.Add(("ลาก่อน", CloseDialog, true));
+            dialog = d;
+            return;
+        }
         switch (v.role)
         {
             case VillagerRole.Weaver:

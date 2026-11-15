@@ -24,6 +24,8 @@ public class SaveData
     public List<NodeSave> nodes = new List<NodeSave>();
     public int farthest;          // highest island reached (0 = older save: same as island)
     public List<IslandSave> visited = new List<IslandSave>(); // other islands, as you left them
+    public List<string> flags = new List<string>();      // quests and story (see IslandGame.Quest.cs)
+    public List<string> questKills = new List<string>(); // "<quest>|<enemy kind>|<count>"
 }
 
 /// An island you've been to and left: rebuilt from its seed, then its saved objects put back.
