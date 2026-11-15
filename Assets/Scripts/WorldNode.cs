@@ -117,6 +117,7 @@ public class WorldNode : MonoBehaviour
             NodeKind.Totem => PixelArt.Totem(),
             NodeKind.GlowShroom => PixelArt.GlowShroom(available),
             NodeKind.Shell => PixelArt.Shell(),
+            NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
         };

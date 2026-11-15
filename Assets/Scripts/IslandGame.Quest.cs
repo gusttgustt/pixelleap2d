@@ -77,6 +77,7 @@ public partial class IslandGame
         EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
         EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
         EnemyKind.Barnacle => "เพรียงคลาน", EnemyKind.HermitCrab => "ปูเสฉวนหอยยักษ์",
+        EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", EnemyKind.ChimeBird => "นกกระดิ่งลม",
         _ => k.ToString(),
     };
 
@@ -98,6 +99,11 @@ public partial class IslandGame
             case Biome.Mushroom:
                 q.bring = new[] { (Item.GlowSpore, 6 + L), (Item.Wood, 6), (Item.Rope, 4) };
                 q.help = new[] { ($"child{island}", "พาน้องปุยกลับไปหาหมอโมรา"), ($"king{island}", "ปราบราชาเห็ดที่ขวางทางน้ำ") };
+                break;
+            case Biome.Sky:
+                q.bring = new[] { (Item.CloudCotton, 6 + L), (Item.Feather, 3 + L), (Item.Wood, 4), (Item.Rope, 4) };
+                q.kill = new[] { (EnemyKind.StormCloud, 2 + t) };
+                q.help = new[] { ($"windcalm{island}", "ช่วยปู่ลมพัดตามหากระดิ่งลม") };
                 break;
             case Biome.Turtle:
                 q.bring = new[] { (Item.ShellShard, 6 + L), (Item.Wood, 6), (Item.Rope, 4) };
@@ -126,6 +132,7 @@ public partial class IslandGame
     string ShipwrightTalk() => biome switch
     {
         Biome.Mushroom => "เรือแบบเจ้าแล่นไม่ผ่านคลองเห็ดหรอก ราชาเห็ดนอนขวางทางน้ำอยู่ แถมหมอโมราก็ร้อนใจเรื่องลูกหาย ช่วยเกาะนี้ก่อน แล้วข้าจะเสริมเรือให้ด้วยสปอร์เรืองแสง",
+        Biome.Sky => "เรือที่จะออกจากเกาะลอยฟ้าต้องเบาดั่งปุยเมฆ เอาปุยเมฆกับขนนกมา แล้วจัดการก้อนเมฆสายฟ้าที่ชอบผ่าเรือข้า และช่วยปู่ลมพัดให้ลมสงบก่อนด้วย",
         Biome.Turtle => "เปลือกหอยยักษ์ที่นี่แข็งยิ่งกว่าหิน ใช้หุ้มท้องเรือกันคลื่นได้ แต่ปูเสฉวนหวงเปลือกนัก ต้องตีให้เปลือกแตกก่อน แล้วไปช่วยยายชบาด้วย ท่านเต่าดำน้ำบ่อยจนข้าต่อเรือไม่ได้",
         Biome.Jungle => "ไม้ไผ่ที่นี่เบาและเหนียว ทำตัวเรือได้ดีที่สุด แต่งูชุมจนข้าเข้าป่าไม่ได้ ช่วยไล่มันหน่อย",
         Biome.Tribal => "ใบเรือผ้าทอรับลมได้ดีนัก แต่หมู่บ้านกำลังจะจัดงานเลี้ยง เอาปลาย่างมาช่วยด้วยนะ",
@@ -172,6 +179,9 @@ public partial class IslandGame
             case VillagerRole.Keeper:
                 var kq = KeeperQuest();
                 return Done(kq) ? null : kq;
+            case VillagerRole.Sage:
+                var sq = SageQuest();
+                return Done(sq) ? null : sq;
             default: return null;
         }
     }
@@ -201,6 +211,7 @@ public partial class IslandGame
             case VillagerRole.Shipwright:
             case VillagerRole.Doctor:
             case VillagerRole.Keeper:
+            case VillagerRole.Sage:
                 break;
             default:
                 return false;
@@ -212,6 +223,7 @@ public partial class IslandGame
             d.text = text ?? (v.role == VillagerRole.Shipwright
                 ? (raftLevel == 0 ? "ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น"
                                   : $"{BoatName(raftLevel)} Lv {raftLevel} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ")
+                : v.role == VillagerRole.Sage ? "ได้ยินไหม เสียงกระดิ่งกลับมาแล้ว ลมสงบลงเยอะเลย บอลลูนจะพาเรือเจ้าลอยพ้นปากฉลาม"
                 : v.role == VillagerRole.Keeper ? "ท่านเต่าสบายตัวขึ้นมากแล้ว ขอบใจนะหลาน ใบเรือผ้าใบจะพาเจ้าแล่นได้เร็วดั่งลม"
                 : "ขอบใจที่ช่วยเกาะเห็ดนะ ถ้าโดนพิษ ใช้ยาแก้พิษได้เลย และโคมเห็ดจะส่องทางให้ในคืนมืด");
             return true;
@@ -219,6 +231,7 @@ public partial class IslandGame
 
         string intro = v.role == VillagerRole.Shipwright ? ShipwrightTalk()
                      : v.role == VillagerRole.Keeper ? KeeperIntro
+                     : v.role == VillagerRole.Sage ? SageIntro
                      : q.id.StartsWith("lost") ? "ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้"
                      : "แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน";
         if (!Accepted(q))
@@ -265,6 +278,12 @@ public partial class IslandGame
             var hut = nodes.Find(n => n != null && n.kind == NodeKind.Hut);
             Vector2 home = hut != null ? hut.grid + (Center - hut.grid).normalized * 1.4f : Center + new Vector2(1f, 1f);
             AddVillager(VillagerRole.Keeper, "ยายชบา", 7, WalkableNear(home));
+        }
+        if (biome == Biome.Sky)
+        {
+            var hut = nodes.Find(n => n != null && n.kind == NodeKind.Hut);
+            Vector2 home = hut != null ? hut.grid + (Center - hut.grid).normalized * 1.4f : Center + new Vector2(1f, 1f);
+            AddVillager(VillagerRole.Sage, "ปู่ลมพัด", 8, WalkableNear(home));
         }
     }
 

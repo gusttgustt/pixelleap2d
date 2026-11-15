@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Sky, true) => new[] { "#7ad08a", "#62b874", "#a8eab4", "#c8c0d8", "#a8a0bc", "#58a868" },     // bright meadow on pale floating rock
+            (Biome.Sky, false) => new[] { "#ece8f4", "#d8d2e6", "#ffffff", "#c8c0d8", "#a8a0bc", "#d8d2e6" },
             (Biome.Turtle, true) => new[] { "#6a8a3a", "#5a7630", "#8aaa52", "#5a6a34", "#46542a", "#4f6a2c" },  // olive shell plates
             (Biome.Turtle, false) => new[] { "#d8cc96", "#c4b682", "#ece2b4", "#a89c68", "#8a7e50", "#c4b682" },
             (Biome.Mushroom, true) => new[] { "#4a5a8a", "#3d4a78", "#6a7ab0", "#5a4a6a", "#463a54", "#3a4870" },  // blue-violet moss
@@ -278,6 +280,7 @@ public static class PixelArt
     {
         Biome.Volcanic => DeadTree(),
         Biome.Mushroom => GiantMushroom(),
+        Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
         Biome.Jungle => LeafyTree("tree_jungle", "#1f4d26", "#2f6e33", "#4f9a45"),
         _ => LeafyTree("tree", "#2c6431", "#3e8a3e", "#6bb85c"),
     };
@@ -569,8 +572,77 @@ public static class PixelArt
         EnemyKind.ShroomKing => ShroomKing(frame),
         EnemyKind.Barnacle => Barnacle(frame),
         EnemyKind.HermitCrab => HermitCrab(frame),
+        EnemyKind.StormCloud => StormCloud(frame),
+        EnemyKind.ChimeBird => ChimeBird(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Sky island
+    /// A tile of the cloud sea around the floating island.
+    public static Sprite CloudTile(int v) => Get("cloud_tile_" + v, () =>
+    {
+        var c = new Canvas(32, 16);
+        Color baseCol = new Color(0.86f, 0.92f, 1f), shade = new Color(0.74f, 0.82f, 0.95f);
+        c.Diamond(0, (x, r) => r > 11 ? shade : baseCol);
+        var rnd = new System.Random(31 + v * 17);
+        for (int k = 0; k < 3; k++)
+        {
+            float cx = rnd.Next(8, 24), cy = rnd.Next(4, 11);
+            for (int y = 0; y < 16; y++)
+                for (int x = 0; x < 32; x++)
+                    if (InDiamond(x, y) && (x - cx) * (x - cx) / 16f + (y - cy) * (y - cy) / 5f < 1f) c.Set(x, y, Color.white);
+        }
+        return c.ToSprite(16, 8);
+    });
+
+    /// Cloud cotton: a puffy white plant (gives cloud cotton). Picked = bare twigs.
+    public static Sprite CloudPlant(bool ripe) => Get(ripe ? "cloud_plant" : "cloud_plant_empty", () =>
+    {
+        var c = new Canvas(18, 18);
+        c.Ellipse(9, 16, 6, 1.5f, Shadow);
+        Color stem = Hex("#7a9a6a");
+        c.Line(9, 16, 9, 9, stem); c.Line(9, 12, 5, 8, stem); c.Line(9, 11, 13, 7, stem);
+        if (ripe)
+        {
+            Color d = Hex("#c8d8f0"), m = Hex("#eef4ff");
+            c.Ball(5, 7, 3.5f, 3f, d, m, Color.white); c.Ball(13, 6, 3.5f, 3f, d, m, Color.white); c.Ball(9, 5, 4f, 3.5f, d, m, Color.white);
+        }
+        return c.ToSprite(9, 16);
+    });
+
+    /// Storm cloud: frame 2 = crackling before a charge.
+    static Sprite StormCloud(int frame) => Get("storm_cloud_" + frame, () =>
+    {
+        var c = new Canvas(24, 20);
+        c.Ellipse(12, 18, 7, 1.5f, Shadow);
+        bool flash = frame == 2;
+        Color d = flash ? Hex("#8a8aa0") : Hex("#3a3a50"), m = flash ? Hex("#d8d8f0") : Hex("#6a6a88"), l = flash ? Color.white : Hex("#9a9ab8");
+        int bob = frame == 1 ? 1 : 0;
+        c.Ball(8, 9 + bob, 6, 4.5f, d, m, l); c.Ball(15, 8 + bob, 6, 5f, d, m, l); c.Ball(12, 6 + bob, 5, 4f, d, m, l);
+        c.Rect(8, 9 + bob, 1, 2, Color.black); c.Rect(14, 9 + bob, 1, 2, Color.black); // eyes
+        c.Line(9, 12 + bob, 13, 12 + bob, Hex("#20202a"));
+        Color bolt = Hex("#ffe14a");
+        c.Line(11, 13 + bob, 9, 16, bolt); c.Line(9, 16, 12, 16, bolt); c.Line(12, 16, 10, 19, bolt);
+        if (flash) { c.Line(3, 4, 6, 7, bolt); c.Line(20, 3, 18, 7, bolt); }
+        return c.ToSprite(12, 18);
+    });
+
+    /// Chime bird: a little blue bird with a golden bell round its neck.
+    static Sprite ChimeBird(int frame) => Get("chime_bird_" + frame, () =>
+    {
+        var c = new Canvas(18, 16);
+        c.Ellipse(9, 14.5f, 5, 1.2f, Shadow);
+        Color d = Hex("#2a5a9a"), m = Hex("#4f8ad8"), l = Hex("#a8d0ff");
+        c.Ball(9, 8, 5, 3.6f, d, m, l);                      // body
+        c.Ball(13, 5, 2.6f, 2.4f, d, m, l);                   // head
+        c.Set(14, 4, Color.black); c.Rect(15, 5, 2, 1, Hex("#f2a020")); // eye, beak
+        if (frame == 0) { c.Line(5, 6, 1, 2, d); c.Line(6, 6, 2, 3, m); }  // wing up
+        else { c.Line(5, 9, 1, 12, d); c.Line(6, 9, 2, 11, m); }          // wing down
+        c.Line(4, 9, 1, 10, d);                               // tail
+        c.Ball(11, 10, 1.6f, 1.6f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0")); // the bell
+        c.Line(8, 12, 8, 14, Hex("#f2a020")); c.Line(10, 12, 10, 14, Hex("#f2a020"));
+        return c.ToSprite(9, 14);
+    });
 
     // ------------------------------------------------------------------ Giant Turtle island
     /// The turtle's head poking out of the sea (blink = eyes shut for a moment).
@@ -1058,6 +1130,11 @@ public static class PixelArt
                 Person(inner, 0, frame, Hex("#d8a070"), Hex("#b88050"), Hex("#e8e8e8"), Hex("#2a8a7a"), Hex("#1a6a5a"), Hex("#6b4226"), Hex("#4a2c1a"), true, false, 3);
                 inner.Ball(11, 12, 3, 3, Hex("#4f6a2c"), Hex("#6a8a3a"), Hex("#8aaa52"));
                 break;
+            case 8: // wind sage: long white beard, sky-blue robe, a golden bell on his staff
+                Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#f0f0f0"), Hex("#4f8ad8"), Hex("#2a5a9a"), Hex("#4f8ad8"), Hex("#2a5a9a"), true, false);
+                inner.Rect(5, 8, 4, 4, Hex("#f0f0f0"));
+                inner.Ball(12, 4, 1.6f, 1.6f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0"));
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1129,6 +1206,21 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.Feather:
+                c.Line(3, 14, 12, 2, Hex("#c8a040"));
+                for (int i = 0; i < 9; i++) { c.Line(4 + i, 13 - i * 4 / 3, 2 + i, 9 - i * 4 / 3, Hex("#4f8ad8")); c.Line(5 + i, 13 - i * 4 / 3, 8 + i, 12 - i * 4 / 3, Hex("#a8d0ff")); }
+                break;
+            case Item.CloudCotton:
+                c.Ball(5, 9, 4, 3.5f, Hex("#c8d8f0"), Hex("#eef4ff"), Color.white);
+                c.Ball(11, 9, 4, 3.5f, Hex("#c8d8f0"), Hex("#eef4ff"), Color.white);
+                c.Ball(8, 6, 4, 3.5f, Hex("#c8d8f0"), Hex("#eef4ff"), Color.white);
+                break;
+            case Item.Balloon:
+                c.Ball(8, 6, 6, 6, Hex("#a83a1e"), Hex("#e0602c"), Hex("#ffb070"));
+                c.Rect(7, 1, 2, 10, Hex("#f2c43a"));
+                c.Line(4, 10, 6, 13, RopeC); c.Line(12, 10, 10, 13, RopeC);
+                c.Rect(5, 13, 6, 3, Bark);
+                break;
             case Item.ShellShard:
                 c.Ball(6, 9, 4, 3.5f, Hex("#c08a7a"), Hex("#f2c8b8"), Hex("#fff0e8"));
                 c.Ball(11, 6, 3, 3, Hex("#c08a7a"), Hex("#f2c8b8"), Hex("#fff0e8"));

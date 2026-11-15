@@ -59,7 +59,7 @@ public partial class IslandGame
         col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
         float intensity = Mathf.Lerp(0.22f, 1f, daylight);
         if (sun != null) { sun.color = col; sun.intensity = intensity; }
-        Color bg = PixelArt.WaterColor * col * intensity;
+        Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f) : PixelArt.WaterColor) * col * intensity;
         bg.a = 1f;
         cam.backgroundColor = bg;
     }
@@ -87,6 +87,7 @@ public partial class IslandGame
         NodeKind.GlowShroom => "เก็บเห็ดเรืองแสง",
         NodeKind.GlowTree => "เก็บผลไม้เรืองแสง",
         NodeKind.Shell => "เก็บเปลือกหอย",
+        NodeKind.CloudPlant => "เก็บปุยเมฆ",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -190,6 +191,7 @@ public partial class IslandGame
         }
         infoY = DrawPowerHud(infoY);
         infoY = DrawTurtleHud(infoY);
+        infoY = DrawSkyHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,

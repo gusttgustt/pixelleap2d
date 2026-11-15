@@ -249,6 +249,7 @@ public partial class IslandGame
         {
             enemies.Remove(e);
             if (Shared) Send(new NetMsg { t = "kill", id = e.netId, by = myId, kind = (int)e.kind, x = at.x, y = at.y });
+            ReturnStolen(e);
             GrantKill(e.kind, e.xp, at);
         }
         else Popup($"-{dmg}", at + Vector3.up * 0.5f, new Color(1f, 0.9f, 0.4f));

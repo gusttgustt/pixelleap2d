@@ -26,7 +26,7 @@ public partial class IslandGame
         UpdateTouch();
         UpdateLantern();
         TickPower(dt);
-        if (!title && !dead) UpdateTurtle(dt);
+        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); }
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -225,7 +225,7 @@ public partial class IslandGame
             {
                 if ((target.grid - pg).magnitude <= pondDist) pond = null; else target = null;
             }
-            if (target == null && pond == null) seaSpot = NearestSea(pg, 1.2f);
+            if (target == null && pond == null && biome != Biome.Sky) seaSpot = NearestSea(pg, 1.2f); // no fishing in the clouds
         }
 
         Vector3? at = null;
@@ -282,6 +282,11 @@ public partial class IslandGame
             case NodeKind.Bamboo:
                 Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
+                DepleteShared(n, 90f);
+                break;
+            case NodeKind.CloudPlant:
+                Give(Item.CloudCotton, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.4f, Color.white, 8, 1f, 1f, 1f, 1f);
                 DepleteShared(n, 90f);
                 break;
             case NodeKind.Shell:
@@ -409,6 +414,7 @@ public partial class IslandGame
         {
             enemies.Remove(e);
             if (Shared) Send(new NetMsg { t = "kill", id = e.netId, by = myId, kind = (int)e.kind, x = at.x, y = at.y });
+            ReturnStolen(e);
             GrantKill(e.kind, e.xp, at);
         }
         else Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
@@ -426,6 +432,8 @@ public partial class IslandGame
             EnemyKind.ShroomKing => (Item.GlowSpore, 6),
             EnemyKind.Barnacle => (Item.ShellShard, 1),
             EnemyKind.HermitCrab => (Item.ShellShard, 3),
+            EnemyKind.ChimeBird => (Item.Feather, 2),
+            EnemyKind.StormCloud => (Item.CloudCotton, 2),
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
@@ -481,6 +489,7 @@ public partial class IslandGame
         }
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
         if (outfit == Item.HideVest) amount *= 0.8f;
+        if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves
         health -= amount;
         hurtT = 0.3f;
         if (player != null) player.Flash();
@@ -536,6 +545,8 @@ public partial class IslandGame
         EnemyKind.SporeSpider => (IsNight ? 4 : 2) + tier,
         EnemyKind.Barnacle => 4 + tier,
         EnemyKind.HermitCrab => (IsNight ? 3 : 2) + tier,
+        EnemyKind.StormCloud => (IsNight ? 3 : 2) + tier,
+        EnemyKind.ChimeBird => 3 + tier,
         _ => 0,
     };
 
@@ -546,6 +557,7 @@ public partial class IslandGame
         (Biome.Volcanic, _) => new[] { EnemyKind.Crab, EnemyKind.Boar },
         (Biome.Mushroom, _) => new[] { EnemyKind.Crab, EnemyKind.Mimic, EnemyKind.SporeSpider },
         (Biome.Turtle, _) => new[] { EnemyKind.Crab, EnemyKind.Barnacle, EnemyKind.HermitCrab },
+        (Biome.Sky, _) => new[] { EnemyKind.StormCloud, EnemyKind.ChimeBird },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -591,7 +603,8 @@ public partial class IslandGame
     {
         why = null;
         if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)"
-                : r.output == Item.CanvasSail ? "ต้องเรียนจากยายชบา (เกาะเต่ายักษ์)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+                : r.output == Item.CanvasSail ? "ต้องเรียนจากยายชบา (เกาะเต่ายักษ์)"
+                : r.output == Item.Balloon ? "ต้องเรียนจากปู่ลมพัด (เกาะลอยฟ้า)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }

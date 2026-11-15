@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -11,6 +11,8 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   ShroomKing  - Mushroom island boss: big, slow, puffs spore clouds all around. Never wanders off.
 ///   Barnacle    - Turtle island: slow little crawler; its bite sticks to you and slows you down.
 ///   HermitCrab  - Turtle island: hides in a huge shell; break the shell first, then it's soft (and quick).
+///   StormCloud  - Sky island: drifts closer, crackles for a moment, then charges straight at you.
+///   ChimeBird   - Sky island: harmless peck, but it steals from your bag and flies off. Catch it to get it back.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -35,13 +37,19 @@ public class Enemy : MonoBehaviour
     {
         EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
         EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
-        EnemyKind.Barnacle => "เพรียงคลาน", _ => "ปูเสฉวนหอยยักษ์",
+        EnemyKind.Barnacle => "เพรียงคลาน", EnemyKind.HermitCrab => "ปูเสฉวนหอยยักษ์",
+        EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", _ => "นกกระดิ่งลม",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
     float sporeT = 3f;
     /// Hermit crab: its shell soaks up blows until it breaks.
     public int shellHp;
+    /// Chime bird: what it ran off with.
+    public Item stolenItem;
+    public int stolenCount;
+    float chargeCd = 2f, windupT, dashT, fleeT;
+    Vector2 dashDir;
     public bool Flip => sr != null && sr.flipX;
 
     public void Init(EnemyKind k, Vector2 g, int tier, int id = 0, bool asPuppet = false)
@@ -60,6 +68,8 @@ public class Enemy : MonoBehaviour
             EnemyKind.ShroomKing => (45, 16f, 0.9f, 8f, 120),
             EnemyKind.Barnacle => (3, 4f, 0.8f, 5f, 8),
             EnemyKind.HermitCrab => (5, 9f, 1.0f, 6f, 24),
+            EnemyKind.StormCloud => (6, 12f, 1.1f, 7f, 26),
+            EnemyKind.ChimeBird => (3, 2f, 2.1f, 7f, 16),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = k == EnemyKind.Mimic && !asPuppet;
@@ -110,6 +120,47 @@ public class Enemy : MonoBehaviour
         {
             if (dist > 1.7f) { Apply(); return; } // just a mushroom... nothing to see here
             Reveal();
+        }
+        if (kind == EnemyKind.StormCloud) // crackle, then charge
+        {
+            chargeCd -= dt;
+            if (dashT > 0f)
+            {
+                dashT -= dt;
+                Vector2 step = dashDir * 6f * dt;
+                if (CanGo(grid + step)) grid += step; else dashT = 0f;
+                if (dist < 0.7f && attackCd <= 0f && targetWho == 0) { attackCd = 1.2f; game.DamagePlayer(damage, "สายฟ้า!"); }
+                Apply();
+                return;
+            }
+            if (windupT > 0f)
+            {
+                windupT -= dt;
+                if (windupT <= 0f) { dashT = 0.4f; Sfx.Play("hit", 0.4f); }
+                frame = 2; // flashing
+                Apply();
+                return;
+            }
+            if (chargeCd <= 0f && dist < 4.5f && dist > 1f && game.DistanceToFire(grid) > FearRadius)
+            {
+                chargeCd = 4f;
+                windupT = 0.7f;
+                dashDir = toPlayer / dist;
+                Apply();
+                return;
+            }
+        }
+        if (kind == EnemyKind.ChimeBird && fleeT > 0f) // off with the loot
+        {
+            fleeT -= dt;
+            Vector2 away = dist > 0.01f ? -toPlayer / dist : Random.insideUnitCircle.normalized;
+            Vector2 next = grid + away * speed * 1.2f * dt;
+            if (CanGo(next)) grid = next;
+            animT += dt * 14f; frame = (int)animT & 1;
+            if (fleeT <= 0f && dist > 18f && stolenCount > 0) { Destroy(gameObject); return; } // gone for good
+            if (fleeT <= 0f && stolenCount > 0) fleeT = 3f; // keeps running while it holds your stuff
+            Apply();
+            return;
         }
         if (kind is EnemyKind.SporeSpider or EnemyKind.ShroomKing)
         {
@@ -176,6 +227,11 @@ public class Enemy : MonoBehaviour
                     game.DamagePlayer(damage, $"{DisplayName}!");
                     if (kind == EnemyKind.SporeSpider) game.Poison(5f);
                     if (kind == EnemyKind.Barnacle) game.Slow(2.5f);
+                    if (kind == EnemyKind.ChimeBird && stolenCount == 0)
+                    {
+                        (stolenItem, stolenCount) = game.StealItem();
+                        if (stolenCount > 0) fleeT = 6f;
+                    }
                 }
                 else game.NetDamage(targetWho, damage, $"{DisplayName}!"); // bite another player
             }
