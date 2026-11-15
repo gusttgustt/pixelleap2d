@@ -148,7 +148,7 @@ public partial class IslandGame
         v.raftSr.sortingOrder = SortOrder(v.raft.y);
         v.playerSr.transform.position = (Vector3)v.raft + Vector3.up * (0.2f + bob);
         v.playerSr.sortingOrder = v.raftSr.sortingOrder + 1;
-        v.playerSr.sprite = PixelArt.Player(v.dir, moving ? 1 + ((int)v.animT & 1) : 0, hat, outfit);
+        v.playerSr.sprite = PixelArt.Player(v.dir, moving ? 1 + ((int)v.animT & 1) : 0, hat, outfit, lookCode);
         v.playerSr.color = v.hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Color.white;
 
         UpdateWaves();

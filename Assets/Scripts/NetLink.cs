@@ -167,7 +167,7 @@ public class NetMsg
     public int id, host, island, worldSeed;
     public string name, text, ev, why;
     public float x, y, clock, dur, dmg;
-    public int d, f, fl, hat, outfit, lv, hits, kind, by, hp;
+    public int d, f, fl, hat, outfit, lv, hits, kind, by, hp, look;
     public NetEnemy[] en;
     public NetEvent[] events;
     public NetPeer[] players;

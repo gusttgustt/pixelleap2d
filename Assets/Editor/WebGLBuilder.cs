@@ -13,9 +13,10 @@ public static class WebGLBuilder
     [MenuItem("Island/Build WebGL (docs folder)")]
     public static void Build()
     {
-        // GitHub Pages can't send the headers compressed Unity builds need, so ship uncompressed.
-        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-        PlayerSettings.WebGL.decompressionFallback = false;
+        // Gzip with "decompression fallback": GitHub Pages can't send the headers compressed Unity
+        // builds normally need, so the loader unpacks the files itself. Far smaller download.
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+        PlayerSettings.WebGL.decompressionFallback = true;
         PlayerSettings.productName = "Island Survival";
         PlayerSettings.runInBackground = true;
 

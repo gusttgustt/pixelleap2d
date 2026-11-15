@@ -36,17 +36,24 @@ let nextId = 1;
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".wasm": "application/wasm",
   ".data": "application/octet-stream", ".json": "application/json", ".css": "text/css",
-  ".png": "image/png", ".ico": "image/x-icon", ".svg": "image/svg+xml",
+  ".png": "image/png", ".ico": "image/x-icon", ".svg": "image/svg+xml", ".unityweb": "application/octet-stream",
 };
+
+// Where people play: the game files are big (tens of MB), so on the public server they come
+// from GitHub Pages (free bandwidth) and this server only carries the small game messages.
+const GAME_URL = process.env.GAME_URL || "https://gusttgustt.github.io/pixelleap2d/";
 
 const server = http.createServer((req, res) => {
   let url = decodeURIComponent((req.url || "/").split("?")[0]);
-  if (url === "/") url = "/index.html";
   if (url === "/status") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ online: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }));
     return;
   }
+  const host = (req.headers.host || "").split(":")[0];
+  const local = host === "localhost" || host === "127.0.0.1" || /^192\.168\./.test(host) || /^10\./.test(host);
+  if (!local) { res.writeHead(302, { Location: GAME_URL }); res.end(); return; } // play on GitHub Pages
+  if (url === "/") url = "/index.html";
   const file = path.resolve(WEB_ROOT, "." + url);
   if (!file.startsWith(WEB_ROOT)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {

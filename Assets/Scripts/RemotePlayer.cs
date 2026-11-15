@@ -11,7 +11,7 @@ public class RemotePlayer : MonoBehaviour
     public float chatUntil;
 
     Vector2 target;
-    int dir, frame;
+    int dir, frame, look;
     bool flip, seen;
     Item? hat, outfit;
     float height;
@@ -37,6 +37,7 @@ public class RemotePlayer : MonoBehaviour
         hat = m.hat > 0 ? (Item)(m.hat - 1) : (Item?)null;
         outfit = m.outfit > 0 ? (Item)(m.outfit - 1) : (Item?)null;
         level = Mathf.Max(1, m.lv);
+        look = Mathf.Max(0, m.look);
         if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
     }
 
@@ -48,7 +49,7 @@ public class RemotePlayer : MonoBehaviour
         Vector3 flat = IslandGame.GridToWorld(grid);
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
-        sr.sprite = PixelArt.Player(dir, frame, hat, outfit);
+        sr.sprite = PixelArt.Player(dir, frame, hat, outfit, look);
         sr.flipX = flip;
     }
 }

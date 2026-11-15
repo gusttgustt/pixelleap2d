@@ -83,7 +83,7 @@ public class PlayerController : MonoBehaviour
         Vector3 flat = IslandGame.GridToWorld(grid);
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
-        sr.sprite = PixelArt.Player(dir, frame, IslandGame.I.hat, IslandGame.I.outfit);
+        sr.sprite = PixelArt.Player(dir, frame, IslandGame.I.hat, IslandGame.I.outfit, IslandGame.I.lookCode);
         sr.color = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Color.white;
     }
 }

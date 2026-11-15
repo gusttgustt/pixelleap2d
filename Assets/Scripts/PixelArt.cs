@@ -634,7 +634,7 @@ public static class PixelArt
 
     /// Draws a 14x24 person: legs (or a skirt), torso, arms, head and hair.
     static void Person(Canvas c, int dir, int frame, Color skin, Color skinD, Color hair, Color top, Color topD,
-                       Color legs, Color legsD, bool skirt, bool bareChest)
+                       Color legs, Color legsD, bool skirt, bool bareChest, int hairStyle = 0)
     {
         Color shoe = Hex("#2b2b2b");
         c.Ellipse(7, 22.5f, 5, 1.5f, Shadow);
@@ -656,10 +656,20 @@ public static class PixelArt
         {
             c.Rect(4, 2, 6, 2, hair); c.Rect(3, 3, 8, 2, hair); c.Set(3, 5, hair); c.Set(10, 5, hair);
             c.Set(5, 6, Hex("#2a1a10")); c.Set(8, 6, Hex("#2a1a10"));
+            if (hairStyle == 1) { c.Rect(2, 4, 2, 7, hair); c.Rect(10, 4, 2, 7, hair); }   // long: falls past the shoulders
         }
         else
         {
             c.Rect(4, 2, 6, 2, hair); c.Rect(3, 3, 8, 6, hair); c.Rect(4, 9, 6, 1, hair);
+            if (hairStyle == 1) c.Rect(3, 9, 8, 4, hair);
+        }
+        if (hairStyle == 2) // spiky
+        {
+            c.Set(3, 1, hair); c.Set(5, 0, hair); c.Set(5, 1, hair); c.Set(7, 0, hair); c.Set(8, 1, hair); c.Set(10, 1, hair); c.Set(4, 2, hair);
+        }
+        else if (hairStyle == 3) // bun on top
+        {
+            c.Rect(6, 0, 2, 1, hair); c.Rect(5, 1, 4, 1, hair);
         }
     }
 
@@ -672,18 +682,19 @@ public static class PixelArt
 
     /// The player. dir 0 = facing camera, 1 = facing away. frame 0 = idle, 1/2 = walk.
     /// hat / outfit change the look (null = nothing worn).
-    public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null)
+    public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null, int look = 0)
     {
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
         if (hat != null) key += "_" + hat.Value.ToString().ToLowerInvariant();
         if (outfit != null) key += "_" + outfit.Value.ToString().ToLowerInvariant();
+        if (look != 0) key += "_l" + look; // look 0 keeps the plain names for hand-made art
         return Get(key, () =>
         {
             var c = new Canvas(14, 24);
-            Color shirt = Hex("#d9534f"), shirtD = Hex("#a83a36");
+            var l = CharacterLook.FromCode(look);
+            Color shirt = l.Shirt, shirtD = l.ShirtDark;
             if (outfit == Item.LeafTunic) { shirt = Hex("#4f9a3f"); shirtD = Hex("#3a7a30"); }
-            Person(c, dir, frame, Hex("#f1c27d"), Hex("#d9a066"), Hex("#4a2c1a"), shirt, shirtD,
-                   Hex("#3b4a7a"), Hex("#2c3860"), false, false);
+            Person(c, dir, frame, l.Skin, l.SkinDark, l.Hair, shirt, shirtD, l.Pant, l.PantDark, false, false, l.style);
 
             if (outfit == Item.LeafTunic)
             {

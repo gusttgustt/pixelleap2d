@@ -17,9 +17,13 @@ public partial class IslandGame
     public readonly Dictionary<int, RemotePlayer> remotes = new Dictionary<int, RemotePlayer>();
     readonly Dictionary<int, WorldNode> nodeById = new Dictionary<int, WorldNode>();
 
-    // title screen & chat
+    // title screen (character creator) & chat
     public bool title = true;
     string playerName = "";
+    /// The character's appearance (CharacterLook.Code), chosen on the title screen.
+    public int lookCode;
+    CharacterLook look;
+    int previewDir;
     public bool chatOpen;
     string chatText = "";
     float chatOpenedAt, myChatUntil;
@@ -48,12 +52,24 @@ public partial class IslandGame
         title = true;
         playerName = PlayerPrefs.GetString("playerName", "");
         if (string.IsNullOrEmpty(playerName)) playerName = "Islander" + Random.Range(100, 1000);
+        // first visit: a random look to start from
+        lookCode = PlayerPrefs.HasKey("look") ? PlayerPrefs.GetInt("look") : CharacterLook.Random().Code;
+        look = CharacterLook.FromCode(lookCode);
+    }
+
+    /// Remember name and look for next time.
+    void KeepCharacter()
+    {
+        playerName = CleanName(playerName);
+        lookCode = look.Code;
+        PlayerPrefs.SetString("playerName", playerName);
+        PlayerPrefs.SetInt("look", lookCode);
+        PlayerPrefs.Save();
     }
 
     void PlayOnline()
     {
-        playerName = CleanName(playerName);
-        PlayerPrefs.SetString("playerName", playerName);
+        KeepCharacter();
         link = NetLink.Open(NetLink.ServerUrl());
         helloSent = false;
         connecting = true;
@@ -63,6 +79,7 @@ public partial class IslandGame
 
     void PlayOffline()
     {
+        KeepCharacter();
         if (link != null) { link.Close(); link = null; }
         connecting = false;
         myId = 0;
@@ -286,7 +303,7 @@ public partial class IslandGame
             {
                 t = "p", x = player.grid.x, y = player.grid.y, d = player.Dir, f = player.Frame, fl = player.Flip ? 1 : 0,
                 hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
-                lv = level, name = playerName,
+                lv = level, name = playerName, look = lookCode,
             });
         }
         if (!IsHost || remotes.Count == 0) return;

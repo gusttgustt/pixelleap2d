@@ -239,29 +239,71 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ online UI
+    /// Title screen = character creator: name, looks, then play online or offline.
     void DrawTitle(float W, float H)
     {
         Fill(new Rect(0, 0, W, H), new Color(0.02f, 0.08f, 0.15f, 0.55f));
-        var big = new GUIStyle(titleCenter) { fontSize = 40 };
-        ShadowLabel(new Rect(0, 70, W, 50), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
-        ShadowLabel(new Rect(0, 118, W, 22), "Gather, craft, survive - and sail from island to island with friends", labelCenter, new Color(1f, 1f, 1f, 0.8f));
+        var big = new GUIStyle(titleCenter) { fontSize = 36 };
+        ShadowLabel(new Rect(0, 28, W, 46), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
+        ShadowLabel(new Rect(0, 72, W, 22), "Create your castaway - then sail from island to island with friends", labelCenter, new Color(1f, 1f, 1f, 0.8f));
 
-        var box = new Rect(W / 2f - 170, 170, 340, 210);
-        Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.85f));
+        var box = new Rect(W / 2f - 280, 104, 560, 360);
+        Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
         Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
-        ShadowLabel(new Rect(box.x + 20, box.y + 14, 300, 20), "Your name", label);
         GUI.enabled = !connecting;
-        playerName = GUI.TextField(new Rect(box.x + 20, box.y + 38, 300, 26), playerName ?? "", 16,
-            new GUIStyle(GUI.skin.textField) { fontSize = 15 });
-        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
-        if (GUI.Button(new Rect(box.x + 20, box.y + 80, 300, 36), "Play Online (meet other players)", btn)) PlayOnline();
-        if (GUI.Button(new Rect(box.x + 20, box.y + 124, 300, 30), "Play Offline", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
-        GUI.enabled = true;
-        var status = new GUIStyle(smallCenter) { wordWrap = true };
-        ShadowLabel(new Rect(box.x + 10, box.y + 160, 320, 40), netStatus, status, new Color(1f, 0.9f, 0.6f));
-        if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 10, 120, 24), "Cancel")) PlayOffline();
 
-        ShadowLabel(new Rect(0, H - 26, W, 20), "Your progress is saved in this browser. Online, everyone on the same island shares it.", smallCenter, new Color(1f, 1f, 1f, 0.6f));
+        // --- preview: the character walking in place, turnable
+        var stage = new Rect(box.x + 20, box.y + 20, 170, 250);
+        Fill(stage, new Color(0.25f, 0.45f, 0.25f, 1f));
+        Fill(new Rect(stage.x, stage.yMax - 60, stage.width, 60), new Color(0.2f, 0.38f, 0.2f, 1f));
+        int[] walk = { 0, 1, 0, 2 };
+        int frame = walk[(int)(Time.time * 4f) % 4];
+        var sprite = PixelArt.Player(previewDir, frame, null, null, look.Code);
+        Icon(new Rect(stage.x + 15, stage.y + 15, 140, 230), sprite);
+        if (GUI.Button(new Rect(stage.x, stage.yMax + 8, stage.width, 26), previewDir == 0 ? "Turn around" : "Face me"))
+            previewDir = 1 - previewDir;
+
+        // --- choices
+        float x = box.x + 215, y = box.y + 20, w = 325;
+        ShadowLabel(new Rect(x, y, w, 20), "Name", label);
+        playerName = GUI.TextField(new Rect(x, y + 22, w, 26), playerName ?? "", 16, new GUIStyle(GUI.skin.textField) { fontSize = 15 });
+        y += 60;
+        look.skin = Chooser(x, y, w, "Skin", look.skin, CharacterLook.Skins.Length, CharacterLook.Skins[look.skin], null); y += 32;
+        look.style = Chooser(x, y, w, "Hair style", look.style, CharacterLook.Styles.Length, null, CharacterLook.Styles[look.style]); y += 32;
+        look.hair = Chooser(x, y, w, "Hair color", look.hair, CharacterLook.Hairs.Length, CharacterLook.Hairs[look.hair], null); y += 32;
+        look.shirt = Chooser(x, y, w, "Shirt", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 32;
+        look.pants = Chooser(x, y, w, "Pants", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 36;
+        if (GUI.Button(new Rect(x, y, w, 26), "Randomize look")) look = CharacterLook.Random();
+
+        // --- play
+        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
+        if (GUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), "Play Online (meet other players)", btn)) PlayOnline();
+        if (GUI.Button(new Rect(box.x + 360, box.yMax - 54, 180, 36), "Play Offline", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
+        GUI.enabled = true;
+
+        var status = new GUIStyle(smallCenter) { wordWrap = true };
+        ShadowLabel(new Rect(box.x, box.yMax + 6, box.width, 34), netStatus, status, new Color(1f, 0.9f, 0.6f));
+        if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "Cancel")) PlayOffline();
+
+        ShadowLabel(new Rect(0, H - 22, W, 18), "Your progress is saved in this browser. Online, everyone on the same island shares it.", smallCenter, new Color(1f, 1f, 1f, 0.6f));
+    }
+
+    /// One "< value >" row of the character creator. Shows a colour swatch or a text value.
+    int Chooser(float x, float y, float w, string name, int value, int count, string swatchHex, string text)
+    {
+        ShadowLabel(new Rect(x, y + 4, 100, 20), name, small);
+        float cx = x + 110;
+        if (GUI.Button(new Rect(cx, y, 32, 26), "<")) value = (value + count - 1) % count;
+        var mid = new Rect(cx + 38, y, w - 110 - 76, 26);
+        if (swatchHex != null)
+        {
+            ColorUtility.TryParseHtmlString(swatchHex, out var col);
+            Fill(mid, new Color(0f, 0f, 0f, 0.5f));
+            Fill(new Rect(mid.x + 3, mid.y + 3, mid.width - 6, mid.height - 6), col);
+        }
+        else ShadowLabel(mid, text, labelCenter);
+        if (GUI.Button(new Rect(mid.xMax + 6, y, 32, 26), ">")) value = (value + 1) % count;
+        return value;
     }
 
     /// Names (and chat bubbles) over other players and yourself.
