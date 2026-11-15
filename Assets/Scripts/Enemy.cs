@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -9,6 +9,8 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing }
 ///   Mimic       - Mushroom island: sits still looking like a glowing mushroom, jumps you up close.
 ///   SporeSpider - Mushroom island: poisonous bite, leaves clouds of poison spores behind.
 ///   ShroomKing  - Mushroom island boss: big, slow, puffs spore clouds all around. Never wanders off.
+///   Barnacle    - Turtle island: slow little crawler; its bite sticks to you and slows you down.
+///   HermitCrab  - Turtle island: hides in a huge shell; break the shell first, then it's soft (and quick).
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -32,11 +34,14 @@ public class Enemy : MonoBehaviour
     public string DisplayName => kind switch
     {
         EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
-        EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", _ => "ราชาเห็ด",
+        EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
+        EnemyKind.Barnacle => "เพรียงคลาน", _ => "ปูเสฉวนหอยยักษ์",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
     float sporeT = 3f;
+    /// Hermit crab: its shell soaks up blows until it breaks.
+    public int shellHp;
     public bool Flip => sr != null && sr.flipX;
 
     public void Init(EnemyKind k, Vector2 g, int tier, int id = 0, bool asPuppet = false)
@@ -53,9 +58,12 @@ public class Enemy : MonoBehaviour
             EnemyKind.Mimic => (5, 9f, 1.9f, 6f, 18),
             EnemyKind.SporeSpider => (5, 5f, 1.6f, 7f, 20),
             EnemyKind.ShroomKing => (45, 16f, 0.9f, 8f, 120),
+            EnemyKind.Barnacle => (3, 4f, 0.8f, 5f, 8),
+            EnemyKind.HermitCrab => (5, 9f, 1.0f, 6f, 24),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = k == EnemyKind.Mimic && !asPuppet;
+        shellHp = k == EnemyKind.HermitCrab ? Mathf.RoundToInt(8 * (1f + 0.5f * tier)) : 0;
         // Later islands (second lap and beyond) are tougher and give more XP.
         maxHp = Mathf.RoundToInt(maxHp * (1f + 0.5f * tier));
         damage *= 1f + 0.3f * tier;
@@ -167,6 +175,7 @@ public class Enemy : MonoBehaviour
                 {
                     game.DamagePlayer(damage, $"{DisplayName}!");
                     if (kind == EnemyKind.SporeSpider) game.Poison(5f);
+                    if (kind == EnemyKind.Barnacle) game.Slow(2.5f);
                 }
                 else game.NetDamage(targetWho, damage, $"{DisplayName}!"); // bite another player
             }
@@ -198,7 +207,7 @@ public class Enemy : MonoBehaviour
         Vector3 flat = IslandGame.GridToWorld(grid);
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
-        sr.sprite = PixelArt.Enemy(kind, Disguised ? 2 : frame);
+        sr.sprite = PixelArt.Enemy(kind, Disguised ? 2 : kind == EnemyKind.HermitCrab && shellHp <= 0 ? frame + 2 : frame);
         sr.color = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : Color.white;
     }
 
@@ -209,6 +218,18 @@ public class Enemy : MonoBehaviour
         if (Disguised) Reveal();
         Fx.Burst(transform.position + Vector3.up * 0.15f, kind == EnemyKind.Snake ? new Color(0.4f, 0.7f, 0.3f) : new Color(1f, 0.5f, 0.3f), 6);
         if (puppet) return false; // the host decides; it tells everyone when it dies
+        if (shellHp > 0) // the shell takes the hit
+        {
+            shellHp -= dmg;
+            Fx.Burst(transform.position + Vector3.up * 0.3f, new Color(0.9f, 0.85f, 0.75f), 5);
+            if (shellHp <= 0)
+            {
+                speed = 1.9f; // naked and scared: much quicker
+                Fx.Burst(transform.position + Vector3.up * 0.3f, new Color(1f, 0.9f, 0.8f), 16, 1.4f, 1.6f);
+                Sfx.Play("chop", 0.6f);
+            }
+            return false;
+        }
         hp -= dmg;
         Vector2 knock = (grid - from).normalized * (kind == EnemyKind.ShroomKing ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;

@@ -121,7 +121,7 @@ public partial class IslandGame
         // Paddling: the raft has some momentum, so it drifts a little.
         Vector2 input = PlayerController.ReadInput();
         bool moving = input.sqrMagnitude > 0.01f;
-        Vector2 targetVel = Vector2.ClampMagnitude(input, 1f) * RaftSpeed * SpeedMultiplier * (1f + RaftSpeedBonus);
+        Vector2 targetVel = Vector2.ClampMagnitude(input, 1f) * RaftSpeed * SpeedMultiplier * (1f + RaftSpeedBonus + (Count(Item.CanvasSail) > 0 ? 0.25f : 0f)); // canvas sail: +25%
         targetVel.y *= 0.6f;
         v.vel = Vector2.Lerp(v.vel, targetVel, 1f - Mathf.Exp(-2.5f * dt));
         v.raft += v.vel * dt;

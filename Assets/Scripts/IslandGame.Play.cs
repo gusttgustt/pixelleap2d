@@ -26,6 +26,7 @@ public partial class IslandGame
         UpdateTouch();
         UpdateLantern();
         TickPower(dt);
+        if (!title && !dead) UpdateTurtle(dt);
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -283,6 +284,11 @@ public partial class IslandGame
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
                 DepleteShared(n, 90f);
                 break;
+            case NodeKind.Shell:
+                Give(Item.ShellShard, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.1f, new Color(1f, 0.9f, 0.85f), 5, 0.6f, 1f);
+                DepleteShared(n, 80f);
+                break;
             case NodeKind.GlowTree:
                 PickGlowingFruit(n);
                 break;
@@ -418,6 +424,8 @@ public partial class IslandGame
             EnemyKind.Mimic => (Item.GlowSpore, 2),
             EnemyKind.SporeSpider => (Item.GlowSpore, 1),
             EnemyKind.ShroomKing => (Item.GlowSpore, 6),
+            EnemyKind.Barnacle => (Item.ShellShard, 1),
+            EnemyKind.HermitCrab => (Item.ShellShard, 3),
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
@@ -526,6 +534,8 @@ public partial class IslandGame
         EnemyKind.Boar => (IsNight ? 3 : 2) + tier,
         EnemyKind.Mimic => 3 + tier,
         EnemyKind.SporeSpider => (IsNight ? 4 : 2) + tier,
+        EnemyKind.Barnacle => 4 + tier,
+        EnemyKind.HermitCrab => (IsNight ? 3 : 2) + tier,
         _ => 0,
     };
 
@@ -535,6 +545,7 @@ public partial class IslandGame
         (Biome.Jungle, true) => new[] { EnemyKind.Crab, EnemyKind.Snake, EnemyKind.Boar },
         (Biome.Volcanic, _) => new[] { EnemyKind.Crab, EnemyKind.Boar },
         (Biome.Mushroom, _) => new[] { EnemyKind.Crab, EnemyKind.Mimic, EnemyKind.SporeSpider },
+        (Biome.Turtle, _) => new[] { EnemyKind.Crab, EnemyKind.Barnacle, EnemyKind.HermitCrab },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -557,7 +568,7 @@ public partial class IslandGame
 
     bool TrySpawnEnemy(EnemyKind kind)
     {
-        int wantTile = kind == EnemyKind.Crab ? 1 : 2; // crabs come up on beaches, others live inland
+        int wantTile = kind is EnemyKind.Crab or EnemyKind.Barnacle or EnemyKind.HermitCrab ? 1 : 2; // shore creatures on the beach, others inland
         for (int attempt = 0; attempt < 40; attempt++)
         {
             int x = rnd.Next(Size), y = rnd.Next(Size);
@@ -579,7 +590,8 @@ public partial class IslandGame
     public bool CanCraft(Recipe r, out string why)
     {
         why = null;
-        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)"
+                : r.output == Item.CanvasSail ? "ต้องเรียนจากยายชบา (เกาะเต่ายักษ์)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }

@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Turtle, true) => new[] { "#6a8a3a", "#5a7630", "#8aaa52", "#5a6a34", "#46542a", "#4f6a2c" },  // olive shell plates
+            (Biome.Turtle, false) => new[] { "#d8cc96", "#c4b682", "#ece2b4", "#a89c68", "#8a7e50", "#c4b682" },
             (Biome.Mushroom, true) => new[] { "#4a5a8a", "#3d4a78", "#6a7ab0", "#5a4a6a", "#463a54", "#3a4870" },  // blue-violet moss
             (Biome.Mushroom, false) => new[] { "#b8aec8", "#a498b8", "#d0c8dc", "#8a7e9e", "#6e6482", "#a498b8" }, // pale spore sand
             (Biome.Tribal, true) => new[] { "#7fb04a", "#6c9a3c", "#9cc860", "#8a5a35", "#6b4327", "#5a8a34" },
@@ -565,8 +567,78 @@ public static class PixelArt
         EnemyKind.Mimic => Mimic(frame),
         EnemyKind.SporeSpider => SporeSpider(frame),
         EnemyKind.ShroomKing => ShroomKing(frame),
+        EnemyKind.Barnacle => Barnacle(frame),
+        EnemyKind.HermitCrab => HermitCrab(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Giant Turtle island
+    /// The turtle's head poking out of the sea (blink = eyes shut for a moment).
+    public static Sprite TurtleHead(bool blink) => Get(blink ? "turtle_head_blink" : "turtle_head", () =>
+    {
+        var c = new Canvas(64, 48);
+        Color d = Hex("#2f5a2a"), m = Hex("#4f8a3f"), l = Hex("#86c06a"), belly = Hex("#d8d090");
+        c.Ellipse(30, 42, 26, 4, new Color(1f, 1f, 1f, 0.35f)); // foam ring where the neck meets the sea
+        for (int y = 22; y <= 42; y++) c.Rect(18 + (y - 22) / 4, y, 18 - (y - 22) / 6, 1, y % 4 == 0 ? d : m); // neck
+        c.Rect(26, 26, 6, 16, belly);
+        c.Ball(32, 18, 16, 12, d, m, l);             // head
+        c.Ball(44, 22, 6, 5, d, m, l);               // snout
+        c.Set(48, 21, Hex("#1a2a10")); c.Set(48, 23, Hex("#1a2a10")); // nostrils
+        if (blink) c.Rect(34, 13, 6, 1, Hex("#1a2a10"));
+        else { c.Ball(37, 13, 3.5f, 3.5f, Hex("#c8c0a0"), Color.white, Color.white); c.Rect(38, 12, 2, 3, Hex("#1a1010")); }
+        c.Line(38, 26, 47, 25, Hex("#1a2a10"));      // mouth
+        for (int i = 0; i < 4; i++) c.Set(22 + i * 4, 10 + (i % 2), l); // spots
+        return c.ToSprite(30, 42);
+    });
+
+    /// A big spiral shell lying on the beach (gives shell shards).
+    public static Sprite Shell() => Get("shell", () =>
+    {
+        var c = new Canvas(16, 12);
+        c.Ellipse(8, 10.5f, 6, 1.5f, Shadow);
+        c.Ball(8, 6, 6, 4.5f, Hex("#c08a7a"), Hex("#f2c8b8"), Hex("#fff0e8"));
+        c.Line(3, 6, 13, 6, Hex("#d8a090")); c.Line(4, 4, 12, 8, Hex("#d8a090"));
+        c.Ring(8, 6, 2, 1, Hex("#c08a7a"));
+        return c.ToSprite(8, 10);
+    });
+
+    /// Barnacle crawler: a cluster of grey cones scuttling on tiny legs.
+    static Sprite Barnacle(int frame) => Get("barnacle_" + frame, () =>
+    {
+        var c = new Canvas(16, 12);
+        c.Ellipse(8, 10.5f, 6, 1.5f, Shadow);
+        Color d = Hex("#5a5a60"), m = Hex("#9a9aa0"), l = Hex("#d8d8e0"), mouth = Hex("#e05a8a");
+        for (int i = 0; i < 4; i++) c.Line(4 + i * 3, 9, 3 + i * 3 + ((i + frame) % 2) * 2, 11, d); // legs
+        int[,] cones = { { 5, 6 }, { 9, 5 }, { 12, 7 }, { 7, 8 } };
+        for (int i = 0; i < cones.GetLength(0); i++)
+        {
+            c.Ball(cones[i, 0], cones[i, 1], 2.6f, 2.4f, d, m, l);
+            c.Set(cones[i, 0], cones[i, 1] - 1, mouth);
+        }
+        c.Set(10, 3, Color.black); c.Set(12, 4, Color.black); // eye stalks
+        return c.ToSprite(8, 10);
+    });
+
+    /// Hermit crab: frames 0/1 inside its huge shell, 2/3 after the shell broke.
+    static Sprite HermitCrab(int frame) => Get("hermit_crab_" + frame, () =>
+    {
+        var c = new Canvas(22, 18);
+        c.Ellipse(11, 16, 9, 2, Shadow);
+        bool shell = frame < 2;
+        int f = frame % 2;
+        Color d = Hex("#8a2a18"), m = Hex("#e0602c"), l = Hex("#ffa070");
+        for (int i = 0; i < 3; i++) { c.Line(5 - i, 12, 3 - i, 15 - (i + f) % 2, d); c.Line(14 + i, 12, 16 + i, 15 - (i + 1 - f) % 2, d); }
+        c.Ball(17, 9 - f, 2.6f, 2.2f, d, m, l);          // big claw
+        c.Rect(13, 6, 1, 3, d); c.Rect(15, 5, 1, 3, d);   // eye stalks
+        c.Set(13, 5, Color.black); c.Set(15, 4, Color.black);
+        if (shell)
+        {
+            c.Ball(9, 8, 8, 7, Hex("#6a4a5a"), Hex("#b088a0"), Hex("#f0d0e0")); // the spiral shell
+            c.Ring(9, 8, 4, 1, Hex("#6a4a5a")); c.Ring(9, 8, 2, 1, Hex("#8a6a7a"));
+        }
+        else c.Ball(10, 11, 5, 3.5f, Hex("#c87a6a"), Hex("#f0a898"), Hex("#ffd8d0")); // soft pink body
+        return c.ToSprite(11, 16);
+    });
 
     // ------------------------------------------------------------------ special fruits
     /// (dark, mid, light) colours of each special fruit.
@@ -982,6 +1054,10 @@ public static class PixelArt
                 inner.Rect(2, 1, 10, 3, Hex("#c0397a")); inner.Set(4, 2, Color.white); inner.Set(9, 1, Color.white);
                 for (int x = 3; x <= 10; x++) inner.Rect(x, 15, 1, 3, x % 2 == 0 ? Hex("#e0b030") : Hex("#b08a20"));
                 break;
+            case 7: // turtle keeper: old woman, sea-green shawl, little shell backpack
+                Person(inner, 0, frame, Hex("#d8a070"), Hex("#b88050"), Hex("#e8e8e8"), Hex("#2a8a7a"), Hex("#1a6a5a"), Hex("#6b4226"), Hex("#4a2c1a"), true, false, 3);
+                inner.Ball(11, 12, 3, 3, Hex("#4f6a2c"), Hex("#6a8a3a"), Hex("#8aaa52"));
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1053,6 +1129,16 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.ShellShard:
+                c.Ball(6, 9, 4, 3.5f, Hex("#c08a7a"), Hex("#f2c8b8"), Hex("#fff0e8"));
+                c.Ball(11, 6, 3, 3, Hex("#c08a7a"), Hex("#f2c8b8"), Hex("#fff0e8"));
+                c.Line(3, 9, 9, 9, Hex("#d8a090"));
+                break;
+            case Item.CanvasSail:
+                c.Rect(4, 1, 1, 14, Bark);
+                for (int y = 2; y <= 12; y++) c.Rect(5, y, Mathf.Max(1, 10 - Mathf.Abs(y - 7)), 1, (y / 2) % 2 == 0 ? Hex("#f0e6c8") : Hex("#d8cca8"));
+                c.Rect(2, 14, 12, 1, RopeC);
+                break;
             case Item.GlowSpore:
                 c.Ball(6, 9, 3.5f, 3.5f, Hex("#1a7a70"), Hex("#2fb8a8"), Hex("#7ff5e6"));
                 c.Ball(11, 6, 2.5f, 2.5f, Hex("#1a7a70"), Hex("#2fb8a8"), Hex("#d8fff8"));

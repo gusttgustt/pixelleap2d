@@ -86,6 +86,7 @@ public partial class IslandGame
         NodeKind.Campfire => "ใช้กองไฟ",
         NodeKind.GlowShroom => "เก็บเห็ดเรืองแสง",
         NodeKind.GlowTree => "เก็บผลไม้เรืองแสง",
+        NodeKind.Shell => "เก็บเปลือกหอย",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -188,6 +189,7 @@ public partial class IslandGame
             infoY += 16f;
         }
         infoY = DrawPowerHud(infoY);
+        infoY = DrawTurtleHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,

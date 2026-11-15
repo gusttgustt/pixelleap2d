@@ -116,11 +116,12 @@ public class WorldNode : MonoBehaviour
             NodeKind.Hut => PixelArt.Hut(),
             NodeKind.Totem => PixelArt.Totem(),
             NodeKind.GlowShroom => PixelArt.GlowShroom(available),
+            NodeKind.Shell => PixelArt.Shell(),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
         };
         if (kind is NodeKind.GlowShroom or NodeKind.GlowTree && fireLight != null) fireLight.enabled = available;
-        if (!available && kind is NodeKind.Grass or NodeKind.Stick or NodeKind.Rock or NodeKind.Bamboo or NodeKind.Obsidian)
+        if (!available && kind is NodeKind.Grass or NodeKind.Stick or NodeKind.Rock or NodeKind.Bamboo or NodeKind.Obsidian or NodeKind.Shell)
             sr.enabled = false;
     }
 
