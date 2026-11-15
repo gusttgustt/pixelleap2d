@@ -10,9 +10,10 @@ public enum Item
     RawMeat, CookedMeat, Bamboo, Obsidian, WaterFlask, ObsidianSpear, ObsidianAxe,
     Hide, Cloth, StrawHat, LeafTunic, HideVest, TribalHeadband,
     GlowSpore, Antidote, MushroomLantern, // Glowing Mushroom island
+    FruitDash, FruitShadow, FruitVine, FruitMagnet, FruitBubble, // special fruits (IslandGame.Power.cs)
 }
 
-public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom }
+public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree }
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom }
 
@@ -216,6 +217,11 @@ public partial class IslandGame : MonoBehaviour
         Item.GlowSpore => "สปอร์เรืองแสง",
         Item.Antidote => "ยาแก้พิษ",
         Item.MushroomLantern => "โคมเห็ด",
+        Item.FruitDash => "ผลฟ้าแลบ",
+        Item.FruitShadow => "ผลเงาจันทร์",
+        Item.FruitVine => "ผลเถาวัลย์",
+        Item.FruitMagnet => "ผลแม่เหล็ก",
+        Item.FruitBubble => "ผลฟองสบู่",
         _ => it.ToString(),
     };
 
@@ -275,6 +281,8 @@ public partial class IslandGame : MonoBehaviour
         outfit = data.outfitId > 0 ? (Item)(data.outfitId - 1) : (Item?)null;
         elderHealDay = data.elderHealDay;
         LoadQuests(data);
+        power = (Power)data.powerId; powerLv = Mathf.Clamp(data.powerLv, 1, 5); powerXp = data.powerXp;
+        powerCd = 0f; invisibleT = 0f; bubbleT = 0f; bubbleHits = 0;
         poisonT = 0f;
         clouds.Clear();
         villagers.Clear();
@@ -429,6 +437,7 @@ public partial class IslandGame : MonoBehaviour
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
             farthest = farthest,
+            powerId = (int)power, powerLv = powerLv, powerXp = powerXp,
         };
         d.visited.AddRange(visited);
         SaveQuests(d);
@@ -516,6 +525,8 @@ public partial class IslandGame : MonoBehaviour
                 var k = PickResource(t == 2, rnd.NextDouble());
                 if (k != null) Spawn(k.Value, g + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f);
             }
+
+        PlaceGlowingTree(); // a rare special-fruit tree (IslandGame.Power.cs)
 
         // A starter kit close to the landing point
         Spawn(NodeKind.Stick, center + new Vector2(2.2f, -0.4f));

@@ -11,6 +11,12 @@ public class PlayerController : MonoBehaviour
     SpriteRenderer sr;
     float animT, height, hurtT;
     int dir;
+    float dashT;
+    Vector2 dashVel;
+
+    /// Dash power: zip forward along `facing`.
+    public void Dash(float distance) { dashT = 0.18f; dashVel = facing.normalized * distance / dashT; }
+    public bool Dashing => dashT > 0f;
 
     public void Init(Vector2 g)
     {
@@ -32,6 +38,14 @@ public class PlayerController : MonoBehaviour
         var game = IslandGame.I;
         int frame = 0;
         hurtT -= Time.deltaTime;
+        if (dashT > 0f)
+        {
+            dashT -= Time.deltaTime;
+            Vector2 step = dashVel * Time.deltaTime;
+            if (CanStand(grid + step)) grid += step; else dashT = 0f; // stop at walls and water
+            Apply(1);
+            return;
+        }
         if (!game.dead && !game.InputBlocked)
         {
             Vector2 input = ReadInput();
@@ -85,6 +99,8 @@ public class PlayerController : MonoBehaviour
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         sr.sprite = PixelArt.Player(dir, frame, IslandGame.I.hat, IslandGame.I.outfit, IslandGame.I.lookCode);
-        sr.color = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Color.white;
+        var col = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : IslandGame.I.Bubbled ? new Color(0.75f, 0.95f, 1f) : Color.white;
+        if (IslandGame.I.Invisible) col.a = 0.35f + 0.1f * Mathf.Sin(Time.time * 8f);
+        sr.color = col;
     }
 }

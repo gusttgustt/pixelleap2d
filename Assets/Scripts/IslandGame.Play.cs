@@ -25,6 +25,7 @@ public partial class IslandGame
         hurtT -= dt;
         UpdateTouch();
         UpdateLantern();
+        TickPower(dt);
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -144,6 +145,7 @@ public partial class IslandGame
     {
         if (chatOpen) return;
         if (kb != null) HandleCommonKeys(kb);
+        if (kb != null && kb.rKey.wasPressedThisFrame) UsePower();
 
         bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
@@ -280,6 +282,9 @@ public partial class IslandGame
                 Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
                 DepleteShared(n, 90f);
+                break;
+            case NodeKind.GlowTree:
+                PickGlowingFruit(n);
                 break;
             case NodeKind.GlowShroom:
                 Give(Item.GlowSpore, rnd.Next(1, 3) + Bonus(), n);
@@ -460,6 +465,7 @@ public partial class IslandGame
     public void DamagePlayer(float amount, string why)
     {
         if (Busy || dead) return;
+        if (PowerBlocks()) return; // bubble shield / mid-dash
         if (rnd.NextDouble() < 0.1 * SkillLv(Skill.Evasion))
         {
             Popup("หลบได้!", PlayerPos + Vector3.up * 0.9f, new Color(0.7f, 1f, 0.7f));

@@ -568,6 +568,54 @@ public static class PixelArt
         _ => Crab(frame),
     };
 
+    // ------------------------------------------------------------------ special fruits
+    /// (dark, mid, light) colours of each special fruit.
+    static (Color d, Color m, Color l) FruitColors(Item it) => it switch
+    {
+        Item.FruitShadow => (Hex("#241040"), Hex("#5a3a9a"), Hex("#b8a0ff")),
+        Item.FruitVine => (Hex("#1f5a1a"), Hex("#4fbf3a"), Hex("#c8ff8a")),
+        Item.FruitMagnet => (Hex("#6a1010"), Hex("#d9534f"), Hex("#ffb0a0")),
+        Item.FruitBubble => (Hex("#2a6a9a"), Hex("#8fd8ff"), Hex("#ffffff")),
+        _ => (Hex("#8a6a00"), Hex("#f2d43a"), Hex("#fff6b0")),
+    };
+
+    /// The rare glowing tree: silver-white trunk, golden leaves, and big fruits of its island's power.
+    public static Sprite GlowTree(bool fruit, Item kind) => Get(fruit ? "glowtree_" + kind.ToString().ToLowerInvariant() : "glowtree_empty", () =>
+    {
+        var c = new Canvas(32, 46);
+        c.Ellipse(16, 42.5f, 10, 3, Shadow);
+        Color tr = Hex("#e8e4d8"), trD = Hex("#b0a890");
+        c.Rect(14, 24, 4, 19, tr); c.Rect(17, 24, 1, 19, trD);
+        c.Rect(12, 41, 8, 2, tr);
+        c.Ball(16, 18, 14, 11, Hex("#8a6a1a"), Hex("#d8b040"), Hex("#fff0a0"));
+        c.Ball(11, 12, 6, 5, Hex("#d8b040"), Hex("#f2d06a"), Hex("#fff6c8"));
+        var sparkle = new Color(1f, 1f, 1f, 0.9f);
+        c.Set(5, 8, sparkle); c.Set(27, 6, sparkle); c.Set(24, 26, sparkle); c.Set(3, 20, sparkle);
+        if (fruit)
+        {
+            var (d, m, l) = FruitColors(kind);
+            c.Ball(10, 19, 3, 3, d, m, l); c.Ball(21, 14, 3, 3, d, m, l); c.Ball(17, 23, 3, 3, d, m, l);
+        }
+        return c.ToSprite(16, 42);
+    });
+
+    static void DrawFruitIcon(Canvas c, Item it)
+    {
+        var (d, m, l) = FruitColors(it);
+        c.Ball(8, 9, 6, 6, d, m, l);
+        c.Line(8, 3, 9, 1, Bark);
+        c.Ellipse(11.5f, 2.5f, 2, 1, Hex("#4c8f37"));
+        Color mark = it == Item.FruitBubble ? Hex("#2a6a9a") : Color.white;
+        switch (it) // a symbol of the power on the fruit's skin
+        {
+            case Item.FruitDash: c.Line(9, 5, 6, 9, mark); c.Line(6, 9, 10, 9, mark); c.Line(10, 9, 7, 13, mark); break; // lightning
+            case Item.FruitShadow: c.Ball(7, 9, 3, 3, Hex("#fff6c8"), Hex("#fff6c8"), Color.white); c.Ball(9, 8, 3, 3, m, m, m); break; // crescent moon
+            case Item.FruitVine: c.Line(5, 12, 7, 7, mark); c.Line(7, 7, 10, 8, mark); c.Line(10, 8, 11, 11, mark); break; // curl
+            case Item.FruitMagnet: c.Rect(5, 6, 2, 6, mark); c.Rect(10, 6, 2, 6, mark); c.Rect(5, 11, 7, 2, mark); break; // horseshoe
+            case Item.FruitBubble: c.Ring(8, 9, 3, 1, mark); c.Set(7, 7, Color.white); break; // bubble
+        }
+    }
+
     // ------------------------------------------------------------------ Glowing Mushroom island
     /// Giant mushroom "tree": pale stalk, wide violet cap with glowing spots.
     static Sprite GiantMushroom() => Get("tree_mushroom", () =>
@@ -1002,6 +1050,7 @@ public static class PixelArt
         var c = new Canvas(16, 16);
         Color leaf = Hex("#4c8f37");
         var steam = new Color(1f, 1f, 1f, 0.6f);
+        if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
             case Item.GlowSpore:

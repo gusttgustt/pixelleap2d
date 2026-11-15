@@ -26,6 +26,7 @@ public class SaveData
     public List<IslandSave> visited = new List<IslandSave>(); // other islands, as you left them
     public List<string> flags = new List<string>();      // quests and story (see IslandGame.Quest.cs)
     public List<string> questKills = new List<string>(); // "<quest>|<enemy kind>|<count>"
+    public int powerId, powerLv = 1, powerXp;            // special-fruit power (IslandGame.Power.cs)
 }
 
 /// An island you've been to and left: rebuilt from its seed, then its saved objects put back.

@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Multi-touch comes from the Input System's Touchscreen, so you can walk and act at once.
 public partial class IslandGame
 {
-    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills }
+    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power }
 
     /// Joystick direction (length 0..1), read by PlayerController.ReadInput.
     public static Vector2 TouchMove;
@@ -29,6 +29,7 @@ public partial class IslandGame
     {
         TouchBtn.Eat => new Vector2(GuiW - 172f, GuiH - 74f),
         TouchBtn.Drink => new Vector2(GuiW - 180f, GuiH - 140f),
+        TouchBtn.Power => new Vector2(GuiW - 120f, GuiH - 200f),
         // menus on the left, above the stick: the crafting panel opens on the right
         TouchBtn.Craft => new Vector2(56f, GuiH - 240f),
         _ => new Vector2(124f, GuiH - 252f), // Skills
@@ -39,7 +40,7 @@ public partial class IslandGame
         if (dead) return TouchBtn.None; // the death screen has its own button
         if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
         if ((p - ActionCenter).magnitude < ActionR * 1.15f) return TouchBtn.Action;
-        foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills })
+        foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills, TouchBtn.Power })
             if ((p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
         return TouchBtn.None;
     }
@@ -93,6 +94,7 @@ public partial class IslandGame
 
         if (chatOpen || title) return;
         if (dead || Busy) return;
+        if (touchTapped.Contains(TouchBtn.Power)) UsePower();
         if (touchTapped.Contains(TouchBtn.Eat)) EatBest();
         if (touchTapped.Contains(TouchBtn.Drink)) DrinkFlask();
         if (touchTapped.Contains(TouchBtn.Craft)) { craftOpen = !craftOpen; skillsOpen = false; }
@@ -122,6 +124,8 @@ public partial class IslandGame
 
         // action button: shows what E would do right now
         TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
+        if (power != Power.None) // dim while recharging
+            TouchCircle(SmallCenter(TouchBtn.Power), SmallR + 3f, "พลัง", new Color(1f, 0.85f, 0.3f, PowerReady >= 1f ? 1f : 0.35f), PowerReady >= 1f, 12);
         TouchCircle(SmallCenter(TouchBtn.Eat), SmallR, "กิน", new Color(1f, 0.7f, 0.35f), false, 12);
         TouchCircle(SmallCenter(TouchBtn.Drink), SmallR, "ดื่ม", new Color(0.55f, 0.85f, 1f), false, 12);
         TouchCircle(SmallCenter(TouchBtn.Craft), SmallR, "สร้าง", new Color(0.75f, 1f, 0.7f), craftOpen, 11);

@@ -327,7 +327,7 @@ public partial class IslandGame
 
     public void Poison(float seconds)
     {
-        if (dead || Busy) return;
+        if (dead || Busy || Bubbled || Invisible && seconds < 4f) return;
         if (poisonT <= 0f) Popup("ติดพิษ!", PlayerPos + Vector3.up * 1f, new Color(0.6f, 1f, 0.4f));
         poisonT = Mathf.Max(poisonT, seconds);
     }

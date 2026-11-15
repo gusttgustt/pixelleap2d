@@ -366,9 +366,10 @@ public partial class IslandGame
     /// Closest living player to a spot: 0 = this player, otherwise a remote player's id.
     public (Vector2 grid, int who) NearestPlayer(Vector2 from)
     {
-        Vector2 best = player != null ? player.grid : from;
+        // invisible (Shadow power): creatures can't find you
+        Vector2 best = player != null && !Invisible ? player.grid : from + new Vector2(999f, 999f);
         int who = 0;
-        float bd = player != null && !dead ? (best - from).sqrMagnitude : float.MaxValue;
+        float bd = player != null && !dead && !Invisible ? (best - from).sqrMagnitude : float.MaxValue;
         foreach (var r in remotes.Values)
         {
             if (r == null) continue;

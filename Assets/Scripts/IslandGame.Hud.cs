@@ -85,6 +85,7 @@ public partial class IslandGame
         NodeKind.Rock => "เก็บหิน",
         NodeKind.Campfire => "ใช้กองไฟ",
         NodeKind.GlowShroom => "เก็บเห็ดเรืองแสง",
+        NodeKind.GlowTree => "เก็บผลไม้เรืองแสง",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -186,6 +187,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
             infoY += 16f;
         }
+        infoY = DrawPowerHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,
@@ -231,7 +233,7 @@ public partial class IslandGame
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
         if (!touchUsed) ShadowLabel(new Rect(14, H - 22, W - 28, 20),
-            "WASD เดิน | E ใช้/โจมตี (กดค้าง) | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
+            "WASD เดิน | E ใช้/โจมตี (กดค้าง) | R พลัง | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
@@ -544,6 +546,7 @@ public partial class IslandGame
             if (r.Contains(Event.current.mousePosition)) hover = it;
             if (FoodValue(it) > 0 && GUI.Button(r, GUIContent.none, GUIStyle.none)) Eat(it);
             else if (it == Item.Antidote && GUI.Button(r, GUIContent.none, GUIStyle.none)) UseAntidote();
+            else if (IsPowerFruit(it) && GUI.Button(r, GUIContent.none, GUIStyle.none)) EatPowerFruit(it);
             else if (IsClothing(it) && GUI.Button(r, GUIContent.none, GUIStyle.none)) ToggleWear(it);
         }
         if (hover != null)
@@ -552,6 +555,7 @@ public partial class IslandGame
             string extra = FoodValue(h) > 0 ? $"  (คลิกเพื่อกิน, อิ่ม +{FoodValue(h)})"
                          : IsClothing(h) ? (IsWorn(h) ? "  (สวมอยู่ - คลิกเพื่อถอด)" : "  (คลิกเพื่อสวม)") + $"  {ClothingBonus(h)}"
                          : h == Item.Antidote ? "  (คลิกเพื่อใช้ รักษาพิษ)"
+                         : IsPowerFruit(h) ? $"  (คลิกเพื่อกิน ได้พลัง{PowerName(PowerOf(h))})"
                          : IsTool(h) ? "  (เครื่องมือ)" : "";
             ShadowLabel(new Rect(0, y - 22, W, 20), Name(h) + extra, labelCenter);
         }

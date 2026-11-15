@@ -22,7 +22,7 @@ public class WorldNode : MonoBehaviour
     public float RegrowRemaining => regrowAt > 0f ? Mathf.Max(0.01f, regrowAt - IslandGame.I.Now) : 0f;
 
     public bool Blocking => kind is NodeKind.Tree or NodeKind.FruitTree or NodeKind.Bush or NodeKind.Stump
-                                 or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem;
+                                 or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree;
 
     public float BlockRadius => kind switch
     {
@@ -45,7 +45,7 @@ public class WorldNode : MonoBehaviour
 
     public float PromptHeight => kind switch
     {
-        NodeKind.Tree or NodeKind.FruitTree => 1.45f,
+        NodeKind.Tree or NodeKind.FruitTree or NodeKind.GlowTree => 1.45f,
         NodeKind.Shelter or NodeKind.Raft => 1.05f,
         NodeKind.Bush => 0.65f,
         NodeKind.Bamboo => 0.95f,
@@ -74,7 +74,16 @@ public class WorldNode : MonoBehaviour
             fireLight.pointLightInnerRadius = 0.3f;
             fireLight.pointLightOuterRadius = 3.5f;
         }
-        if (k == NodeKind.GlowShroom && ((int)(g.x * 7f) + (int)(g.y * 13f)) % 3 == 0) // some of them light the ground
+        if (k == NodeKind.GlowTree) // the special-fruit tree glows gold
+        {
+            fireLight = IslandGame.CreateLight("TreeGlow", Light2D.LightType.Point, transform);
+            fireLight.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+            fireLight.color = new Color(1f, 0.85f, 0.4f);
+            fireLight.intensity = 1.2f;
+            fireLight.pointLightInnerRadius = 0.3f;
+            fireLight.pointLightOuterRadius = 3f;
+        }
+        else if (k == NodeKind.GlowShroom && ((int)(g.x * 7f) + (int)(g.y * 13f)) % 3 == 0) // some of them light the ground
         {
             fireLight = IslandGame.CreateLight("ShroomLight", Light2D.LightType.Point, transform);
             fireLight.transform.localPosition = new Vector3(0f, 0.2f, 0f);
@@ -107,9 +116,10 @@ public class WorldNode : MonoBehaviour
             NodeKind.Hut => PixelArt.Hut(),
             NodeKind.Totem => PixelArt.Totem(),
             NodeKind.GlowShroom => PixelArt.GlowShroom(available),
+            NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
         };
-        if (kind == NodeKind.GlowShroom && fireLight != null) fireLight.enabled = available;
+        if (kind is NodeKind.GlowShroom or NodeKind.GlowTree && fireLight != null) fireLight.enabled = available;
         if (!available && kind is NodeKind.Grass or NodeKind.Stick or NodeKind.Rock or NodeKind.Bamboo or NodeKind.Obsidian)
             sr.enabled = false;
     }
