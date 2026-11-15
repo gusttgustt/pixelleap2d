@@ -1,0 +1,88 @@
+using UnityEngine;
+
+public enum VillagerRole { Weaver, Elder, Trader, Villager }
+
+/// A friendly member of the tribe. Strolls around their hut and stops to face you when you're near.
+public class Villager : MonoBehaviour
+{
+    public VillagerRole role;
+    public string npcName;
+    public Vector2 grid;
+    public int look;          // sprite variant
+    public string[] chatter;  // lines for ordinary villagers
+
+    Vector2 home, wanderDir;
+    float wanderT, animT, height;
+    SpriteRenderer sr;
+    int frame;
+
+    const float Speed = 0.6f, Roam = 2.2f;
+
+    public void Init(VillagerRole r, string name, int lookId, Vector2 homePos)
+    {
+        role = r;
+        npcName = name;
+        look = lookId;
+        home = homePos;
+        grid = homePos;
+        sr = gameObject.AddComponent<SpriteRenderer>();
+        height = IslandGame.I.HeightAt(grid);
+        Apply();
+    }
+
+    public string Title => role switch
+    {
+        VillagerRole.Weaver => $"{npcName} the Weaver",
+        VillagerRole.Elder => $"Elder {npcName}",
+        VillagerRole.Trader => $"{npcName} the Trader",
+        _ => npcName,
+    };
+
+    void Update()
+    {
+        var game = IslandGame.I;
+        float dt = Time.deltaTime;
+        bool moving = false;
+        var player = game.player;
+        bool playerNear = player != null && (player.grid - grid).magnitude < 2f;
+
+        if (!game.Busy && !playerNear)
+        {
+            wanderT -= dt;
+            if (wanderT <= 0f)
+            {
+                wanderT = Random.Range(2f, 4f);
+                // mostly stand around; sometimes stroll, pulled back towards home
+                Vector2 toHome = home - grid;
+                wanderDir = Random.value < 0.45f ? Vector2.zero
+                          : toHome.magnitude > Roam ? toHome.normalized
+                          : Random.insideUnitCircle.normalized;
+            }
+            if (wanderDir != Vector2.zero)
+            {
+                Vector2 next = grid + wanderDir * Speed * dt;
+                if (game.CanWalk(next, 0.15f) && game.CanClimb(grid, next)) { grid = next; moving = true; }
+                else wanderT = 0f;
+            }
+        }
+
+        if (moving)
+        {
+            animT += dt * 6f;
+            Vector3 w = IslandGame.GridToWorld(grid + wanderDir) - IslandGame.GridToWorld(grid);
+            if (Mathf.Abs(w.x) > 0.01f) sr.flipX = w.x < 0;
+        }
+        else if (playerNear) sr.flipX = player.transform.position.x < transform.position.x; // look at the player
+        frame = moving ? 1 + ((int)animT & 1) : 0;
+        Apply();
+    }
+
+    void Apply()
+    {
+        height = Mathf.Lerp(height, IslandGame.I.HeightAt(grid), 1f - Mathf.Exp(-12f * Time.deltaTime));
+        Vector3 flat = IslandGame.GridToWorld(grid);
+        transform.position = flat + Vector3.up * height;
+        sr.sortingOrder = IslandGame.SortOrder(flat.y);
+        sr.sprite = PixelArt.Villager(look, frame);
+    }
+}

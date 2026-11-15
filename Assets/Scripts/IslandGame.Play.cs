@@ -1,0 +1,737 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+/// Main loop: survival stats, gathering, crafting, combat, XP & skills, sleeping and sailing.
+public partial class IslandGame
+{
+    Vector2? pond;         // pond tile the player can drink from right now
+    Vector2? seaSpot;      // sea tile in reach (fishing)
+    Enemy enemyTarget;     // enemy in attack range
+    float lastInteract, enemyTimer, sleepT, sailT, hurtT, savedAt = -10f;
+    bool sleepApplied, sailApplied;
+    int nightWarnedDay;
+
+    /// True while sleeping or sailing: player input is ignored.
+    public bool Busy => sleepT > 0f || sailT > 0f || dialog != null;
+
+    void Update()
+    {
+        float dt = Time.deltaTime;
+        var kb = Keyboard.current;
+        UpdateCamera();
+        UpdateWater(dt);
+        UpdateDayNight(dt);
+        Fx.Tick(dt);
+        hurtT -= dt;
+
+        if (dead)
+        {
+            if (kb != null && kb.rKey.wasPressedThisFrame) StartGame(null);
+            return;
+        }
+        if (sailT > 0f) { UpdateSail(dt); return; }
+        if (sleepT > 0f) { UpdateSleep(dt); return; }
+
+        Now += dt;
+
+        if (voyage != null)
+        {
+            if (kb != null && kb.f9Key.wasPressedThisFrame)
+            {
+                var data = SaveSystem.Read();
+                if (data != null) { EndVoyage(); StartGame(data); }
+                return;
+            }
+            if (TickSurvival(dt)) return;
+            UpdateVoyage(dt, kb);
+            return;
+        }
+
+        if (kb != null)
+        {
+            if (kb.f5Key.wasPressedThisFrame) { SaveGame(); Hint("Game saved.", 1.5f); }
+            if (kb.f9Key.wasPressedThisFrame)
+            {
+                var data = SaveSystem.Read();
+                if (data != null) StartGame(data); else Hint("No save file found.", 2f);
+                return;
+            }
+            if (kb.f8Key.wasPressedThisFrame) { SaveSystem.Delete(); StartGame(null); return; }
+        }
+
+        autosaveTimer += dt;
+        if (autosaveTimer >= AutosaveInterval) SaveGame();
+        respawnTimer += dt;
+        if (respawnTimer >= RespawnInterval) { respawnTimer = 0f; RespawnMaterials(); }
+
+        if (IsNight && nightWarnedDay != Day)
+        {
+            nightWarnedDay = Day;
+            Hint("Night falls... creatures grow bolder. Stay near a campfire!", 6f);
+        }
+
+        if (TickSurvival(dt)) return;
+        if (dialog != null) { HandleDialog(kb); return; } // talking pauses the action
+
+        UpdateEnemies(dt);
+        FindTarget();
+        HandleInput(kb);
+    }
+
+    /// Hunger / thirst / health over time. Returns true if the player died.
+    bool TickSurvival(float dt)
+    {
+        float drain = 1f - 0.12f * SkillLv(Skill.IronStomach); // Iron Stomach slows the drain
+        float sun = hat == Item.StrawHat ? 0.85f : 1f;          // a straw hat keeps the sun off
+        hunger = Mathf.Max(0f, hunger - dt * drain * 100f / StarveSeconds);
+        thirst = Mathf.Max(0f, thirst - dt * drain * sun * 100f / ThirstSeconds);
+        if (hunger <= 0f) health -= dt * 2f;
+        if (thirst <= 0f) health -= dt * 2.5f;
+        if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f);
+        return CheckDeath();
+    }
+
+    /// Keys that work both on land and at sea.
+    void HandleCommonKeys(Keyboard kb)
+    {
+        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; skillsOpen = false; }
+        if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; }
+        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; }
+        if (kb.fKey.wasPressedThisFrame) EatBest();
+        if (kb.qKey.wasPressedThisFrame) DrinkFlask();
+        if (craftOpen)
+            for (int i = 0; i < Recipes.Length && i < 10; i++)
+                if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(Recipes[i]);
+        if (skillsOpen)
+            for (int i = 0; i < skills.Length && i < 9; i++)
+                if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)i);
+    }
+
+    /// Kill reward shared by land and sea creatures.
+    void Reward(Vector3 at, Item? drop, int count, int xpGain)
+    {
+        if (drop != null && count > 0)
+        {
+            inv[drop.Value] = Count(drop.Value) + count;
+            Popup($"+{count} {Name(drop.Value)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+        }
+        AddXp(xpGain, at);
+    }
+
+    bool CheckDeath()
+    {
+        if (health > 0f) return false;
+        health = 0f; dead = true; craftOpen = false; skillsOpen = false;
+        if (cursor != null) cursor.enabled = false;
+        Sfx.Play("hurt", 0.8f);
+        SaveSystem.Delete(); // death is permanent: next start is a new run
+        return true;
+    }
+
+    void HandleInput(Keyboard kb)
+    {
+        if (kb == null) return;
+        HandleCommonKeys(kb);
+
+        bool pressed = kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
+        bool held = kb.eKey.isPressed || kb.spaceKey.isPressed;
+        float since = Time.time - lastInteract;
+        bool Trigger(float repeatDelay)
+        {
+            if ((pressed && since > 0.15f) || (held && since > repeatDelay)) { lastInteract = Time.time; return true; }
+            return false;
+        }
+
+        if (enemyTarget != null) { if (Trigger(0.4f)) Attack(enemyTarget); }
+        else if (villagerTarget != null) { if (pressed && since > 0.15f) OpenDialog(villagerTarget); }
+        else if (target != null)
+        {
+            bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft;
+            if (once ? (pressed && since > 0.15f) : Trigger(0.3f)) { lastInteract = Time.time; Interact(target); }
+        }
+        else if (pond != null) { if (Trigger(0.5f)) Drink(); }
+        else if (seaSpot != null)
+        {
+            if (HasSpear) { if (Trigger(0.8f)) FishAt(GridToWorld(seaSpot.Value)); }
+            else if (pressed) Hint("Seawater is too salty to drink. Craft a Spear to fish here.", 3f);
+        }
+    }
+
+    // ------------------------------------------------------------------ targeting
+    void FindTarget()
+    {
+        target = null; enemyTarget = null; villagerTarget = null; pond = null; seaSpot = null;
+        Vector2 pg = player.grid;
+
+        float bestEnemy = InteractRange;
+        foreach (var e in enemies)
+        {
+            if (e == null) continue;
+            float d = (e.grid - pg).magnitude;
+            if (d < bestEnemy) { bestEnemy = d; enemyTarget = e; }
+        }
+
+        if (enemyTarget == null)
+        {
+            float bestTalk = InteractRange;
+            foreach (var v in villagers)
+            {
+                if (v == null) continue;
+                float d = (v.grid - pg).magnitude;
+                if (d < bestTalk) { bestTalk = d; villagerTarget = v; }
+            }
+        }
+
+        if (enemyTarget == null && villagerTarget == null)
+        {
+            float best = float.MaxValue;
+            foreach (var n in nodes)
+            {
+                if (!n.CanTarget) continue;
+                Vector2 d = n.grid - pg;
+                float dist = d.magnitude;
+                if (dist > InteractRange) continue;
+                float score = dist - (dist > 0.01f ? Vector2.Dot(d / dist, player.facing) * 0.35f : 0f); // prefer what we face
+                if (score < best) { best = score; target = n; }
+            }
+
+            // Nearest pond tile within reach; whichever of pond / object is closer wins.
+            float pondDist = 1.1f;
+            var t = Tile(pg);
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (!IsFresh(t.x + dx, t.y + dy)) continue;
+                    var tile = new Vector2(t.x + dx, t.y + dy);
+                    float d = (tile - pg).magnitude;
+                    if (d < pondDist) { pondDist = d; pond = tile; }
+                }
+            if (target != null && pond != null)
+            {
+                if ((target.grid - pg).magnitude <= pondDist) pond = null; else target = null;
+            }
+            if (target == null && pond == null) seaSpot = NearestSea(pg, 1.2f);
+        }
+
+        Vector3? at = null;
+        if (enemyTarget != null) at = GridToWorld(enemyTarget.grid) + Vector3.up * HeightAt(enemyTarget.grid);
+        else if (villagerTarget != null) at = GridToWorld(villagerTarget.grid) + Vector3.up * HeightAt(villagerTarget.grid);
+        else if (target != null) at = GridToWorld(target.grid) + Vector3.up * HeightAt(target.grid);
+        else if (pond != null) at = GridToWorld(pond.Value) + Vector3.down * 0.125f;
+        else if (seaSpot != null && HasSpear) at = GridToWorld(seaSpot.Value) + Vector3.down * 0.125f;
+        cursor.enabled = at != null;
+        if (at != null)
+        {
+            cursor.transform.position = at.Value;
+            cursor.color = enemyTarget != null ? new Color(1f, 0.4f, 0.4f, 0.9f) : new Color(1f, 1f, 1f, 0.55f + 0.45f * Mathf.Sin(Time.time * 6f));
+        }
+    }
+
+    // ------------------------------------------------------------------ gathering
+    bool HasSpear => Count(Item.Spear) > 0 || Count(Item.ObsidianSpear) > 0;
+    bool HasAxe => Count(Item.StoneAxe) > 0 || Count(Item.ObsidianAxe) > 0;
+    int ChopsNeeded => Mathf.Max(1, 4 - (Count(Item.ObsidianAxe) > 0 ? 2 : 0) - SkillLv(Skill.Lumberjack));
+    int WeaponDamage => (Count(Item.ObsidianSpear) > 0 ? 6 : Count(Item.Spear) > 0 ? 3 : 1) + SkillLv(Skill.Strength)
+                        + (hat == Item.TribalHeadband ? 1 : 0);
+
+    /// Forager skill: chance of one extra item.
+    int Bonus() => rnd.NextDouble() < 0.3 * SkillLv(Skill.Forager) ? 1 : 0;
+
+    void Interact(WorldNode n)
+    {
+        Vector3 at = n.transform.position;
+        Color leaf = new Color(0.4f, 0.75f, 0.3f), wood = new Color(0.6f, 0.4f, 0.2f);
+        bool knife = Count(Item.StoneKnife) > 0;
+        switch (n.kind)
+        {
+            case NodeKind.Grass:
+                Give(Item.Fiber, rnd.Next(1, 3) + (knife ? 1 : 0) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.1f, leaf, 6, 0.8f, 1.3f);
+                n.Deplete(40f);
+                break;
+            case NodeKind.Stick:
+                Give(Item.Stick, 1 + Bonus(), n);
+                Fx.Burst(at, wood, 4, 0.6f, 1f);
+                RemoveNode(n); // new ones appear elsewhere
+                break;
+            case NodeKind.Rock:
+                Give(Item.Stone, 1 + Bonus(), n);
+                Fx.Burst(at, new Color(0.6f, 0.62f, 0.65f), 4, 0.6f, 1f);
+                RemoveNode(n);
+                break;
+            case NodeKind.Obsidian:
+                Give(Item.Obsidian, 1 + Bonus(), n);
+                Fx.Burst(at, new Color(0.35f, 0.3f, 0.5f), 5, 0.6f, 1f);
+                RemoveNode(n);
+                break;
+            case NodeKind.Bamboo:
+                Give(Item.Bamboo, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.5f, leaf, 6, 0.8f, 1f, 0.8f, 3f);
+                n.Deplete(90f);
+                break;
+            case NodeKind.Bush:
+                Give(Item.Berry, rnd.Next(2, 4) + (knife ? 1 : 0) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.3f, leaf, 6, 1f, 1.2f, 0.7f, 3f);
+                Fx.Burst(at + Vector3.up * 0.3f, new Color(0.75f, 0.15f, 0.25f), 3);
+                n.Shake();
+                n.Deplete(45f);
+                break;
+            case NodeKind.FruitTree:
+                Give(Item.Fruit, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 1f, leaf, 8, 1.2f, 0.8f, 1f, 2f);
+                n.Shake();
+                n.Deplete(60f);
+                break;
+            case NodeKind.Tree:
+                n.Shake();
+                Sfx.Play("chop", HasAxe ? 0.7f : 0.35f);
+                if (biome != Biome.Volcanic) Fx.Burst(at + Vector3.up * 1f, leaf, 5, 1.2f, 0.8f, 1f, 2f);
+                if (!HasAxe)
+                {
+                    if (rnd.NextDouble() < 0.35) Give(Item.Stick, 1, n);
+                    else Hint("Craft an axe to chop trees for wood.", 3f);
+                }
+                else
+                {
+                    Fx.Burst(at + Vector3.up * 0.3f, wood, 6, 1.2f, 1.4f);
+                    if (++n.hits >= ChopsNeeded)
+                    {
+                        Give(Item.Wood, 3 + Bonus(), n);
+                        if (rnd.NextDouble() < 0.5) Give(Item.Stick, 1, n);
+                        if (biome != Biome.Volcanic) Fx.Burst(at + Vector3.up * 1f, leaf, 14, 1.6f, 1f, 1.2f, 2f);
+                        n.BecomeStump(180f);
+                    }
+                    else Popup("Chop!", at + Vector3.up * 1.1f, Color.white);
+                }
+                break;
+            case NodeKind.Campfire: craftOpen = true; skillsOpen = false; break;
+            case NodeKind.Shelter: TrySleep(); break;
+            case NodeKind.Raft: TrySail(); break;
+        }
+    }
+
+    void Give(Item it, int amount, WorldNode from)
+    {
+        inv[it] = Count(it) + amount;
+        Vector3 pos = from != null ? from.transform.position + Vector3.up * from.PromptHeight * 0.8f
+                                   : PlayerPos + Vector3.up * 0.9f;
+        Popup($"+{amount} {Name(it)}", pos, new Color(1f, 0.95f, 0.6f));
+        Sfx.Play("pickup", 0.35f);
+    }
+
+    void Drink()
+    {
+        bool refill = Count(Item.WaterFlask) > 0 && flaskWater < FlaskSize;
+        if (thirst >= 99f && !refill) { Hint("You're not thirsty.", 1.5f); return; }
+        Vector3 at = GridToWorld(pond.Value);
+        if (thirst < 99f)
+        {
+            thirst = Mathf.Min(100f, thirst + 20f);
+            Popup("+20 water", at + Vector3.up * 0.4f, new Color(0.55f, 0.85f, 1f));
+        }
+        if (refill)
+        {
+            flaskWater = FlaskSize;
+            Popup("Flask filled", at + Vector3.up * 0.65f, new Color(0.55f, 0.85f, 1f));
+        }
+        Fx.Burst(at, new Color(0.7f, 0.9f, 1f), 6, 0.6f, 1.2f);
+        Sfx.Play("drink", 0.6f);
+    }
+
+    void DrinkFlask()
+    {
+        if (Count(Item.WaterFlask) == 0) return;
+        if (flaskWater <= 0) { Hint("Your flask is empty. Refill it at a pond.", 2f); return; }
+        if (thirst >= 99f) { Hint("You're not thirsty.", 1.5f); return; }
+        flaskWater--;
+        thirst = Mathf.Min(100f, thirst + 25f);
+        Popup("+25 water", PlayerPos + Vector3.up * 0.9f, new Color(0.55f, 0.85f, 1f));
+        Sfx.Play("drink", 0.6f);
+    }
+
+    void FishAt(Vector3 at)
+    {
+        Fx.Burst(at, new Color(0.75f, 0.9f, 1f), 8, 0.8f, 1.5f);
+        Sfx.Play("splash", 0.6f);
+        if (rnd.NextDouble() < 0.35 + 0.15 * SkillLv(Skill.Fisher))
+        {
+            inv[Item.RawFish] = Count(Item.RawFish) + 1;
+            Popup("+1 Raw Fish", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+            Sfx.Play("pickup", 0.4f);
+        }
+        else Popup("Missed!", at + Vector3.up * 0.5f, new Color(0.8f, 0.9f, 1f));
+    }
+
+    // ------------------------------------------------------------------ combat & XP
+    void Attack(Enemy e)
+    {
+        int dmg = WeaponDamage;
+        Sfx.Play("hit", 0.6f);
+        Vector3 at = e.transform.position;
+        if (e.Hit(dmg, player.grid))
+        {
+            enemies.Remove(e);
+            var (drop, n) = e.kind switch
+            {
+                EnemyKind.Boar => (Item.RawMeat, 2),
+                EnemyKind.Snake => (Item.RawMeat, 1),
+                _ => (Item.CrabMeat, 1),
+            };
+            inv[drop] = Count(drop) + n;
+            Popup($"+{n} {Name(drop)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+            // hides for the weaver's clothes: boars always, snakes sometimes
+            if (e.kind == EnemyKind.Boar || (e.kind == EnemyKind.Snake && rnd.NextDouble() < 0.5))
+            {
+                inv[Item.Hide] = Count(Item.Hide) + 1;
+                Popup("+1 Hide", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
+            }
+            AddXp(e.xp, at);
+        }
+        else Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
+    }
+
+    void AddXp(int amount, Vector3 at)
+    {
+        xp += amount;
+        Popup($"+{amount} XP", at + Vector3.up * 0.75f, new Color(0.75f, 0.6f, 1f));
+        while (xp >= XpToNext(level))
+        {
+            xp -= XpToNext(level);
+            level++;
+            skillPoints++;
+            health = Mathf.Min(MaxHealth, health + 25f);
+            Popup($"LEVEL {level}!", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.85f, 0.3f));
+            Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
+            Sfx.Play("levelup", 0.7f);
+            Hint($"Level {level}! You have {skillPoints} skill point(s). Press K to upgrade skills.", 5f);
+        }
+    }
+
+    void UpgradeSkill(Skill s)
+    {
+        int i = (int)s;
+        if (skillPoints <= 0) { Hint("No skill points. Defeat creatures to level up.", 2f); return; }
+        if (skills[i] >= SkillInfo[i].max) { Hint($"{SkillInfo[i].name} is already maxed.", 2f); return; }
+        skills[i]++;
+        skillPoints--;
+        if (s == Skill.Toughness) health += 15f;
+        Sfx.Play("craft", 0.5f);
+        Popup($"{SkillInfo[i].name} {skills[i]}", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+    }
+
+    public void DamagePlayer(float amount, string why)
+    {
+        if (Busy || dead) return;
+        if (rnd.NextDouble() < 0.1 * SkillLv(Skill.Evasion))
+        {
+            Popup("Dodge!", PlayerPos + Vector3.up * 0.9f, new Color(0.7f, 1f, 0.7f));
+            return;
+        }
+        if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
+        if (outfit == Item.HideVest) amount *= 0.8f;
+        health -= amount;
+        hurtT = 0.3f;
+        if (player != null) player.Flash();
+        if (voyage != null) voyage.hurtT = 0.2f;
+        Sfx.Play("hurt", 0.7f);
+        Popup($"-{amount:0} {why}", PlayerPos + Vector3.up * 0.9f, new Color(1f, 0.45f, 0.45f));
+        CheckDeath();
+    }
+
+    // ------------------------------------------------------------------ respawning materials
+    /// Every few seconds, top respawning materials back up at random spots away from the player.
+    void RespawnMaterials()
+    {
+        int sticks = 0, rocks = 0, obsidian = 0;
+        foreach (var n in nodes)
+        {
+            if (n.kind == NodeKind.Stick) sticks++;
+            else if (n.kind == NodeKind.Rock) rocks++;
+            else if (n.kind == NodeKind.Obsidian) obsidian++;
+        }
+        if (sticks < stickCap) TrySpawnMaterial(NodeKind.Stick);
+        if (rocks < rockCap) TrySpawnMaterial(NodeKind.Rock);
+        if (obsidian < obsidianCap) TrySpawnMaterial(NodeKind.Obsidian);
+    }
+
+    void TrySpawnMaterial(NodeKind kind)
+    {
+        var trees = kind == NodeKind.Stick ? nodes.FindAll(n => n.kind is NodeKind.Tree or NodeKind.FruitTree) : null;
+        for (int attempt = 0; attempt < 25; attempt++)
+        {
+            Vector2 g;
+            if (trees != null && trees.Count > 0 && rnd.NextDouble() < 0.6)
+            {
+                // sticks mostly fall under trees
+                float a = (float)rnd.NextDouble() * Mathf.PI * 2f, r = 0.7f + (float)rnd.NextDouble() * 0.4f;
+                g = trees[rnd.Next(trees.Count)].grid + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+            }
+            else g = new Vector2(rnd.Next(Size), rnd.Next(Size)) + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f;
+
+            if (!IsLand(g) || (g - player.grid).magnitude < 4f || !FreeSpot(g, 0.2f)) continue;
+            Spawn(kind, g);
+            return;
+        }
+    }
+
+    // ------------------------------------------------------------------ enemies
+    int EnemyCap(EnemyKind k) => k switch
+    {
+        EnemyKind.Crab => IsNight ? Mathf.Min(6, 2 + tier + Day / 3) : 0,
+        EnemyKind.Snake => (IsNight ? 4 : 2) + tier,
+        EnemyKind.Boar => (IsNight ? 3 : 2) + tier,
+        _ => 0,
+    };
+
+    EnemyKind[] BiomeEnemies() => (biome, tier > 0) switch
+    {
+        (Biome.Jungle, false) => new[] { EnemyKind.Crab, EnemyKind.Snake },
+        (Biome.Jungle, true) => new[] { EnemyKind.Crab, EnemyKind.Snake, EnemyKind.Boar },
+        (Biome.Volcanic, _) => new[] { EnemyKind.Crab, EnemyKind.Boar },
+        (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
+        _ => new[] { EnemyKind.Crab },
+    };
+
+    void UpdateEnemies(float dt)
+    {
+        enemies.RemoveAll(e => e == null);
+        enemyTimer += dt;
+        if (enemyTimer < 5f) return;
+        enemyTimer = 0f;
+
+        foreach (var kind in BiomeEnemies())
+        {
+            int count = 0;
+            foreach (var e in enemies) if (e.kind == kind) count++;
+            if (count < EnemyCap(kind) && TrySpawnEnemy(kind)) return; // at most one new enemy per tick
+        }
+    }
+
+    bool TrySpawnEnemy(EnemyKind kind)
+    {
+        int wantTile = kind == EnemyKind.Crab ? 1 : 2; // crabs come up on beaches, others live inland
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            int x = rnd.Next(Size), y = rnd.Next(Size);
+            if (tiles[x, y] != wantTile) continue;
+            var g = new Vector2(x, y);
+            float d = (g - player.grid).magnitude;
+            if (d < 7f || d > 15f || DistanceToFire(g) < 4.5f || !CanWalk(g, 0.2f)) continue;
+            var e = new GameObject(kind.ToString()).AddComponent<Enemy>();
+            e.transform.SetParent(world);
+            e.Init(kind, g, tier);
+            enemies.Add(e);
+            Fx.Burst(e.transform.position, kind == EnemyKind.Crab ? new Color(0.7f, 0.85f, 1f) : new Color(0.5f, 0.6f, 0.3f), 6);
+            return true;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------------ crafting & food
+    public bool CanCraft(Recipe r, out string why)
+    {
+        why = null;
+        if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = "Learn it from the tribe's weaver"; return false; }
+        if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "Already owned"; return false; }
+        if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "Can't do that at sea"; return false; }
+        if (r.places == NodeKind.Raft && raftLevel > 0) { why = "You already have a raft"; return false; }
+        if (r.raftUpgrade)
+        {
+            RefreshRaftUpgrade(r);
+            if (raftLevel == 0) { why = "Build a raft first"; return false; }
+            if (raftLevel >= island) { why = $"Raft Lv {raftLevel} is ready to sail"; return false; }
+            var raft = RaftNode;
+            if (raft == null || (raft.grid - player.grid).magnitude > 2.2f) { why = "Stand next to your raft"; return false; }
+        }
+        if (r.needsFire && DistanceToFire(player.grid) > 2.2f) { why = "Stand near a campfire"; return false; }
+        if (r.atShore && NearestSea(player.grid, 1.8f) == null) { why = "Stand next to the sea"; return false; }
+        foreach (var c in r.cost) if (Count(c.item) < c.n) { why = "Missing materials"; return false; }
+        return true;
+    }
+
+    void Craft(Recipe r)
+    {
+        if (!CanCraft(r, out var why)) { Hint(why, 2f); return; }
+        if (r.places != null && !TryPlace(r.places.Value, r.atShore)) { Hint($"No room here to build a {r.name}.", 2f); return; }
+        foreach (var c in r.cost) inv[c.item] -= c.n;
+        Sfx.Play("craft", 0.5f);
+        if (r.raftUpgrade) { UpgradeRaft(); return; }
+        if (r.output != null) Give(r.output.Value, 1, null);
+        else Popup($"Built {r.name}!", PlayerPos + Vector3.up * 0.9f, Color.white);
+        if (r.output != null && IsClothing(r.output.Value)) // put it straight on if that slot is free
+        {
+            var it = r.output.Value;
+            if ((IsHat(it) && hat == null) || (IsOutfit(it) && outfit == null)) ToggleWear(it);
+        }
+        if (r.output == Item.WaterFlask) flaskWater = 0;
+        if (r.places == NodeKind.Raft)
+        {
+            raftLevel = 1;
+            RaftNode?.Refresh();
+            Hint("Raft built! It will carry you from island to island. Stock up on food and water, then set sail.", 6f);
+        }
+    }
+
+    bool TryPlace(NodeKind kind, bool atShore)
+    {
+        float own = kind switch { NodeKind.Shelter => 0.6f, NodeKind.Raft => 0.55f, _ => 0.4f };
+        var dirs = new System.Collections.Generic.List<Vector2> { player.facing };
+        for (int i = 0; i < 8; i++) { float a = i * Mathf.PI / 4f; dirs.Add(new Vector2(Mathf.Cos(a), Mathf.Sin(a))); }
+        foreach (float dist in new[] { 1.1f, 1.6f })
+            foreach (var d in dirs)
+            {
+                Vector2 g = player.grid + d * dist;
+                if (!IsLand(g) || (atShore && !TouchesSea(g))) continue;
+                if ((g - player.grid).magnitude < own + 0.35f || !FreeSpot(g, own + 0.1f)) continue;
+                var n = Spawn(kind, g, false);
+                Fx.Burst(n.transform.position, new Color(0.8f, 0.7f, 0.5f), 10, 1.2f, 0.8f);
+                return true;
+            }
+        return false;
+    }
+
+    void EatBest()
+    {
+        foreach (var it in new[] { Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.Fruit, Item.Berry, Item.RawFish, Item.CrabMeat, Item.RawMeat })
+            if (Count(it) > 0) { Eat(it); return; }
+        Hint("No food! Pick berries or fruit.", 2f);
+    }
+
+    void Eat(Item it)
+    {
+        int food = FoodValue(it);
+        if (food <= 0 || Count(it) == 0) return;
+        if (hunger >= 99f) { Hint("You're not hungry.", 1.5f); return; }
+        inv[it]--;
+        hunger = Mathf.Min(100f, hunger + food);
+        thirst = Mathf.Min(100f, thirst + ThirstValue(it));
+        health = Mathf.Min(MaxHealth, health + HealValue(it));
+        Sfx.Play("eat", 0.6f);
+        Popup($"+{food} hunger", PlayerPos + Vector3.up * 0.9f, new Color(1f, 0.7f, 0.3f));
+    }
+
+    // ------------------------------------------------------------------ sleep
+    void TrySleep()
+    {
+        if (!IsNight) { Hint("You can only sleep at night.", 2f); return; }
+        foreach (var e in enemies)
+            if (e != null && (e.grid - player.grid).magnitude < 5f) { Hint("You can't sleep with enemies nearby!", 2f); return; }
+        sleepT = 0.0001f;
+        sleepApplied = false;
+        craftOpen = false; skillsOpen = false;
+    }
+
+    void UpdateSleep(float dt)
+    {
+        sleepT += dt;
+        if (!sleepApplied && sleepT >= 1.2f)
+        {
+            sleepApplied = true;
+            float skip = Mathf.Repeat(0.27f - Phase, 1f) * DayLength; // wake up just after sunrise
+            clock += skip;
+            Now += skip; // plants keep growing while you sleep
+            hunger = Mathf.Max(1f, hunger - 15f);
+            thirst = Mathf.Max(1f, thirst - 20f);
+            health = Mathf.Min(MaxHealth, health + 35f);
+            foreach (var e in enemies) if (e != null) Destroy(e.gameObject);
+            enemies.Clear();
+            SaveGame();
+            Hint($"You slept until morning. Day {Day}.", 3f);
+        }
+        if (sleepT >= 2.6f) sleepT = 0f;
+    }
+
+    // ------------------------------------------------------------------ sailing to the next island
+    bool arriving;          // sail fade direction: false = leaving an island, true = landing
+    float sailWarnUntil;
+
+    // ------------------------------------------------------------------ raft upgrades
+    /// Each island's own material makes the raft strong enough for the next, rougher crossing:
+    /// Tropical = timber, Jungle = bamboo, Tribe = woven cloth sail, Volcano = obsidian. Costs grow with every level.
+    public static string RaftMaterial(Biome b) => b switch
+    {
+        Biome.Jungle => "Bamboo", Biome.Volcanic => "Obsidian", Biome.Tribal => "Cloth", _ => "Wood",
+    };
+
+    void RefreshRaftUpgrade(Recipe r)
+    {
+        int L = Mathf.Max(1, raftLevel);
+        r.name = $"Upgrade Raft to Lv {L + 1}";
+        (r.cost, r.desc) = biome switch
+        {
+            Biome.Jungle => (new[] { (Item.Bamboo, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Wood, 4) }, "Bamboo hull: lighter and faster"),
+            Biome.Volcanic => (new[] { (Item.Obsidian, 4 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "Obsidian prow: shrugs off bites"),
+            Biome.Tribal => (new[] { (Item.Cloth, 3 + L), (Item.Wood, 6 + L), (Item.Rope, 4) }, "Woven sail: catches more wind"),
+            _ => (new[] { (Item.Wood, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Stone, 4) }, "Reinforced deck for rougher seas"),
+        };
+    }
+
+    void UpgradeRaft()
+    {
+        raftLevel++;
+        var raft = RaftNode;
+        if (raft != null)
+        {
+            raft.Refresh();
+            raft.Shake();
+            Fx.Burst(raft.transform.position + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 16, 1.4f, 1.6f, 1f, 3f);
+        }
+        Popup($"Raft Lv {raftLevel}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        Hint($"Raft upgraded to Lv {raftLevel}: {RaftSpeedBonus * 100f:0}% faster, {RaftArmor * 100f:0}% less damage at sea. Ready to sail!", 6f);
+    }
+
+    /// Bonuses from raft upgrades while at sea.
+    float RaftSpeedBonus => 0.1f * Mathf.Max(0, raftLevel - 1);
+    float RaftArmor => Mathf.Min(0.4f, 0.08f * Mathf.Max(0, raftLevel - 1));
+
+    void TrySail()
+    {
+        if (raftLevel < island)
+        {
+            Hint($"The sea to island {island + 1} is too rough for a Lv {raftLevel} raft. Upgrade it with {RaftMaterial(biome)} (Tab).", 5f);
+            craftOpen = true; skillsOpen = false;
+            return;
+        }
+        // The voyage takes a while: warn once if the player is low on supplies.
+        int food = 0;
+        foreach (var kv in inv) if (FoodValue(kv.Key) > 0) food += kv.Value;
+        bool lowSupplies = food < 3 || (thirst < 60f && flaskWater == 0);
+        if (lowSupplies && Time.time > sailWarnUntil)
+        {
+            sailWarnUntil = Time.time + 4f;
+            Hint("Low on food or water for the voyage! Press E again to set sail anyway.", 4f);
+            return;
+        }
+        SaveGame(); // if you quit at sea you come back here, next to the raft
+        BeginSailFade(false);
+        Sfx.Play("win", 0.7f);
+    }
+
+    void BeginSailFade(bool landing)
+    {
+        arriving = landing;
+        sailT = 0.0001f;
+        sailApplied = false;
+        craftOpen = false; skillsOpen = false;
+        if (cursor != null) cursor.enabled = false;
+    }
+
+    void UpdateSail(float dt)
+    {
+        sailT += dt;
+        if (!sailApplied && sailT >= 1.8f)
+        {
+            sailApplied = true;
+            sailT = 1.8f;
+            if (!arriving) StartVoyage(); // swap the island for open sea behind the fade
+            else
+            {
+                EndVoyage();
+                NextIsland();
+                SaveSystem.Write(Snapshot()); // SaveGame() is skipped while sailing, so save the new island directly
+                savedAt = Time.time;
+            }
+        }
+        if (sailT >= 4.2f) sailT = 0f;
+    }
+}

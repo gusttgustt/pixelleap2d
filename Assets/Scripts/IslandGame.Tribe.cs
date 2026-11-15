@@ -1,0 +1,221 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+/// Tribe Island: the village, its people, conversations, and clothing.
+public partial class IslandGame
+{
+    public class Dialog
+    {
+        public string speaker, text;
+        public readonly List<(string label, System.Action act, bool enabled)> options = new List<(string, System.Action, bool)>();
+    }
+
+    public readonly List<Villager> villagers = new List<Villager>();
+    [System.NonSerialized] public Dialog dialog;
+    Villager villagerTarget;
+
+    /// What the weaver can teach, and the gift she asks for in return.
+    static readonly (Item item, (Item item, int n)[] price)[] Lessons =
+    {
+        (Item.Cloth, new (Item, int)[0]),
+        (Item.StrawHat, new (Item, int)[0]),
+        (Item.LeafTunic, new[] { (Item.Fruit, 4) }),
+        (Item.HideVest, new[] { (Item.CookedMeat, 2) }),
+        (Item.TribalHeadband, new[] { (Item.RawFish, 3) }),
+    };
+
+    /// The trader's deals: give -> get.
+    static readonly ((Item item, int n) give, (Item item, int n) get)[] Trades =
+    {
+        ((Item.RawFish, 3), (Item.Hide, 1)),
+        ((Item.Fruit, 4), (Item.CookedMeat, 1)),
+        ((Item.Fiber, 6), (Item.Rope, 2)),
+        ((Item.Berry, 6), (Item.Cloth, 1)),
+    };
+
+    static readonly string[] Chatter =
+    {
+        "The fire keeps the crabs away at night. Stay close to the village!",
+        "Nala weaves the finest cloth on all the islands.",
+        "Old Tamu says the sea beyond the volcano is the wildest of all.",
+        "My father fished with a spear until he was very old.",
+        "A woven sail makes a raft fly over the waves!",
+        "Have you tasted cooked boar? Nothing better.",
+    };
+
+    // ------------------------------------------------------------------ village
+    void BuildVillage()
+    {
+        Vector2 c = Center;
+        foreach (var n in nodes.FindAll(n => (n.grid - c).magnitude < 4.6f)) RemoveNode(n);
+        Spawn(NodeKind.Campfire, c, false); // the village fire: cooking, light, and enemies keep away
+        Vector2[] huts = { c + new Vector2(2.8f, -0.8f), c + new Vector2(-0.8f, 2.8f), c + new Vector2(-2.6f, -1.8f) };
+        foreach (var h in huts) if (IsLand(h)) Spawn(NodeKind.Hut, h, rnd.Next(2) == 0);
+        Spawn(NodeKind.Totem, c + new Vector2(1.7f, 1.7f), false);
+
+        stickCap = rockCap = obsidianCap = 0;
+        foreach (var n in nodes)
+        {
+            if (n.kind == NodeKind.Stick) stickCap++;
+            else if (n.kind == NodeKind.Rock) rockCap++;
+        }
+    }
+
+    void SpawnVillagers()
+    {
+        var huts = nodes.FindAll(n => n.kind == NodeKind.Hut);
+        Vector2 Near(int i, Vector2 fallback)
+        {
+            Vector2 home = i < huts.Count ? huts[i].grid + (Center - huts[i].grid).normalized * 1.3f : fallback;
+            for (int t = 0; t < 12 && !CanWalk(home, 0.15f); t++) home = Center + Random.insideUnitCircle * 2.5f;
+            return home;
+        }
+        AddVillager(VillagerRole.Weaver, "Nala", 0, Near(0, Center + new Vector2(1.5f, -1f)));
+        AddVillager(VillagerRole.Elder, "Tamu", 1, Near(99, Center + new Vector2(-1.2f, 0.6f)));
+        AddVillager(VillagerRole.Trader, "Kai", 2, Near(1, Center + new Vector2(-1f, 1.6f)));
+        AddVillager(VillagerRole.Villager, "Mele", 3, Near(2, Center + new Vector2(-1.8f, -1.2f)));
+        AddVillager(VillagerRole.Villager, "Pua", 3, Near(99, Center + new Vector2(0.8f, -1.8f)));
+    }
+
+    void AddVillager(VillagerRole role, string name, int look, Vector2 home)
+    {
+        var v = new GameObject(name).AddComponent<Villager>();
+        v.transform.SetParent(world);
+        v.Init(role, name, look, home);
+        villagers.Add(v);
+    }
+
+    /// The weaver has something new to teach (shown as a "!" over her head).
+    public bool WeaverHasLessons
+    {
+        get
+        {
+            foreach (var l in Lessons) if (!learned.Contains(l.item)) return true;
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------ conversations
+    void OpenDialog(Villager v, string text = null)
+    {
+        villagerTarget = v;
+        craftOpen = false; skillsOpen = false;
+        var d = new Dialog { speaker = v.Title };
+        switch (v.role)
+        {
+            case VillagerRole.Weaver:
+                bool any = WeaverHasLessons;
+                d.text = text ?? (learned.Count == 0
+                    ? "Welcome, traveler! I am Nala, the weaver. Your clothes are torn to rags - let me teach you to make new ones. Bring me a small gift and I'll show you how."
+                    : any ? "What shall I teach you next?" : "I have taught you everything I know. Wear your clothes with pride!");
+                foreach (var lesson in Lessons)
+                {
+                    if (learned.Contains(lesson.item)) continue;
+                    var l = lesson;
+                    d.options.Add(($"Learn {Name(l.item)} ({PriceText(l.price)})", () => Learn(v, l.item, l.price), CanPay(l.price)));
+                }
+                break;
+
+            case VillagerRole.Elder:
+                d.text = text ?? (raftLevel < island
+                    ? "Ah, a sailor. The sea grows angrier the further you go. Weave Cloth into a sail - a raft with a woven sail flies over rough water."
+                    : "Your raft is strong. Go, and may the waves be kind to you.");
+                bool canHeal = elderHealDay != Day;
+                d.options.Add((canHeal ? "Ask for healing" : "Ask for healing (tomorrow)", () => ElderHeal(v), canHeal));
+                d.options.Add(("Ask about the islands", () => OpenDialog(v,
+                    "Our elders tell of four islands: the green beach, the jungle of snakes, our home, and the burning mountain where boars roam. Beyond them... the same islands, but wilder."), true));
+                break;
+
+            case VillagerRole.Trader:
+                d.text = text ?? "Fish for hides, fruit for meat! Kai always makes a fair trade.";
+                foreach (var trade in Trades)
+                {
+                    var t = trade;
+                    d.options.Add(($"Give {t.give.n} {Name(t.give.item)} -> get {t.get.n} {Name(t.get.item)}  (have {Count(t.give.item)})",
+                        () => Trade(v, t.give, t.get), Count(t.give.item) >= t.give.n));
+                }
+                break;
+
+            default:
+                d.text = text ?? Chatter[Random.Range(0, Chatter.Length)];
+                break;
+        }
+        d.options.Add(("Goodbye", CloseDialog, true));
+        dialog = d;
+    }
+
+    void CloseDialog() { dialog = null; lastInteract = Time.time; }
+
+    bool CanPay((Item item, int n)[] price)
+    {
+        foreach (var p in price) if (Count(p.item) < p.n) return false;
+        return true;
+    }
+
+    static string PriceText((Item item, int n)[] price)
+    {
+        if (price.Length == 0) return "free";
+        var parts = new List<string>();
+        foreach (var p in price) parts.Add($"{p.n} {Name(p.item)}");
+        return "gift: " + string.Join(", ", parts);
+    }
+
+    void Learn(Villager v, Item item, (Item item, int n)[] price)
+    {
+        if (!CanPay(price)) return;
+        foreach (var p in price) inv[p.item] -= p.n;
+        learned.Add(item);
+        Sfx.Play("levelup", 0.5f);
+        Popup($"Learned: {Name(item)}!", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        OpenDialog(v, $"Watch closely... like this! Now you can make a {Name(item)}. Craft it with Tab, then click it in your bag to wear it.");
+    }
+
+    void ElderHeal(Villager v)
+    {
+        elderHealDay = Day;
+        health = MaxHealth;
+        hunger = Mathf.Min(100f, hunger + 20f);
+        thirst = Mathf.Min(100f, thirst + 20f);
+        Sfx.Play("drink", 0.6f);
+        Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.6f, 1f, 0.6f), 16, 1f, 1.6f, 1f, 2f);
+        Popup("Fully healed", PlayerPos + Vector3.up * 1f, new Color(0.6f, 1f, 0.6f));
+        OpenDialog(v, "Drink this, and rest by the fire. There - strong again. Come back tomorrow if you need me.");
+    }
+
+    void Trade(Villager v, (Item item, int n) give, (Item item, int n) get)
+    {
+        if (Count(give.item) < give.n) return;
+        inv[give.item] -= give.n;
+        inv[get.item] = Count(get.item) + get.n;
+        Sfx.Play("pickup", 0.5f);
+        Popup($"+{get.n} {Name(get.item)}", PlayerPos + Vector3.up * 1f, new Color(1f, 0.95f, 0.6f));
+        OpenDialog(v, "A pleasure! Anything else?");
+    }
+
+    void HandleDialog(Keyboard kb)
+    {
+        if (kb == null || dialog == null) return;
+        if (kb.escapeKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame) { CloseDialog(); return; }
+        for (int i = 0; i < dialog.options.Count && i < 9; i++)
+            if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame)
+            {
+                var o = dialog.options[i];
+                if (o.enabled) o.act();
+                return;
+            }
+    }
+
+    // ------------------------------------------------------------------ clothing
+    /// Put on / take off a piece of clothing (one hat and one outfit at a time).
+    public void ToggleWear(Item it)
+    {
+        if (!IsClothing(it) || Count(it) == 0) return;
+        bool on;
+        if (IsHat(it)) { on = hat != it; hat = on ? it : (Item?)null; }
+        else { on = outfit != it; outfit = on ? it : (Item?)null; }
+        health = Mathf.Min(health, MaxHealth);
+        Sfx.Play("craft", 0.4f);
+        Popup(on ? $"Wearing {Name(it)}" : $"Took off {Name(it)}", PlayerPos + Vector3.up * 1f, Color.white);
+    }
+}
