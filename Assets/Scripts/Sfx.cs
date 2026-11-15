@@ -14,8 +14,23 @@ public static class Sfx
     static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
     static readonly System.Random rnd = new System.Random(1234);
 
+    /// Sound on/off for the whole game (effects and waves). Remembered between visits.
+    public static bool Muted
+    {
+        get => PlayerPrefs.GetInt("muted", 0) == 1;
+        set
+        {
+            PlayerPrefs.SetInt("muted", value ? 1 : 0);
+            PlayerPrefs.Save();
+            AudioListener.volume = value ? 0f : 1f;
+        }
+    }
+
+    public static void ToggleMute() => Muted = !Muted;
+
     public static void Init(GameObject host)
     {
+        AudioListener.volume = Muted ? 0f : 1f;
         if (src != null) return;
         if (UnityEngine.Object.FindAnyObjectByType<AudioListener>() == null)
             (Camera.main != null ? Camera.main.gameObject : host).AddComponent<AudioListener>();

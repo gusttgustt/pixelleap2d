@@ -106,6 +106,7 @@ public partial class IslandGame
         if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; }
         if (kb.fKey.wasPressedThisFrame) EatBest();
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
+        if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "Sound off (M)" : "Sound on (M)", 1.5f); }
         if (craftOpen)
             for (int i = 0; i < Recipes.Length && i < 10; i++)
                 if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(Recipes[i]);

@@ -136,6 +136,7 @@ public partial class IslandGame
         float s = Screen.height / 540f; // design the HUD for a 540px-tall virtual screen
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
         float W = Screen.width / s, H = 540f;
+        DrawSoundButton(W);
         if (title) { DrawTitle(W, H); return; }
         if (player != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
@@ -207,10 +208,10 @@ public partial class IslandGame
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
         ShadowLabel(new Rect(14, H - 22, W - 28, 20),
-            "WASD move | E use/attack (hold) | F eat | Q flask | Tab craft | K skills | Scroll zoom | F5 save F9 load F8 new run", small);
+            "WASD move | E use/attack (hold) | F eat | Q flask | Tab craft | K skills | M sound | Scroll zoom | F5 save F9 load F8 new run", small);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
-            ShadowLabel(new Rect(W - 110, 14, 96, 20), "Saved", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
+            ShadowLabel(new Rect(W - 110, 64, 96, 20), "Saved", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
         if (sleepT > 0f)
         {
@@ -236,6 +237,17 @@ public partial class IslandGame
             ShadowLabel(new Rect(0, H / 2 - 44, W, 40), voyage != null ? "Lost at sea..." : "You didn't survive...", titleCenter);
             ShadowLabel(new Rect(0, H / 2 + 4, W, 24), $"Reached island {island} at level {level}, day {Day}. Press R to start a new adventure.", labelCenter);
         }
+    }
+
+    /// Sound on/off button in the top-right corner (also the M key in game).
+    void DrawSoundButton(float W)
+    {
+        bool muted = Sfx.Muted;
+        var r = new Rect(W - 122, 6, 112, 20);
+        var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
+        st.normal.textColor = muted ? new Color(1f, 0.6f, 0.55f) : new Color(0.7f, 1f, 0.7f);
+        st.hover.textColor = st.normal.textColor;
+        if (GUI.Button(r, muted ? "Sound: OFF (M)" : "Sound: ON (M)", st)) Sfx.ToggleMute();
     }
 
     // ------------------------------------------------------------------ online UI
