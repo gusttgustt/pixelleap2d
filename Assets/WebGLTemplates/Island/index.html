@@ -14,7 +14,11 @@
     #bar { width: min(360px, 80vw); height: 14px; border: 2px solid #ffe08a; background: #1d3347; }
     #fill { width: 0; height: 100%; background: #ffd34d; transition: width .2s; }
     #msg { font-size: 15px; opacity: .85; }
-    #note { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px; font-size: 14px; text-align: center; background: rgba(0,0,0,.7); display: none; }
+    /* Small hint at the top middle: never covers the touch buttons or the bag, can't be tapped, fades away. */
+    #note { position: fixed; top: 34px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); box-sizing: border-box;
+            padding: 6px 14px; border-radius: 14px; font-size: 13px; text-align: center; background: rgba(0,0,0,.6);
+            pointer-events: none; opacity: 0; transition: opacity .6s; }
+    #note.show { opacity: 1; }
     #error { color: #ff9a8a; }
   </style>
 </head>
@@ -31,17 +35,21 @@
     var note = document.getElementById("note");
     var touch = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;
 
-    // Phones and tablets: the game is played with a keyboard; ask for landscape to get more room.
+    // Phones held upright: suggest landscape for a bigger view, for a few seconds only.
+    var wasPortrait = false, noteTimer = 0;
     function updateNote() {
-      var portrait = window.innerHeight > window.innerWidth;
-      var text = "";
-      if (touch && portrait) text = "หมุนจอเป็นแนวนอนเพื่อให้เห็นเกมเต็มจอ";
-      note.textContent = text;
-      note.style.display = text ? "block" : "none";
+      var portrait = touch && window.innerHeight > window.innerWidth;
+      if (portrait && !wasPortrait) {
+        note.textContent = "หมุนจอเป็นแนวนอนจะเห็นเกมกว้างขึ้น";
+        note.classList.add("show");
+        clearTimeout(noteTimer);
+        noteTimer = setTimeout(function () { note.classList.remove("show"); }, 4000);
+      }
+      if (!portrait) note.classList.remove("show");
+      wasPortrait = portrait;
     }
     window.addEventListener("resize", updateNote);
     updateNote();
-    if (touch) setTimeout(function () { if (window.innerHeight <= window.innerWidth) note.style.display = "none"; }, 8000);
 
     function showBanner(msg, type) {
       if (type === "error") { document.getElementById("msg").innerHTML = '<span id="error">' + msg + "</span>"; }
@@ -61,6 +69,8 @@
       showBanner: showBanner,
       // Sharp on high-density screens, but no more than 2x so phones stay smooth.
       devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      // Save files (and deleting them when you die) reach the browser's storage right away.
+      autoSyncPersistentDataPath: true,
     };
 
     // Keyboard goes to the game after any click/tap on it.
