@@ -38,5 +38,8 @@ crashlytics-build.properties
 *.aab
 *.unitypackage
 
+# Cloudflare tunnel program (55 MB, copied in locally; not part of the repo)
+Server/cloudflared.exe
+
 # Claude Code local settings
 .claude/

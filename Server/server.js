@@ -52,7 +52,14 @@ const server = http.createServer((req, res) => {
   }
   const host = (req.headers.host || "").split(":")[0];
   const local = host === "localhost" || host === "127.0.0.1" || /^192\.168\./.test(host) || /^10\./.test(host);
-  if (!local) { res.writeHead(302, { Location: GAME_URL }); res.end(); return; } // play on GitHub Pages
+  if (!local) {
+    // Play on GitHub Pages, connected back to this server (Render, or a Cloudflare tunnel to someone's PC).
+    const secure = (req.headers["x-forwarded-proto"] || "").includes("https") || /onrender\.com$|trycloudflare\.com$/.test(host);
+    const ws = (secure ? "wss://" : "ws://") + req.headers.host + "/ws";
+    res.writeHead(302, { Location: GAME_URL + "?server=" + encodeURIComponent(ws) });
+    res.end();
+    return;
+  }
   if (url === "/") url = "/index.html";
   const file = path.resolve(WEB_ROOT, "." + url);
   if (!file.startsWith(WEB_ROOT)) { res.writeHead(403); res.end(); return; }
