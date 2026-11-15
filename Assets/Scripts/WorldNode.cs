@@ -48,7 +48,7 @@ public class WorldNode : MonoBehaviour
     public bool CanTarget => kind switch
     {
         NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue => false,
-        NodeKind.Well or NodeKind.Fountain => true,
+        NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
         _ => available,
     };
@@ -62,6 +62,8 @@ public class WorldNode : MonoBehaviour
         NodeKind.Campfire => 0.85f,
         NodeKind.Well or NodeKind.Fountain => 0.9f,
         NodeKind.Farm => 0.5f,
+        NodeKind.Kelp => 1.2f,
+        NodeKind.AirVent => 0.6f,
         _ => 0.45f,
     };
 
@@ -145,6 +147,10 @@ public class WorldNode : MonoBehaviour
             NodeKind.Stall => PixelArt.Stall(),
             NodeKind.Fountain => PixelArt.Fountain(),
             NodeKind.Statue => PixelArt.Statue(),
+            NodeKind.Kelp => PixelArt.Kelp(available),
+            NodeKind.CoralNode => PixelArt.CoralNode(available),
+            NodeKind.Oyster => PixelArt.Oyster(available),
+            NodeKind.AirVent => PixelArt.AirVent(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
@@ -206,6 +212,8 @@ public class WorldNode : MonoBehaviour
         transform.position = p;
 
         if (kind == NodeKind.Lamp && fireLight != null) fireLight.intensity = (1f - game.Daylight) * 1.2f;
+        if (kind == NodeKind.AirVent && Random.value < Time.deltaTime * 5f) // bubbles rising
+            Fx.Burst(basePos + Vector3.up * 0.2f, new Color(0.8f, 0.95f, 1f, 0.9f), 1, 0.15f, 0.6f, 1.2f, -1.2f);
 
         if (kind == NodeKind.Campfire)
         {

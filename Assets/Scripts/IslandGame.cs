@@ -13,12 +13,13 @@ public enum Item
     FruitDash, FruitShadow, FruitVine, FruitMagnet, FruitBubble, // special fruits (IslandGame.Power.cs)
     ShellShard, CanvasSail, // Giant Turtle island
     Feather, CloudCotton, Balloon, // Sky island
+    Pearl, Coral, DivingBell, // Bubble island
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
-    Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue }
+    Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue, Kelp, CoralNode, Oyster, AirVent }
 
-public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky }
+public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky, Bubble }
 
 public enum Skill { Strength, Toughness, Agility, Evasion, Forager, Lumberjack, IronStomach, Fisher }
 
@@ -101,6 +102,8 @@ public partial class IslandGame : MonoBehaviour
         new Recipe { name = "ใบเรือผ้าใบ", output = Item.CanvasSail, learn = true, cost = new[] { (Item.Fiber, 8), (Item.Rope, 2), (Item.ShellShard, 2) }, desc = "เรือแล่นในทะเลเร็วขึ้น 25%" },
         // taught by the Sky island's wind sage
         new Recipe { name = "บอลลูนลมร้อน", output = Item.Balloon, learn = true, cost = new[] { (Item.CloudCotton, 6), (Item.Feather, 2), (Item.Rope, 3), (Item.Fiber, 6) }, desc = "เรือลอยเหนือคลื่น สัตว์ทะเลทำร้ายได้น้อยลงมาก" },
+        // taught by the Bubble island's diver
+        new Recipe { name = "ระฆังดำน้ำ", output = Item.DivingBell, learn = true, cost = new[] { (Item.Pearl, 3), (Item.Coral, 4), (Item.Stone, 6), (Item.Rope, 3) }, desc = "ไม่ขาดอากาศใต้ทะเล + ตกปลาได้ทีละ 2 ตัว" },
         new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
     };
 
@@ -165,7 +168,7 @@ public partial class IslandGame : MonoBehaviour
 
     /// The island chain: Tropical -> Jungle -> Tribe -> Volcano, then again with tougher creatures.
     public static Biome BiomeFor(int islandNumber) =>
-        new[] { Biome.Tropical, Biome.Mushroom, Biome.Turtle, Biome.Sky, Biome.Jungle, Biome.Tribal, Biome.Volcanic }[(islandNumber - 1) % 7];
+        new[] { Biome.Tropical, Biome.Mushroom, Biome.Turtle, Biome.Sky, Biome.Bubble, Biome.Jungle, Biome.Tribal, Biome.Volcanic }[(islandNumber - 1) % 8];
 
     /// Colour tint for plants that have no biome-specific sprite.
     public Color Tint(NodeKind k) =>
@@ -174,6 +177,7 @@ public partial class IslandGame : MonoBehaviour
         : biome == Biome.Mushroom && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.75f, 0.7f, 1f)
         : biome == Biome.Turtle && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.9f, 1f, 0.75f)
         : biome == Biome.Sky && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.85f, 1f, 0.95f)
+        : biome == Biome.Bubble && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.7f, 0.95f, 1f)
         : Color.white;
 
     // ------------------------------------------------------------------ items
@@ -186,7 +190,7 @@ public partial class IslandGame : MonoBehaviour
     };
     public static int HealValue(Item it) => it switch { Item.CookedFruit => 10, Item.CookedFish => 10, Item.CookedCrab => 15, Item.CookedMeat => 15, _ => 0 };
     public static int ThirstValue(Item it) => it switch { Item.Berry => 3, Item.Fruit => 6, _ => 0 }; // juicy food helps a little
-    public static bool IsTool(Item it) => it is Item.StoneAxe or Item.Spear or Item.StoneKnife or Item.WaterFlask or Item.ObsidianSpear or Item.ObsidianAxe or Item.MushroomLantern or Item.CanvasSail or Item.Balloon;
+    public static bool IsTool(Item it) => it is Item.StoneAxe or Item.Spear or Item.StoneKnife or Item.WaterFlask or Item.ObsidianSpear or Item.ObsidianAxe or Item.MushroomLantern or Item.CanvasSail or Item.Balloon or Item.DivingBell;
     public static bool IsHat(Item it) => it is Item.StrawHat or Item.TribalHeadband;
     public static bool IsOutfit(Item it) => it is Item.LeafTunic or Item.HideVest;
     public static bool IsClothing(Item it) => IsHat(it) || IsOutfit(it);
@@ -236,6 +240,9 @@ public partial class IslandGame : MonoBehaviour
         Item.Feather => "ขนนกกระดิ่ง",
         Item.CloudCotton => "ปุยเมฆ",
         Item.Balloon => "บอลลูนลมร้อน",
+        Item.Pearl => "ไข่มุก",
+        Item.Coral => "ปะการัง",
+        Item.DivingBell => "ระฆังดำน้ำ",
         _ => it.ToString(),
     };
 
@@ -286,7 +293,7 @@ public partial class IslandGame : MonoBehaviour
         foreach (var v in data.visited) if (v != null && v.island != island) visited.Add(v);
         // Saves before v6 used a 3-island cycle; keep their island the same biome it was.
         biome = data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island);
-        tier = (island - 1) / 7;
+        tier = (island - 1) / 8;
         seed = data.seed;
         raftLevel = data.raftLevel;
         learned.Clear();
@@ -296,6 +303,7 @@ public partial class IslandGame : MonoBehaviour
         elderHealDay = data.elderHealDay;
         LoadQuests(data);
         LoadBag(data);
+        air = 100f; inkT = 0f;
         power = (Power)data.powerId; powerLv = Mathf.Clamp(data.powerLv, 1, 5); powerXp = data.powerXp;
         powerCd = 0f; invisibleT = 0f; bubbleT = 0f; bubbleHits = 0;
         poisonT = 0f;
@@ -307,7 +315,8 @@ public partial class IslandGame : MonoBehaviour
         BuildIsland(Center, spawnResources: fresh);
         if (fresh && biome == Biome.Tribal) BuildVillage();
         if (fresh && biome == Biome.Mushroom) BuildMushroomCamp();
-        if (fresh && biome is Biome.Turtle or Biome.Sky) BuildCamp();
+        if (fresh && biome is Biome.Turtle or Biome.Sky or Biome.Bubble) BuildCamp();
+        if (fresh) PlaceAirVents();
         genPhase = false;
 
         Vector2? landing = null;
@@ -361,6 +370,7 @@ public partial class IslandGame : MonoBehaviour
         Biome.Mushroom => "ป่าเห็ดยักษ์ส่องแสงสลัว ระวังเห็ดที่ขยับได้! ไปหาช่างต่อเรือ แล้วไปหาหมอโมรากลางเกาะ",
         Biome.Turtle => "เกาะนี้คือกระดองเต่ายักษ์ที่กำลังว่ายน้ำ! เมื่อท่านเต่าดำน้ำ ที่ต่ำจะน้ำท่วม ไปหายายชบาที่กลางเกาะ",
         Biome.Sky => "ลมหมุนยกเรือขึ้นมาถึงเกาะลอยฟ้า! ระวังลมกรรโชกพัดตกขอบเกาะ ไปหาปู่ลมพัดที่กลางเกาะ",
+        Biome.Bubble => "เรือดำลงสู่เกาะในโดมอากาศใต้ทะเล! อากาศจะค่อยๆ หมด หายใจที่ช่องอากาศ แล้วไปหาแม่มุกที่กลางเกาะ",
         Biome.Jungle => "มีงูซ่อนอยู่ในหญ้า ช่างต่อเรือต้องการไม้ไผ่",
         Biome.Volcanic => "หมูป่าเดินเพ่นพ่านบนเถ้าภูเขาไฟ ช่างต่อเรือต้องการออบซิเดียน",
         Biome.Tribal => "มีควันลอยขึ้นจากหมู่บ้านกลางเกาะ ไปทักทายชนเผ่ากันเถอะ!",
@@ -450,7 +460,7 @@ public partial class IslandGame : MonoBehaviour
     public Biome BiomeOf(int n) =>
         n == island ? biome : visited.Find(v => v.island == n) is IslandSave kept && kept.biomeId > 0 ? (Biome)(kept.biomeId - 1) : BiomeFor(n);
 
-    public static string BiomeNameOf(Biome b) => b switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", Biome.Mushroom => "เกาะเห็ดเรืองแสง", Biome.Turtle => "เกาะหลังเต่ายักษ์", Biome.Sky => "เกาะลอยฟ้า", _ => "เกาะเขตร้อน" };
+    public static string BiomeNameOf(Biome b) => b switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", Biome.Mushroom => "เกาะเห็ดเรืองแสง", Biome.Turtle => "เกาะหลังเต่ายักษ์", Biome.Sky => "เกาะลอยฟ้า", Biome.Bubble => "เกาะใต้ฟองอากาศ", _ => "เกาะเขตร้อน" };
 
     // ------------------------------------------------------------------ save / load
     SaveData Snapshot()
@@ -513,7 +523,7 @@ public partial class IslandGame : MonoBehaviour
                 tiles[gx, gy] = d < 0.25f || v > 0.3f ? 2 : v > 0.13f ? 1 : 0;
             }
 
-        float hillBias = biome switch { Biome.Volcanic => 0.1f, Biome.Jungle => 0.03f, Biome.Mushroom => 0.02f, Biome.Turtle => 0.16f, Biome.Sky => 0.05f, _ => 0f }; // the shell rises in the middle
+        float hillBias = biome switch { Biome.Volcanic => 0.1f, Biome.Jungle => 0.03f, Biome.Mushroom => 0.02f, Biome.Turtle => 0.16f, Biome.Sky => 0.05f, Biome.Bubble => 0.04f, _ => 0f }; // the shell rises in the middle
         BuildHills(center, radius, hx, hy, hillBias);
         CarvePonds(center);
 
@@ -527,7 +537,13 @@ public partial class IslandGame : MonoBehaviour
                 sr.transform.SetParent(ground);
                 Vector3 p = GridToWorld(new Vector2(gx, gy));
                 int t = tiles[gx, gy];
-                if (t == 0 && biome == Biome.Sky)
+                if (t == 0 && biome == Biome.Bubble)
+                {
+                    p.y -= 0.125f;
+                    sr.sprite = PixelArt.DeepWater((gx * 5 + gy * 3) % 4);
+                    sr.sortingOrder = -32000 + gx + gy;
+                }
+                else if (t == 0 && biome == Biome.Sky)
                 {
                     p.y -= 0.125f;
                     sr.sprite = PixelArt.CloudTile((gx * 7 + gy * 3) % 4);
@@ -600,6 +616,8 @@ public partial class IslandGame : MonoBehaviour
             (Biome.Turtle, false) => new[] { (NodeKind.Shell, .07), (NodeKind.Stick, .03), (NodeKind.Rock, .03) },
             (Biome.Sky, true) => new[] { (NodeKind.Tree, .08), (NodeKind.CloudPlant, .07), (NodeKind.FruitTree, .03), (NodeKind.Bush, .04), (NodeKind.Grass, .10), (NodeKind.Stick, .04), (NodeKind.Rock, .04) },
             (Biome.Sky, false) => new[] { (NodeKind.CloudPlant, .04), (NodeKind.Stick, .03), (NodeKind.Rock, .04) },
+            (Biome.Bubble, true) => new[] { (NodeKind.Kelp, .10), (NodeKind.CoralNode, .07), (NodeKind.Bush, .03), (NodeKind.Grass, .10), (NodeKind.Stick, .03), (NodeKind.Rock, .05) },
+            (Biome.Bubble, false) => new[] { (NodeKind.Oyster, .07), (NodeKind.CoralNode, .03), (NodeKind.Rock, .03) },
             (Biome.Tribal, true) => new[] { (NodeKind.Tree, .08), (NodeKind.FruitTree, .06), (NodeKind.Bush, .06), (NodeKind.Grass, .18), (NodeKind.Stick, .04), (NodeKind.Rock, .025), (NodeKind.Bamboo, .02) },
             (_, true) => new[] { (NodeKind.Tree, .10), (NodeKind.FruitTree, .035), (NodeKind.Bush, .04), (NodeKind.Grass, .145), (NodeKind.Stick, .04), (NodeKind.Rock, .025) },
             _ => new[] { (NodeKind.Stick, .05), (NodeKind.Rock, .05) },

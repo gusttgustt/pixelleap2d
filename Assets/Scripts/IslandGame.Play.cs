@@ -26,7 +26,7 @@ public partial class IslandGame
         UpdateTouch();
         UpdateLantern();
         TickPower(dt);
-        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); }
+        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); }
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -287,6 +287,27 @@ public partial class IslandGame
                 DepleteShared(n, 90f);
                 break;
             case NodeKind.Drop: PickUpDrop(n); break;
+            case NodeKind.Kelp: // tall kelp: fibre (and sometimes a fish hiding in it)
+                Give(Item.Fiber, rnd.Next(2, 4) + Bonus(), n);
+                if (rnd.NextDouble() < 0.25) Give(Item.RawFish, 1, n);
+                Fx.Burst(at + Vector3.up * 0.8f, new Color(0.3f, 0.7f, 0.5f), 6, 0.8f, 0.8f);
+                DepleteShared(n, 70f);
+                break;
+            case NodeKind.CoralNode:
+                Give(Item.Coral, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.3f, new Color(1f, 0.5f, 0.55f), 6, 0.6f, 1f);
+                DepleteShared(n, 90f);
+                break;
+            case NodeKind.Oyster:
+                if (rnd.NextDouble() < 0.6) Give(Item.Pearl, 1, n); else Popup("หอยว่างเปล่า", at + Vector3.up * 0.4f, Color.white);
+                Fx.Burst(at + Vector3.up * 0.2f, new Color(0.95f, 0.95f, 1f), 6, 0.5f, 1f);
+                DepleteShared(n, 120f);
+                break;
+            case NodeKind.AirVent:
+                air = 100f;
+                Popup("เติมอากาศเต็ม", at + Vector3.up * 0.6f, new Color(0.7f, 0.95f, 1f));
+                Sfx.Play("drink", 0.4f);
+                break;
             case NodeKind.Well:
             case NodeKind.Fountain: DrinkFromWell(n); break;
             case NodeKind.Farm:
@@ -400,8 +421,9 @@ public partial class IslandGame
         Sfx.Play("splash", 0.6f);
         if (rnd.NextDouble() < 0.35 + 0.15 * SkillLv(Skill.Fisher))
         {
-            inv[Item.RawFish] = Count(Item.RawFish) + 1;
-            Popup("+1 ปลาดิบ", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
+            int fish = Count(Item.DivingBell) > 0 ? 2 : 1; // the diving bell spots the shoals
+            inv[Item.RawFish] = Count(Item.RawFish) + fish;
+            Popup($"+{fish} ปลาดิบ", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
             Sfx.Play("pickup", 0.4f);
         }
         else Popup("พลาด!", at + Vector3.up * 0.5f, new Color(0.8f, 0.9f, 1f));
@@ -445,6 +467,8 @@ public partial class IslandGame
             EnemyKind.HermitCrab => (Item.ShellShard, 3),
             EnemyKind.ChimeBird => (Item.Feather, 2),
             EnemyKind.StormCloud => (Item.CloudCotton, 2),
+            EnemyKind.LanternFish => (Item.RawFish, 2),
+            EnemyKind.StoneSquid => (Item.Pearl, 1),
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
@@ -558,6 +582,8 @@ public partial class IslandGame
         EnemyKind.HermitCrab => (IsNight ? 3 : 2) + tier,
         EnemyKind.StormCloud => (IsNight ? 3 : 2) + tier,
         EnemyKind.ChimeBird => 3 + tier,
+        EnemyKind.LanternFish => (IsNight ? 4 : 2) + tier,
+        EnemyKind.StoneSquid => 3 + tier,
         _ => 0,
     };
 
@@ -569,6 +595,7 @@ public partial class IslandGame
         (Biome.Mushroom, _) => new[] { EnemyKind.Crab, EnemyKind.Mimic, EnemyKind.SporeSpider },
         (Biome.Turtle, _) => new[] { EnemyKind.Crab, EnemyKind.Barnacle, EnemyKind.HermitCrab },
         (Biome.Sky, _) => new[] { EnemyKind.StormCloud, EnemyKind.ChimeBird },
+        (Biome.Bubble, _) => new[] { EnemyKind.LanternFish, EnemyKind.StoneSquid },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -615,7 +642,8 @@ public partial class IslandGame
         why = null;
         if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)"
                 : r.output == Item.CanvasSail ? "ต้องเรียนจากยายชบา (เกาะเต่ายักษ์)"
-                : r.output == Item.Balloon ? "ต้องเรียนจากปู่ลมพัด (เกาะลอยฟ้า)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+                : r.output == Item.Balloon ? "ต้องเรียนจากปู่ลมพัด (เกาะลอยฟ้า)"
+                : r.output == Item.DivingBell ? "ต้องเรียนจากแม่มุก (เกาะใต้ฟองอากาศ)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -13,6 +13,8 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   HermitCrab  - Turtle island: hides in a huge shell; break the shell first, then it's soft (and quick).
 ///   StormCloud  - Sky island: drifts closer, crackles for a moment, then charges straight at you.
 ///   ChimeBird   - Sky island: harmless peck, but it steals from your bag and flies off. Catch it to get it back.
+///   LanternFish - Bubble island: its glowing lure tugs you towards it (IslandGame.Bubble.cs), then it bites.
+///   StoneSquid  - Bubble island: looks like a rock until you're close; its ink blinds you for a moment.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -38,7 +40,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
         EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
         EnemyKind.Barnacle => "เพรียงคลาน", EnemyKind.HermitCrab => "ปูเสฉวนหอยยักษ์",
-        EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", _ => "นกกระดิ่งลม",
+        EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", EnemyKind.ChimeBird => "นกกระดิ่งลม",
+        EnemyKind.LanternFish => "ปลาตะเกียง", _ => "หมึกหิน",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -79,9 +82,11 @@ public class Enemy : MonoBehaviour
             EnemyKind.HermitCrab => (5, 9f, 1.0f, 6f, 24),
             EnemyKind.StormCloud => (6, 12f, 1.1f, 7f, 26),
             EnemyKind.ChimeBird => (3, 2f, 2.1f, 7f, 16),
+            EnemyKind.LanternFish => (5, 10f, 1.0f, 6f, 24),
+            EnemyKind.StoneSquid => (7, 8f, 1.3f, 6f, 28),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
-        Disguised = k == EnemyKind.Mimic && !asPuppet;
+        Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
         shellHp = k == EnemyKind.HermitCrab ? Mathf.RoundToInt(8 * (1f + 0.5f * tier)) : 0;
         // Later islands (second lap and beyond) are tougher and give more XP.
         // further islands (higher island level) have tougher creatures that give more XP
@@ -239,6 +244,7 @@ public class Enemy : MonoBehaviour
                     game.DamagePlayer(damage, $"{DisplayName}!");
                     if (kind == EnemyKind.SporeSpider) game.Poison(5f);
                     if (kind == EnemyKind.Barnacle) game.Slow(2.5f);
+                    if (kind == EnemyKind.StoneSquid) game.Ink(3f);
                     if (kind == EnemyKind.ChimeBird && stolenCount == 0)
                     {
                         (stolenItem, stolenCount) = game.StealItem();

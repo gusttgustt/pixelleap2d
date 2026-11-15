@@ -54,12 +54,15 @@ public partial class IslandGame
         daylight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((c + 0.3f) / 0.6f));
         Color night = new Color(0.45f, 0.55f, 1f), dusk = new Color(1f, 0.7f, 0.5f);
         if (biome == Biome.Mushroom && voyage == null) daylight = Mathf.Min(daylight, 0.42f); // the mushroom canopy keeps it dim
+        if (biome == Biome.Bubble && voyage == null) daylight = Mathf.Clamp(daylight, 0.38f, 0.6f); // deep under the sea
         Color col = Color.Lerp(night, Color.white, daylight);
         if (biome == Biome.Mushroom && voyage == null) col = Color.Lerp(col, new Color(0.7f, 0.55f, 1f), 0.35f);
+        if (biome == Biome.Bubble && voyage == null) col = Color.Lerp(col, new Color(0.5f, 0.85f, 1f), 0.45f);
         col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
         float intensity = Mathf.Lerp(0.22f, 1f, daylight);
         if (sun != null) { sun.color = col; sun.intensity = intensity; }
-        Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f) : PixelArt.WaterColor) * col * intensity;
+        Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f)
+                  : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f) : PixelArt.WaterColor) * col * intensity;
         bg.a = 1f;
         cam.backgroundColor = bg;
     }
@@ -92,6 +95,10 @@ public partial class IslandGame
         NodeKind.Well => "ดื่มน้ำจากบ่อ",
         NodeKind.Fountain => "ดื่มน้ำพุ",
         NodeKind.Farm => "เก็บผักผลไม้",
+        NodeKind.Kelp => "เก็บสาหร่าย",
+        NodeKind.CoralNode => "เก็บปะการัง",
+        NodeKind.Oyster => "งัดหอยมุก",
+        NodeKind.AirVent => "หายใจที่ช่องอากาศ",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -196,6 +203,7 @@ public partial class IslandGame
         infoY = DrawPowerHud(infoY);
         infoY = DrawTurtleHud(infoY);
         infoY = DrawSkyHud(infoY);
+        infoY = DrawBubbleHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,
@@ -247,6 +255,7 @@ public partial class IslandGame
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
+        DrawInk(W, H);
         if (sleepT > 0f)
         {
             float a = sleepT < 1.2f ? sleepT / 1.2f : Mathf.Clamp01((2.6f - sleepT) / 1.4f);
