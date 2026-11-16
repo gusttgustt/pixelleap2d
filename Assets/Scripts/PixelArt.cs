@@ -2365,6 +2365,7 @@ public static partial class PixelArt
         if (preset != null)
         {
             var ps = PresetPlayer(preset, pl.PresetScale, dir, frame)
+                  ?? (frame >= IdleAnim ? PresetPlayer(preset, pl.PresetScale, 0, frame) : null) // a pose drawn only from the front
                   ?? PresetPlayer(preset, pl.PresetScale, dir, 0); // a pose it lacks: just stand
             if (ps != null) return ps; // missing art falls back to the build-your-own look
         }
@@ -2441,7 +2442,7 @@ public static partial class PixelArt
 
     // Action poses of ready-made characters, as player frame numbers (sent over the
     // network like walk frames): IdleAnim+0.., AttackAnim+0.., and so on.
-    public const int IdleAnim = 10, AttackAnim = 20, HurtAnim = 30, DeathAnim = 40;
+    public const int IdleAnim = 10, AttackAnim = 20, HurtAnim = 30, DeathAnim = 40, SitAnim = 50;
 
     /// How many frames an action pose has for this look (0 = it has none, e.g. build-your-own).
     public static int ActionFrames(int look, int anim)

@@ -41,7 +41,9 @@ public class PlayerController : MonoBehaviour
         action = anim; actionFrames = n; actionFps = fps; actionT = 0f;
     }
 
-    /// The frame to show: death, then a playing action, then idle breathing, over walk/stand.
+    const float SitDelay = 2.5f; // seconds standing still before sitting down to rest
+
+    /// The frame to show: death, then a playing action, then idle breathing (or sitting), over walk/stand.
     int Pose(int frame)
     {
         var game = IslandGame.I;
@@ -55,6 +57,7 @@ public class PlayerController : MonoBehaviour
         deadT = 0f;
         if (action >= 0)
         {
+            idleT = 0f; // gets up to swing, gather or flinch
             actionT += dt;
             int i = (int)(actionT * actionFps);
             if (i < actionFrames) return action + i;
@@ -62,6 +65,14 @@ public class PlayerController : MonoBehaviour
         }
         if (frame != 0) { idleT = 0f; return frame; }
         idleT += dt;
+        // Characters with a sitting pose sit down for a rest after standing still a moment,
+        // and stay seated (last frame) until they move. They sit facing the camera.
+        int sit = PixelArt.ActionFrames(game.lookCode, PixelArt.SitAnim);
+        if (sit > 0 && idleT > SitDelay)
+        {
+            dir = 0;
+            return PixelArt.SitAnim + Mathf.Min(sit - 1, (int)((idleT - SitDelay) * 8f));
+        }
         int idle = PixelArt.ActionFrames(game.lookCode, PixelArt.IdleAnim);
         if (idle <= 1) return idle > 0 ? PixelArt.IdleAnim : 0;
         int k = (int)(idleT * 5f) % (2 * idle - 2); // back and forth: 0 1 2 3 4 3 2 1 ...

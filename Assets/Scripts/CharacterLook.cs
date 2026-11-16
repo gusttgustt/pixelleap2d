@@ -10,11 +10,11 @@ public struct CharacterLook
 
     /// Ready-made characters: shown name + sprite name in Resources/Sprites
     /// (hero_<id>_front_<frame>.png / hero_<id>_back_<frame>.png, frame 0 idle, 1-4 walk).
-    public static readonly string[] Presets = { "ปรับแต่งเอง", "สาวหมวกเบเร่ต์ชมพู", "สาวหมวกเบเร่ต์แดง" };
-    public static readonly string[] PresetIds = { null, "pinkberet", "redberet" };
+    public static readonly string[] Presets = { "ปรับแต่งเอง", "สาวหมวกเบเร่ต์ชมพู", "สาวหมวกเบเร่ต์แดง", "สาวผีเสื้อม่วง" };
+    public static readonly string[] PresetIds = { null, "pinkberet", "redberet", "gothbutterfly" };
     /// Art pixels per world pixel: 2 = drawn at double detail (64 px art shown at the
     /// same size as 32 px art), so it is ready for a higher-detail world later.
-    public static readonly int[] PresetDetail = { 1, 2, 2 };
+    public static readonly int[] PresetDetail = { 1, 2, 2, 2 };
     /// For now players pick one of the ready-made characters (no build-your-own look).
     /// Set to true to bring back building a look from colours too.
     public const bool CanChoose = false;
