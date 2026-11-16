@@ -52,6 +52,8 @@ public class Enemy : MonoBehaviour
     // follow the positions the host sends, and pass their hits on to the host.
     public int netId;
     public bool puppet;
+    /// Came out for a quest hunt: a crab stays on the beach in daylight (IslandGame.Play.cs).
+    public bool stayByDay;
     Vector2 netTarget;
 
     public string DisplayName => (alpha ? "จ่าฝูง" : "") + BaseName + (variant switch
@@ -360,7 +362,7 @@ public class Enemy : MonoBehaviour
         Vector2 dir = Vector2.zero;
         float pace = 1f;
 
-        if (kind == EnemyKind.Crab && !game.IsNight)
+        if (kind == EnemyKind.Crab && !game.IsNight && !stayByDay)
         {
             // head for the sea and disappear once off the land
             dir = (grid - game.Center).normalized;

@@ -45,6 +45,16 @@ public partial class IslandGame
                 enemies.Add(e);
             }
         if (kb.f4Key.wasPressedThisFrame) Time.timeScale = Time.timeScale < 1f ? 1f : 0.12f;
+        if (kb.f11Key.wasPressedThisFrame) // accept every quest on this island (testing quest hunts)
+        {
+            int n = 0;
+            foreach (var v in villagers)
+            {
+                var q = v != null ? QuestOf(v) : null;
+                if (q != null && !Done(q) && flags.Add("acc:" + q.id)) n++;
+            }
+            Hint($"[dev] รับเควสบนเกาะนี้ {n} เควส", 2f);
+        }
         if (DevMode) { powerCd = Mathf.Min(powerCd, 0.3f); powerAtkCd = Mathf.Min(powerAtkCd, 0.3f); } // no waiting while testing
     }
 

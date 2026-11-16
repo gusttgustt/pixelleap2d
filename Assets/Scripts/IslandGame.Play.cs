@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -744,10 +745,24 @@ public partial class IslandGame
         enemies.RemoveAll(e => e == null);
         if (!IsHost) return; // online, the island's host spawns creatures for everyone
         enemyTimer += dt;
-        if (enemyTimer < 5f) return;
+        huntCheckT -= dt;
+        if (huntCheckT <= 0f) { huntCheckT = 1f; hunt = HuntWanted(); } // what quests want, looked up once a second
+        if (enemyTimer < (hunt.Count > 0 ? 2f : 5f)) return; // a quest hunt spawns every 2 seconds, otherwise every 5
         enemyTimer = 0f;
 
-        foreach (var kind in BiomeEnemies())
+        // What a quest asks you to hunt comes first: at least 3 around (or as many as are still
+        // needed), closer to you, and crabs come up by day too.
+        var native = BiomeEnemies();
+        foreach (var kv in hunt)
+        {
+            if (System.Array.IndexOf(native, kv.Key) < 0) continue; // doesn't live on this island
+            int count = 0;
+            foreach (var e in enemies) if (e.kind == kv.Key) count++;
+            int want = Mathf.Max(EnemyCap(kv.Key), Mathf.Min(kv.Value, 3));
+            if (count < want && TrySpawnEnemy(kv.Key, true)) return;
+        }
+
+        foreach (var kind in native)
         {
             int count = 0;
             foreach (var e in enemies) if (e.kind == kind) count++;
@@ -755,19 +770,45 @@ public partial class IslandGame
         }
     }
 
-    bool TrySpawnEnemy(EnemyKind kind)
+    Dictionary<EnemyKind, int> hunt = new Dictionary<EnemyKind, int>();
+    float huntCheckT;
+
+    /// Creatures that accepted quests here still need, with how many more.
+    Dictionary<EnemyKind, int> HuntWanted()
+    {
+        var want = new Dictionary<EnemyKind, int>();
+        foreach (var v in villagers)
+        {
+            if (v == null) continue;
+            var q = QuestOf(v);
+            if (q == null || !Accepted(q)) continue;
+            foreach (var k in q.kill)
+            {
+                int left = k.n - Kills(q, k.kind);
+                if (left > 0) want[k.kind] = Mathf.Max(left, want.TryGetValue(k.kind, out var w) ? w : 0);
+            }
+        }
+        return want;
+    }
+
+    /// questHunt: for a quest, so closer to you (5-11 tiles instead of 7-15), and a crab
+    /// stays out in daylight instead of going back to the sea.
+    bool TrySpawnEnemy(EnemyKind kind, bool questHunt = false)
     {
         int wantTile = kind is EnemyKind.Crab or EnemyKind.Barnacle or EnemyKind.HermitCrab ? 1 : 2; // shore creatures on the beach, others inland
-        for (int attempt = 0; attempt < 40; attempt++)
+        float minD = questHunt ? 5f : 7f, maxD = questHunt ? 11f : 15f;
+        for (int attempt = 0; attempt < (questHunt ? 160 : 40); attempt++)
         {
+            if (questHunt && attempt == 100) { minD = 7f; maxD = 15f; } // no room close by: the usual ring
             int x = rnd.Next(Size), y = rnd.Next(Size);
             if (tiles[x, y] != wantTile) continue;
             var g = new Vector2(x, y);
             float d = (g - player.grid).magnitude;
-            if (d < 7f || d > 15f || DistanceToFire(g) < 4.5f || !CanWalk(g, 0.2f)) continue;
+            if (d < minD || d > maxD || DistanceToFire(g) < 4.5f || !CanWalk(g, 0.2f)) continue;
             var e = new GameObject(kind.ToString()).AddComponent<Enemy>();
             e.transform.SetParent(world);
             e.Init(kind, g, tier, ++enemyCounter);
+            e.stayByDay = questHunt;
             if (T.variant != Variant.None && rnd.NextDouble() < 0.25) e.SetVariant(T.variant); // this island's tougher breed
             enemies.Add(e);
             Fx.Burst(e.transform.position, kind == EnemyKind.Crab ? new Color(0.7f, 0.85f, 1f) : new Color(0.5f, 0.6f, 0.3f), 6);
