@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Hourglass, true) => new[] { "#a8a050", "#928a42", "#c8c070", "#9a7a48", "#7a5e36", "#868038" },   // sun-dried grass
+            (Biome.Hourglass, false) => new[] { "#ecd08a", "#dcbc72", "#f8e4ac", "#c8a060", "#a8844a", "#dcbc72" }, // golden dune sand
             (Biome.Bubble, true) => new[] { "#2f7a7a", "#266868", "#4fa0a0", "#5a4a5a", "#463a48", "#226060" },     // seagrass
             (Biome.Bubble, false) => new[] { "#e8c0b8", "#d4aaa2", "#f6dcd6", "#b88a84", "#9a6e68", "#d4aaa2" },  // pink coral sand
             (Biome.Sky, true) => new[] { "#7ad08a", "#62b874", "#a8eab4", "#c8c0d8", "#a8a0bc", "#58a868" },     // bright meadow on pale floating rock
@@ -283,6 +285,7 @@ public static class PixelArt
         Biome.Volcanic => DeadTree(),
         Biome.Mushroom => GiantMushroom(),
         Biome.Bubble => Kelp(true),
+        Biome.Hourglass => LeafyTree("tree_hourglass", "#8a5a1a", "#c8862a", "#f2c45a"), // amber autumn trees
         Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
         Biome.Jungle => LeafyTree("tree_jungle", "#1f4d26", "#2f6e33", "#4f9a45"),
         _ => LeafyTree("tree", "#2c6431", "#3e8a3e", "#6bb85c"),
@@ -579,8 +582,92 @@ public static class PixelArt
         EnemyKind.ChimeBird => ChimeBird(frame),
         EnemyKind.LanternFish => LanternFish(frame),
         EnemyKind.StoneSquid => StoneSquid(frame),
+        EnemyKind.WindupDoll => WindupDoll(frame),
+        EnemyKind.TimeBeetle => TimeBeetle(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Hourglass island
+    static void Cog(Canvas c, float cx, float cy, float r, Color d, Color m)
+    {
+        for (int i = 0; i < 8; i++) // teeth
+        {
+            float a = i * Mathf.PI / 4f;
+            c.Rect(Mathf.RoundToInt(cx + Mathf.Cos(a) * r) - 1, Mathf.RoundToInt(cy + Mathf.Sin(a) * r) - 1, 2, 2, d);
+        }
+        c.Ball(cx, cy, r - 0.5f, r - 0.5f, d, m, Hex("#f0d890"));
+        c.Ball(cx, cy, r * 0.35f, r * 0.35f, d, d, d);
+    }
+
+    /// Time sand crystal: a little glowing hourglass-shaped crystal in the sand.
+    public static Sprite SandCrystal(bool full) => Get(full ? "sand_crystal" : "sand_crystal_empty", () =>
+    {
+        var c = new Canvas(14, 16);
+        c.Ellipse(7, 14, 5, 1.5f, Shadow);
+        if (!full) { c.Rect(5, 12, 4, 2, Hex("#c8a050")); return c.ToSprite(7, 14); }
+        Color d = Hex("#b8862a"), m = Hex("#f2c43a"), l = Hex("#fff0a0");
+        for (int y = 2; y <= 13; y++) { int hw = Mathf.Abs(y - 7) / 2 + 1; c.Rect(7 - hw, y, hw * 2, 1, y < 7 ? m : d); }
+        c.Set(6, 4, l); c.Set(7, 10, l); c.Rect(4, 1, 6, 1, Hex("#8a6a3a")); c.Rect(4, 14, 6, 1, Hex("#8a6a3a"));
+        return c.ToSprite(7, 14);
+    });
+
+    /// A half-buried broken cog from an old clock.
+    public static Sprite ClockRuin() => Get("clock_ruin", () =>
+    {
+        var c = new Canvas(28, 26);
+        c.Ellipse(14, 23, 11, 2.5f, Shadow);
+        Cog(c, 14, 13, 10, Hex("#6a4a20"), Hex("#b8862a"));
+        c.Rect(3, 18, 22, 6, Hex("#d8c088")); // sand drifted over it
+        return c.ToSprite(14, 23);
+    });
+
+    /// The great clock tower at the heart of the Hourglass island.
+    public static Sprite ClockTower() => Get("clock_tower", () =>
+    {
+        var c = new Canvas(40, 72);
+        c.Ellipse(20, 68, 17, 4, Shadow);
+        Color st = Hex("#d8c8a8"), stD = Hex("#b0a080"), roof = Hex("#5a4a8a"), roofD = Hex("#3e3268");
+        c.Rect(8, 22, 24, 46, st); c.Rect(26, 22, 6, 46, stD);
+        for (int y = 26; y < 68; y += 6) c.Rect(8, y, 24, 1, stD);
+        c.Rect(15, 56, 10, 12, Hex("#6b4226"));                   // door
+        c.Ball(20, 32, 9, 9, Hex("#8a6a2a"), Hex("#f2e8c8"), Color.white); // clock face
+        c.Line(20, 32, 20, 26, Color.black); c.Line(20, 32, 24, 34, Color.black);
+        for (int i = 0; i < 12; i++) { float a = i * Mathf.PI / 6f; c.Set(Mathf.RoundToInt(20 + Mathf.Cos(a) * 7), Mathf.RoundToInt(32 + Mathf.Sin(a) * 7), Hex("#5a4a2a")); }
+        for (int y = 2; y <= 22; y++) { int hw = (y - 2) / 2 + 2; c.Rect(20 - hw, y, hw * 2, 1, y % 3 == 0 ? roofD : roof); }
+        c.Rect(19, 0, 2, 3, Hex("#f2c43a"));
+        return c.ToSprite(20, 68);
+    });
+
+    /// Wind-up doll: frame 2 = frozen stiff (you're looking at it).
+    static Sprite WindupDoll(int frame) => Get("windup_doll_" + frame, () =>
+    {
+        var c = new Canvas(16, 24);
+        c.Ellipse(8, 22.5f, 5, 1.2f, Shadow);
+        Color dress = Hex("#c0397a"), dressD = Hex("#8a1a50"), face = Hex("#f6e8e0");
+        int leg = frame == 1 ? 1 : 0;
+        c.Rect(5, 18, 2, 4 - leg, Hex("#3a2a2a")); c.Rect(9, 18, 2, 3 + leg, Hex("#3a2a2a"));
+        for (int y = 11; y <= 18; y++) { int hw = (y - 11) / 2 + 3; c.Rect(8 - hw, y, hw * 2, 1, y % 2 == 0 ? dress : dressD); }
+        c.Ball(8, 6, 4.5f, 4.5f, Hex("#c8b8b0"), face, Color.white);
+        c.Rect(3, 2, 10, 2, Hex("#2a1a10")); c.Rect(3, 4, 2, 5, Hex("#2a1a10")); c.Rect(11, 4, 2, 5, Hex("#2a1a10")); // hair
+        c.Set(6, 6, Color.black); c.Set(10, 6, Color.black);
+        c.Rect(7, 9, 3, 1, frame == 2 ? Hex("#5a2a2a") : Hex("#c03030")); // a creepy little smile
+        c.Rect(14, 12, 2, 1, Hex("#b8862a")); c.Rect(15, 10, 1, 5, Hex("#b8862a")); // wind-up key on its back
+        if (frame == 2) { c.Set(6, 5, Hex("#ff4040")); c.Set(10, 5, Hex("#ff4040")); }
+        return c.ToSprite(8, 22);
+    });
+
+    static Sprite TimeBeetle(int frame) => Get("time_beetle_" + frame, () =>
+    {
+        var c = new Canvas(18, 13);
+        c.Ellipse(9, 11.5f, 7, 1.5f, Shadow);
+        Color d = Hex("#5a3a10"), m = Hex("#b8862a"), l = Hex("#f2d06a");
+        for (int i = 0; i < 3; i++) { int off = (i + frame) % 2; c.Line(5 + i * 3, 9, 4 + i * 3, 11 - off, d); c.Line(6 + i * 3, 9, 7 + i * 3, 11 - (1 - off), d); }
+        c.Ball(9, 7, 6, 4, d, m, l);
+        c.Line(9, 3, 9, 10, d);                         // wing seam
+        c.Ring(9, 7, 2, 1, Hex("#fff0a0"));              // a clock face on its shell
+        c.Ball(15, 7, 2, 2, d, d, m); c.Set(16, 6, Color.black);
+        return c.ToSprite(9, 11);
+    });
 
     // ------------------------------------------------------------------ Bubble island (under the sea)
     /// Deep water around the dome: dark blue with drifting light specks.
@@ -1356,6 +1443,11 @@ public static class PixelArt
                 inner.Rect(3, 3, 8, 2, Hex("#5a9ad8")); inner.Set(5, 3, Color.white); inner.Set(8, 3, Color.white);
                 for (int x = 4; x <= 9; x++) inner.Set(x, 10, Hex("#f6f0f6"));
                 break;
+            case 13: // clockmaker: brown waistcoat, brass goggles, white moustache
+                Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#d8d8d8"), Hex("#8a5a36"), Hex("#6b4226"), Hex("#3a3a40"), Hex("#2a2a30"), false, false);
+                inner.Rect(3, 4, 8, 1, Hex("#b8862a")); inner.Rect(4, 3, 2, 2, Hex("#f2c43a")); inner.Rect(8, 3, 2, 2, Hex("#f2c43a"));
+                inner.Rect(5, 8, 4, 1, Color.white);
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1427,6 +1519,18 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.Gear:
+                Cog(c, 8, 8, 6, Hex("#6a4a20"), Hex("#c8962a"));
+                break;
+            case Item.TimeSand:
+                for (int y = 2; y <= 14; y++) { int hw = Mathf.Abs(y - 8) / 2 + 1; c.Rect(8 - hw, y, hw * 2, 1, y < 8 ? Hex("#f2c43a") : Hex("#b8862a")); }
+                c.Rect(3, 1, 10, 1, Hex("#8a6a3a")); c.Rect(3, 15, 10, 1, Hex("#8a6a3a"));
+                break;
+            case Item.Sundial:
+                c.Ball(8, 10, 7, 4, Hex("#8a8a90"), Hex("#c8c8d0"), Hex("#f0f0f8"));
+                c.Line(8, 10, 8, 2, Hex("#b8862a")); c.Line(8, 2, 11, 9, Hex("#b8862a"));
+                for (int i = 0; i < 6; i++) c.Set(3 + i * 2, 11 - (i % 2), Hex("#5a5a60"));
+                break;
             case Item.Pearl:
                 c.Ball(8, 8, 5, 5, Hex("#b8a8c0"), Hex("#f0e8f4"), Color.white);
                 c.Set(6, 6, Color.white); c.Set(7, 6, Color.white);

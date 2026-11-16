@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -15,6 +15,8 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   ChimeBird   - Sky island: harmless peck, but it steals from your bag and flies off. Catch it to get it back.
 ///   LanternFish - Bubble island: its glowing lure tugs you towards it (IslandGame.Bubble.cs), then it bites.
 ///   StoneSquid  - Bubble island: looks like a rock until you're close; its ink blinds you for a moment.
+///   WindupDoll  - Hourglass island: frozen while you face it, quick as anything while you don't.
+///   TimeBeetle  - Hourglass island: blinks a couple of tiles towards you every few seconds.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -41,7 +43,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
         EnemyKind.Barnacle => "เพรียงคลาน", EnemyKind.HermitCrab => "ปูเสฉวนหอยยักษ์",
         EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", EnemyKind.ChimeBird => "นกกระดิ่งลม",
-        EnemyKind.LanternFish => "ปลาตะเกียง", _ => "หมึกหิน",
+        EnemyKind.LanternFish => "ปลาตะเกียง", EnemyKind.StoneSquid => "หมึกหิน",
+        EnemyKind.WindupDoll => "ตุ๊กตาไขลาน", _ => "ด้วงทรายเวลา",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -84,6 +87,8 @@ public class Enemy : MonoBehaviour
             EnemyKind.ChimeBird => (3, 2f, 2.1f, 7f, 16),
             EnemyKind.LanternFish => (5, 10f, 1.0f, 6f, 24),
             EnemyKind.StoneSquid => (7, 8f, 1.3f, 6f, 28),
+            EnemyKind.WindupDoll => (6, 11f, 2.3f, 9f, 30),
+            EnemyKind.TimeBeetle => (5, 8f, 1.0f, 7f, 22),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -137,6 +142,26 @@ public class Enemy : MonoBehaviour
         {
             if (dist > 1.7f) { Apply(); return; } // just a mushroom... nothing to see here
             Reveal();
+        }
+        if (kind == EnemyKind.WindupDoll && targetWho == 0 && game.player != null && dist < 9f)
+        {
+            Vector2 look = game.player.facing.normalized, toMe = (grid - targetGrid).normalized;
+            if (Vector2.Dot(look, toMe) > 0.45f) { frame = 2; Apply(); return; } // you're looking: freeze mid-step
+        }
+        if (kind == EnemyKind.TimeBeetle)
+        {
+            chargeCd -= dt;
+            if (chargeCd <= 0f && dist < 7f && dist > 1.2f)
+            {
+                chargeCd = 3f;
+                Vector2 jump = grid + toPlayer / dist * Mathf.Min(2f, dist - 0.9f);
+                if (CanGo(jump))
+                {
+                    Fx.Burst(transform.position + Vector3.up * 0.2f, new Color(1f, 0.85f, 0.4f), 8, 0.6f, 1f);
+                    grid = jump;
+                    Fx.Burst(IslandGame.GridToWorld(grid) + Vector3.up * 0.2f, new Color(1f, 0.85f, 0.4f), 8, 0.6f, 1f);
+                }
+            }
         }
         if (kind == EnemyKind.StormCloud) // crackle, then charge
         {

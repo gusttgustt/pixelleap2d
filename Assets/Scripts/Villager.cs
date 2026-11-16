@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum VillagerRole { Weaver, Elder, Trader, Villager, Shipwright, Doctor, Child, Keeper, Sage, Diver }
+public enum VillagerRole { Weaver, Elder, Trader, Villager, Shipwright, Doctor, Child, Keeper, Sage, Diver, Clockmaker }
 
 /// A friendly member of the tribe. Strolls around their hut and stops to face you when you're near.
 public class Villager : MonoBehaviour
@@ -40,6 +40,7 @@ public class Villager : MonoBehaviour
         VillagerRole.Keeper => $"{npcName} ผู้ดูแลเต่า",
         VillagerRole.Sage => $"{npcName} ผู้เฝ้ากระดิ่งลม",
         VillagerRole.Diver => $"{npcName} นักประดาน้ำ",
+        VillagerRole.Clockmaker => $"{npcName} ช่างนาฬิกา",
         _ => npcName,
     };
 

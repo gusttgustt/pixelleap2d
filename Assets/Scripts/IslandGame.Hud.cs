@@ -49,7 +49,7 @@ public partial class IslandGame
 
     void UpdateDayNight(float dt)
     {
-        if (!dead) clock += dt;
+        if (!dead) clock += dt * TimeScale; // the Hourglass island races through its days
         float c = Mathf.Cos((Phase - 0.5f) * Mathf.PI * 2f);
         daylight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((c + 0.3f) / 0.6f));
         Color night = new Color(0.45f, 0.55f, 1f), dusk = new Color(1f, 0.7f, 0.5f);
@@ -99,6 +99,7 @@ public partial class IslandGame
         NodeKind.CoralNode => "เก็บปะการัง",
         NodeKind.Oyster => "งัดหอยมุก",
         NodeKind.AirVent => "หายใจที่ช่องอากาศ",
+        NodeKind.SandCrystal => "เก็บทรายเวลา",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -204,6 +205,7 @@ public partial class IslandGame
         infoY = DrawTurtleHud(infoY);
         infoY = DrawSkyHud(infoY);
         infoY = DrawBubbleHud(infoY);
+        infoY = DrawHourglassHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,

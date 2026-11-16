@@ -25,7 +25,8 @@ public class WorldNode : MonoBehaviour
 
     public bool Blocking => kind is NodeKind.Tree or NodeKind.FruitTree or NodeKind.Bush or NodeKind.Stump
                                  or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree
-                                 or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue;
+                                 or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue
+                                 or NodeKind.ClockRuin or NodeKind.ClockTower;
 
     public float BlockRadius => kind switch
     {
@@ -42,12 +43,14 @@ public class WorldNode : MonoBehaviour
         NodeKind.Well => 0.45f,
         NodeKind.Lamp => 0.18f,
         NodeKind.Statue => 0.35f,
+        NodeKind.ClockTower => 1.0f,
+        NodeKind.ClockRuin => 0.45f,
         _ => 0.32f,
     };
 
     public bool CanTarget => kind switch
     {
-        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue => false,
+        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower => false,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
         _ => available,
@@ -151,6 +154,9 @@ public class WorldNode : MonoBehaviour
             NodeKind.CoralNode => PixelArt.CoralNode(available),
             NodeKind.Oyster => PixelArt.Oyster(available),
             NodeKind.AirVent => PixelArt.AirVent(),
+            NodeKind.SandCrystal => PixelArt.SandCrystal(available),
+            NodeKind.ClockRuin => PixelArt.ClockRuin(),
+            NodeKind.ClockTower => PixelArt.ClockTower(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
@@ -163,7 +169,7 @@ public class WorldNode : MonoBehaviour
     public void Deplete(float seconds)
     {
         available = false;
-        regrowAt = IslandGame.I.Now + seconds;
+        regrowAt = IslandGame.I.Now + seconds / IslandGame.I.GrowScale;
         Refresh();
     }
 
@@ -171,7 +177,7 @@ public class WorldNode : MonoBehaviour
     {
         kind = NodeKind.Stump;
         hits = 0;
-        regrowAt = IslandGame.I.Now + seconds;
+        regrowAt = IslandGame.I.Now + seconds / IslandGame.I.GrowScale;
         Refresh();
     }
 

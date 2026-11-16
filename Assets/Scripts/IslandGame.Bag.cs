@@ -18,12 +18,13 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ item kinds and gear stats
     public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear;
-    static bool IsUsable(Item it) => FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it);
+    static bool IsUsable(Item it) => FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial;
 
     static BagTab TabOf(Item it) =>
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
-        : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard ? BagTab.Special
+        : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
+            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand ? BagTab.Special
         : BagTab.Materials;
 
     static string TabName(BagTab t) => t switch
@@ -96,6 +97,7 @@ public partial class IslandGame
         else if (IsClothing(it)) ToggleWear(it);
         else if (IsWeapon(it)) ToggleWeapon(it);
         else if (it == Item.WaterFlask) DrinkFlask();
+        else if (it == Item.Sundial) UseSundial();
         else Hint($"{Name(it)}: ใช้ในการประดิษฐ์ (Tab)", 2f);
     }
 
@@ -314,7 +316,7 @@ public partial class IslandGame
         float bx = det.x + 8, by = det.y + 30, bw = (det.width - 16 - 4 * 4) / 5f;
         var bst = new GUIStyle(GUI.skin.button) { fontSize = 11 };
         string useLabel = IsClothing(sel) ? (IsWorn(sel) ? "ถอด" : "สวม") : IsWeapon(sel) ? (weapon == sel ? "เก็บ" : "ถือ")
-                        : FoodValue(sel) > 0 ? "กิน" : IsPowerFruit(sel) ? "กิน" : sel == Item.Antidote ? "ใช้" : "-";
+                        : FoodValue(sel) > 0 ? "กิน" : IsPowerFruit(sel) ? "กิน" : sel == Item.Antidote || sel == Item.Sundial ? "ใช้" : "-";
         GUI.enabled = useLabel != "-";
         if (GUI.Button(new Rect(bx, by, bw, 24), useLabel, bst)) UseItem(sel);
         GUI.enabled = true;
