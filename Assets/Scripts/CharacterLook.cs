@@ -5,6 +5,15 @@ using UnityEngine;
 public struct CharacterLook
 {
     public int skin, style, hair, shirt, pants, gender; // gender 0 = male, 1 = female
+    /// 0 = build your own from the colours below; 1+ = a ready-made character (Presets[preset]).
+    public int preset;
+
+    /// Ready-made characters: shown name + sprite name in Resources/Sprites
+    /// (hero_<id>_front_<frame>.png / hero_<id>_back_<frame>.png, frame 0 idle, 1-2 walk).
+    public static readonly string[] Presets = { "ปรับแต่งเอง", "สาวหมวกเบเร่ต์ชมพู" };
+    public static readonly string[] PresetIds = { null, "pinkberet" };
+    /// Codes from here up are ready-made characters, far above any build-your-own code.
+    const int PresetBase = 1000000;
 
     public static readonly string[] Skins = { "#f1c27d", "#ffdbac", "#e0ac69", "#c68642", "#8d5524" };
     public static readonly string[] Styles = { "สั้น", "ยาว", "ตั้งชี้", "มวย" };
@@ -14,12 +23,20 @@ public struct CharacterLook
     public static readonly string[] Genders = { "ชาย", "หญิง" };
 
     // gender is the last digit, so every look saved before it existed reads back as male
-    public int Code => skin + Skins.Length * (style + Styles.Length * (hair + Hairs.Length * (shirt + Shirts.Length * (pants + Pants.Length * gender))));
+    public int Code => preset > 0 ? PresetBase + preset : CustomCode;
+    int CustomCode => skin + Skins.Length * (style + Styles.Length * (hair + Hairs.Length * (shirt + Shirts.Length * (pants + Pants.Length * gender))));
 
     public static CharacterLook FromCode(int code)
     {
         code = Mathf.Max(0, code);
         var l = new CharacterLook();
+        if (code >= PresetBase)
+        {
+            int p = code - PresetBase;
+            l.preset = p < Presets.Length ? p : 0;
+            l.gender = 1; l.style = 1;
+            return l;
+        }
         l.skin = code % Skins.Length; code /= Skins.Length;
         l.style = code % Styles.Length; code /= Styles.Length;
         l.hair = code % Hairs.Length; code /= Hairs.Length;
@@ -38,6 +55,9 @@ public struct CharacterLook
         shirt = UnityEngine.Random.Range(0, Shirts.Length),
         pants = UnityEngine.Random.Range(0, Pants.Length),
     };
+
+    /// Sprite id of a ready-made character, or null for build-your-own.
+    public string PresetId => preset > 0 && preset < PresetIds.Length ? PresetIds[preset] : null;
 
     static Color C(string h) { ColorUtility.TryParseHtmlString(h, out var c); return c; }
     static Color Dark(Color c, float k = 0.2f) => Color.Lerp(c, Color.black, k);

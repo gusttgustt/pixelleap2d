@@ -340,7 +340,7 @@ public partial class IslandGame
         ShadowLabel(new Rect(0, 28, W, 46), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
         ShadowLabel(new Rect(0, 72, W, 22), "สร้างตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ", labelCenter, new Color(1f, 1f, 1f, 0.8f));
 
-        var box = new Rect(W / 2f - 280, 104, 560, 360);
+        var box = new Rect(W / 2f - 280, 104, 560, 390);
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
         Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         GUI.enabled = !connecting;
@@ -361,6 +361,14 @@ public partial class IslandGame
         ShadowLabel(new Rect(x, y, w, 20), "ชื่อ", label);
         playerName = GUI.TextField(new Rect(x, y + 22, w, 26), playerName ?? "", 16, new GUIStyle(GUI.skin.textField) { fontSize = 15 });
         y += 60;
+        look.preset = Chooser(x, y, w, "ตัวละคร", look.preset, CharacterLook.Presets.Length, null, CharacterLook.Presets[look.preset]); y += 34;
+        if (look.preset > 0)
+        {
+            var note = new GUIStyle(small) { wordWrap = true };
+            ShadowLabel(new Rect(x, y, w, 60), "ตัวละครสำเร็จรูป: ปรับสีผม/เสื้อไม่ได้ และจะไม่เห็นหมวกหรือชุดที่สวมบนตัว (แต่ยังได้ค่าพลังเหมือนเดิม) — กด < เพื่อกลับไปปรับแต่งเอง", note, new Color(1f, 0.85f, 0.9f));
+        }
+        else
+        {
         int g = Chooser(x, y, w, "เพศ", look.gender, CharacterLook.Genders.Length, null, CharacterLook.Genders[look.gender]); y += 30;
         if (g != look.gender) { look.gender = g; look.style = g == 1 ? 1 : 0; } // switching gender also picks a fitting hair style
         look.skin = Chooser(x, y, w, "สีผิว", look.skin, CharacterLook.Skins.Length, CharacterLook.Skins[look.skin], null); y += 30;
@@ -369,6 +377,7 @@ public partial class IslandGame
         look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 30;
         look.pants = Chooser(x, y, w, look.gender == 1 ? "กระโปรง" : "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 32;
         if (GUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
+        }
 
         // --- play
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };

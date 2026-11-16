@@ -2107,6 +2107,12 @@ public static class PixelArt
     /// hat / outfit change the look (null = nothing worn).
     public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null, int look = 0)
     {
+        string preset = CharacterLook.FromCode(look).PresetId;
+        if (preset != null)
+        {
+            var ps = PresetPlayer(preset, dir, frame);
+            if (ps != null) return ps; // missing art falls back to the build-your-own look
+        }
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
         if (hat != null) key += "_" + hat.Value.ToString().ToLowerInvariant();
         if (outfit != null) key += "_" + outfit.Value.ToString().ToLowerInvariant();
@@ -2167,6 +2173,24 @@ public static class PixelArt
             }
             return c.ToSprite(7, 22);
         });
+    }
+
+    /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back>_<frame>.png).
+    /// The art has its feet 2 px above the bottom edge, like the generated player.
+    /// Worn hats and outfits are not drawn on it.
+    static Sprite PresetPlayer(string id, int dir, int frame)
+    {
+        string key = $"hero_{id}_{(dir == 0 ? "front" : "back")}_{frame}";
+        if (cache.TryGetValue(key, out var s)) return s;
+        var tex = Resources.Load<Texture2D>("Sprites/" + key);
+        if (tex != null)
+        {
+            tex.filterMode = FilterMode.Point;
+            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 2f / tex.height), PPU, 0, SpriteMeshType.FullRect);
+            s.name = key;
+        }
+        cache[key] = s;
+        return s;
     }
 
     /// Tribe members. look: 0 weaver, 1 elder, 2 trader, 3+ villagers.
