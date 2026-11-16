@@ -143,6 +143,13 @@ public partial class IslandGame
                 }
                 break;
 
+            case VillagerRole.FarmShop:
+            case VillagerRole.BuildShop:
+            case VillagerRole.Buyer:
+            case VillagerRole.Fisher:
+                ShopDialog(v, d, text); // the private island's town (IslandGame.Shop.cs)
+                break;
+
             default:
                 var lines = biome == Biome.Tribal ? Chatter : TownChatter;
                 d.text = text ?? lines[Random.Range(0, lines.Length)];

@@ -10,14 +10,14 @@ using UnityEngine;
 public partial class IslandGame
 {
     public int IslandLevel => island;
-    public int Prosperity => island >= 60 ? 4 : island >= 30 ? 3 : island >= 15 ? 2 : island >= 5 ? 1 : 0;
+    public int Prosperity => atHome ? 0 : island >= 60 ? 4 : island >= 30 ? 3 : island >= 15 ? 2 : island >= 5 ? 1 : 0;
     public static string ProsperityName(int p) => p switch
     {
         1 => "หมู่บ้านเล็ก", 2 => "หมู่บ้าน", 3 => "เมืองท่า", 4 => "นครรุ่งเรือง", _ => "ดินแดนรกร้าง",
     };
 
     /// Island radius as a share of the map: small islands early, big ones far out.
-    float IslandRadiusFactor => 0.30f + 0.12f * Mathf.Clamp01((island - 1) / 40f);
+    float IslandRadiusFactor => atHome ? 0.36f : 0.30f + 0.12f * Mathf.Clamp01((island - 1) / 40f);
 
     /// Creature strength from the island's level (replaces the old 4-island laps).
     public float EnemyHpScale => 1f + 0.07f * (island - 1);

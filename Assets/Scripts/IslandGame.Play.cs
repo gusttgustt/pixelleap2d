@@ -12,7 +12,7 @@ public partial class IslandGame
     int nightWarnedDay;
 
     /// True while sleeping or sailing: player input is ignored.
-    public bool Busy => sleepT > 0f || sailT > 0f || dialog != null;
+    public bool Busy => sleepT > 0f || sailT > 0f || homeT > 0f || dialog != null;
 
     void Update()
     {
@@ -33,6 +33,7 @@ public partial class IslandGame
         if (title) { UpdateTitle(); return; }
         NetPoll();
         DevKeys(kb);
+        DevHomeKeys(kb); // ?dev=1: F6 skip a minute, F7 coins and materials (IslandGame.Home.cs)
 
         if (dead)
         {
@@ -40,6 +41,7 @@ public partial class IslandGame
             return;
         }
         if (sailT > 0f) { UpdateSail(dt); return; }
+        if (homeT > 0f) { UpdateHomeWarp(dt); return; } // going to / from the private island (IslandGame.Home.cs)
         if (sleepT > 0f) { NetTick(dt); UpdateSleep(dt); return; }
         var inputKb = chatOpen ? null : kb; // typing a chat message: keys aren't game controls
 
@@ -77,7 +79,7 @@ public partial class IslandGame
         respawnTimer += dt;
         if (respawnTimer >= RespawnInterval) { respawnTimer = 0f; if (IsHost) RespawnMaterials(); } // online the host decides
 
-        if (IsNight && nightWarnedDay != Day)
+        if (IsNight && nightWarnedDay != Day && !atHome)
         {
             nightWarnedDay = Day;
             Hint("ตกกลางคืนแล้ว... สัตว์ร้ายเริ่มดุขึ้น อยู่ใกล้กองไฟไว้!", 6f);
@@ -86,8 +88,17 @@ public partial class IslandGame
         if (TickSurvival(dt)) return;
         if (dialog != null) { HandleDialog(inputKb); return; } // talking pauses the action (just for you)
 
-        UpdateEnemies(dt);
+        if (!atHome) UpdateEnemies(dt); // the private island is safe
+        else enemies.RemoveAll(e => e == null);
+        if (buildOpen) // placing / taking down things on the tile grid (IslandGame.Build.cs)
+        {
+            target = null; enemyTarget = null; villagerTarget = null; pond = null; seaSpot = null;
+            HandleChatKeys(kb);
+            HandleBuildInput(inputKb);
+            return;
+        }
         FindTarget();
+        TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
     }
@@ -95,7 +106,7 @@ public partial class IslandGame
     /// Hunger / thirst / health over time. Returns true if the player died.
     bool TickSurvival(float dt)
     {
-        float drain = 1f - 0.12f * SkillLv(Skill.IronStomach); // Iron Stomach slows the drain
+        float drain = (1f - 0.12f * SkillLv(Skill.IronStomach)) * (atHome ? 0.5f : 1f); // Iron Stomach slows the drain; home is restful
         float sun = hat == Item.StrawHat ? 0.85f : 1f;          // a straw hat keeps the sun off
         hunger = Mathf.Max(0f, hunger - dt * drain * 100f / StarveSeconds);
         thirst = Mathf.Max(0f, thirst - dt * drain * sun * 100f / ThirstSeconds);
@@ -109,16 +120,18 @@ public partial class IslandGame
     /// Keys that work both on land and at sea.
     void HandleCommonKeys(Keyboard kb)
     {
-        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; skillsOpen = false; bagOpen = false; }
+        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; benchOpen = false; skillsOpen = false; bagOpen = false; }
         if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
         if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; }
         HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
         if (kb.fKey.wasPressedThisFrame) EatBest();
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
+        if (kb.hKey.wasPressedThisFrame) ToggleHome();  // private island <-> adventure (IslandGame.Home.cs)
+        if (kb.gKey.wasPressedThisFrame) ToggleBuild(); // build / take down (IslandGame.Build.cs)
         if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
         if (craftOpen)
-            for (int i = 0; i < Recipes.Length && i < 10; i++)
-                if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(Recipes[i]);
+            for (int i = 0; i < CraftList.Length && i < 10; i++)
+                if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(CraftList[i]);
         if (skillsOpen)
             for (int i = 0; i < skills.Length && i < 9; i++)
                 if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)i);
@@ -138,10 +151,17 @@ public partial class IslandGame
     bool CheckDeath()
     {
         if (health > 0f) return false;
+        if (atHome) // nobody dies at home: you faint and wake up hungry
+        {
+            health = 10f;
+            Hint("คุณเป็นลมเพราะหิว! รีบกินอะไรสักหน่อย (บนเกาะส่วนตัวไม่มีวันตาย)", 4f);
+            return false;
+        }
         health = 0f; dead = true; craftOpen = false; skillsOpen = false;
         if (cursor != null) cursor.enabled = false;
         if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
         Sfx.Play("hurt", 0.8f);
+        KeepHomeOnDeath();   // ...but your private island waits for the next run (IslandGame.Home.cs)
         SaveSystem.Delete(); // death is permanent: next start is a new run
         return true;
     }
@@ -156,6 +176,11 @@ public partial class IslandGame
         bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
         float since = Time.time - lastInteract;
+        if (fishState != 0) // a line is out: any press reels it in (IslandGame.Farm.cs)
+        {
+            if (pressed && since > 0.15f) { lastInteract = Time.time; ReelIn(); }
+            return;
+        }
         bool Trigger(float repeatDelay)
         {
             if ((pressed && since > 0.15f) || (held && since > repeatDelay)) { lastInteract = Time.time; return true; }
@@ -167,7 +192,8 @@ public partial class IslandGame
         else if (villagerTarget != null) { if (pressed && since > 0.15f) OpenDialog(villagerTarget); }
         else if (target != null)
         {
-            bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft;
+            bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost
+                or NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor;
             if (once ? (pressed && since > 0.15f) : Trigger(0.3f))
             {
                 lastInteract = Time.time;
@@ -178,7 +204,8 @@ public partial class IslandGame
         else if (pond != null) { if (Trigger(0.5f)) Drink(); }
         else if (seaSpot != null)
         {
-            if (HasSpear) { if (Trigger(0.8f)) FishAt(GridToWorld(seaSpot.Value)); }
+            if (HasRod) { if (pressed && since > 0.15f) { lastInteract = Time.time; CastLine(seaSpot.Value); } }
+            else if (HasSpear) { if (Trigger(0.8f)) FishAt(GridToWorld(seaSpot.Value)); }
             else if (pressed) Hint("น้ำทะเลเค็มเกินไป ดื่มไม่ได้ ทำหอกเพื่อแทงปลาตรงนี้", 3f);
         }
     }
@@ -216,7 +243,7 @@ public partial class IslandGame
                 if (!n.CanTarget) continue;
                 Vector2 d = n.grid - pg;
                 float dist = d.magnitude;
-                if (dist > InteractRange) continue;
+                if (dist > InteractRange + (n.Blocking ? Mathf.Max(0f, n.BlockRadius - 0.25f) : 0f)) continue; // big things: reach their edge
                 float score = dist - (dist > 0.01f ? Vector2.Dot(d / dist, player.facing) * 0.35f : 0f); // prefer what we face
                 if (score < best) { best = score; target = n; }
             }
@@ -236,7 +263,7 @@ public partial class IslandGame
             {
                 if ((target.grid - pg).magnitude <= pondDist) pond = null; else target = null;
             }
-            if (target == null && pond == null && biome != Biome.Sky) seaSpot = NearestSea(pg, 1.2f); // no fishing in the clouds
+            if (target == null && pond == null && biome != Biome.Sky && !inHouse) seaSpot = NearestSea(pg, 1.2f); // no fishing in the clouds
         }
 
         Vector3? at = null;
@@ -244,7 +271,7 @@ public partial class IslandGame
         else if (villagerTarget != null) at = GridToWorld(villagerTarget.grid) + Vector3.up * HeightAt(villagerTarget.grid);
         else if (target != null) at = GridToWorld(target.grid) + Vector3.up * HeightAt(target.grid);
         else if (pond != null) at = GridToWorld(pond.Value) + Vector3.down * 0.125f;
-        else if (seaSpot != null && HasSpear) at = GridToWorld(seaSpot.Value) + Vector3.down * 0.125f;
+        else if (seaSpot != null && (HasSpear || HasRod)) at = GridToWorld(seaSpot.Value) + Vector3.down * 0.125f;
         cursor.enabled = at != null;
         if (at != null)
         {
@@ -427,6 +454,14 @@ public partial class IslandGame
                 break;
             case NodeKind.Campfire: craftOpen = true; skillsOpen = false; break;
             case NodeKind.Shelter: TrySleep(); break;
+            case NodeKind.Cottage: CottageDialog(n); break; // go in, sleep, upgrade (IslandGame.House.cs)
+            case NodeKind.Bed: TrySleep(); break;
+            case NodeKind.Workbench: OpenBench(); break;
+            case NodeKind.HouseDoor: BeginWarp(Warp.ExitHouse); break;
+            case NodeKind.Plot: UsePlot(n); break;          // dig / plant / water / harvest (IslandGame.Farm.cs)
+            case NodeKind.Chicken:
+            case NodeKind.Cow: UseAnimal(n); break;
+            case NodeKind.Signpost: ReadSign(n); break;
             case NodeKind.Raft: TrySail(); break;
         }
     }
@@ -775,7 +810,7 @@ public partial class IslandGame
         foreach (var c in r.cost) inv[c.item] -= c.n;
         Sfx.Play("craft", 0.5f);
         if (r.raftUpgrade) { UpgradeRaft(); return; }
-        if (r.output != null) Give(r.output.Value, 1, null);
+        if (r.output != null) Give(r.output.Value, r.count, null);
         if (r.output != null && IsWeapon(r.output.Value)) AutoEquipWeapon();
         else Popup($"สร้าง{r.name}แล้ว!", PlayerPos + Vector3.up * 0.9f, Color.white);
         if (r.output != null && IsClothing(r.output.Value)) // put it straight on if that slot is free
@@ -804,6 +839,7 @@ public partial class IslandGame
                 if (!IsLand(g) || (atShore && !TouchesSea(g))) continue;
                 if ((g - player.grid).magnitude < own + 0.35f || !FreeSpot(g, own + 0.1f)) continue;
                 var n = Spawn(kind, g, false);
+                n.built = kind != NodeKind.Raft; // the hammer can take campfires and shelters down again
                 Fx.Burst(n.transform.position, new Color(0.8f, 0.7f, 0.5f), 10, 1.2f, 0.8f);
                 if (kind != NodeKind.Raft) SendSpawn(n); // campfires and shelters are shared; your raft is yours
                 return true;
@@ -816,12 +852,12 @@ public partial class IslandGame
         // full but hurt: eat whatever heals the most (honey included)
         if (hunger >= 99f && health < MaxHealth - 0.5f)
         {
-            foreach (var it in new[] { Item.Honey, Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish })
+            foreach (var it in new[] { Item.Honey, Item.Salad, Item.CookedMeat, Item.CookedCrab, Item.CookedEgg, Item.CookedFruit, Item.CookedFish })
                 if (Count(it) > 0) { Eat(it); return; }
             Hint("ยังไม่หิว (อาหารปิ้งหรือน้ำผึ้งช่วยฟื้น HP ได้แม้อิ่ม)", 2f);
             return;
         }
-        foreach (var it in new[] { Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.Fruit, Item.Berry, Item.RawFish, Item.CrabMeat, Item.RawMeat })
+        foreach (var it in new[] { Item.Salad, Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.CookedEgg, Item.Fruit, Item.Carrot, Item.Tomato, Item.Milk, Item.Berry, Item.RawFish, Item.Tuna, Item.CrabMeat, Item.RawMeat })
             if (Count(it) > 0) { Eat(it); return; }
         Hint("ไม่มีอาหาร! ไปเก็บเบอร์รี่หรือผลไม้", 2f);
     }

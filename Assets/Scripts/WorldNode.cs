@@ -12,6 +12,12 @@ public class WorldNode : MonoBehaviour
     public int id;                // same on every player's machine (online sync)
     public Item dropItem;         // NodeKind.Drop: what's lying here, and how many
     public int dropCount;
+    public bool built;            // placed by the player: the hammer can take it down (IslandGame.Build.cs)
+    public bool IsAnimal => kind is NodeKind.Chicken or NodeKind.Cow;
+
+    // farm animals stroll around where they were let out (IslandGame.Farm.cs)
+    Vector2 home, wanderDir;
+    float wanderT, walkT;
 
     // Regrow timers run on game time (IslandGame.Now) so sleeping through the night makes plants grow.
     float regrowAt, shakeT, animT;
@@ -30,7 +36,9 @@ public class WorldNode : MonoBehaviour
                                  or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine
                                  or NodeKind.SunkenTemple or NodeKind.GiantClam or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon
                                  or NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod
-                                 or NodeKind.GiantGrass or NodeKind.GiantFlower or NodeKind.Beehive or NodeKind.Anthill;
+                                 or NodeKind.GiantGrass or NodeKind.GiantFlower or NodeKind.Beehive or NodeKind.Anthill
+                                 or NodeKind.Fence or NodeKind.Bench or NodeKind.Scarecrow or NodeKind.Cottage or NodeKind.Signpost
+                                 or NodeKind.Bed or NodeKind.Table or NodeKind.Chair or NodeKind.PlantPot or NodeKind.Shelf or NodeKind.Workbench;
 
     public float BlockRadius => kind switch
     {
@@ -66,6 +74,13 @@ public class WorldNode : MonoBehaviour
         NodeKind.Anthill => 1.3f,
         NodeKind.GiantClam => 0.5f,
         NodeKind.ClockRuin => 0.45f,
+        NodeKind.Fence => 0.34f,
+        NodeKind.Bench => 0.36f,
+        NodeKind.Scarecrow => 0.22f,
+        NodeKind.Cottage => 1.0f,
+        NodeKind.Signpost => 0.2f,
+        NodeKind.Bed => 0.5f, NodeKind.Table => 0.4f, NodeKind.Chair => 0.25f, NodeKind.PlantPot => 0.22f,
+        NodeKind.Shelf => 0.32f, NodeKind.Workbench => 0.42f,
         _ => 0.32f,
     };
 
@@ -77,6 +92,10 @@ public class WorldNode : MonoBehaviour
         NodeKind.GiantClam => true,
         NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod or NodeKind.GiantGrass => true,
         NodeKind.Anthill => false,
+        NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost => true,
+        NodeKind.Fence or NodeKind.StonePath or NodeKind.Flowers or NodeKind.Bench or NodeKind.Scarecrow => false,
+        NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor => true,
+        NodeKind.Table or NodeKind.Chair or NodeKind.Rug or NodeKind.PlantPot or NodeKind.Shelf => false,
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
@@ -101,6 +120,12 @@ public class WorldNode : MonoBehaviour
         NodeKind.GiantFlower => 1.8f,
         NodeKind.Beehive => 1.6f,
         NodeKind.AirVent => 0.6f,
+        NodeKind.Plot => 0.55f,
+        NodeKind.Cow => 0.8f,
+        NodeKind.Chicken => 0.5f,
+        NodeKind.Cottage => 1.9f,
+        NodeKind.Signpost => 1.0f,
+        NodeKind.Bed => 0.6f, NodeKind.Workbench => 0.8f, NodeKind.HouseDoor => 0.3f,
         _ => 0.45f,
     };
 
@@ -113,6 +138,9 @@ public class WorldNode : MonoBehaviour
         transform.position = basePos;
         sr = gameObject.AddComponent<SpriteRenderer>();
         sr.sortingOrder = IslandGame.SortOrder(flat.y); // Y-sort on the ground position, ignoring height
+        if (k is NodeKind.StonePath or NodeKind.Rug or NodeKind.HouseDoor) sr.sortingOrder = k == NodeKind.Rug ? -30490 : -30500;                      // flat on the ground
+        else if (k == NodeKind.Plot) sr.sortingOrder = IslandGame.SortOrder(flat.y + IslandGame.HalfH); // under anyone standing on it
+        home = g;
         this.flip = flip;
         sr.flipX = flip && k is not (NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Totem);
 
@@ -159,6 +187,7 @@ public class WorldNode : MonoBehaviour
         sr.enabled = true;
         var biome = IslandGame.I.biome;
         sr.color = IslandGame.I.Tint(kind);
+        if (IslandGame.IsHomeKind(kind)) { sr.color = Color.white; sr.sprite = IslandGame.HomeSprite(this, 0); return; }
         sr.sprite = kind switch
         {
             NodeKind.Tree => PixelArt.Tree(biome),
@@ -241,6 +270,47 @@ public class WorldNode : MonoBehaviour
 
     public void Shake() => shakeT = 0.25f;
 
+    /// Seconds until the current growth stage / animal product is done (0 = not running).
+    public float TimerLeft => regrowAt > 0f ? Mathf.Max(0f, regrowAt - IslandGame.I.Now) : 0f;
+    public void StartTimer(float seconds) => regrowAt = IslandGame.I.Now + seconds;
+
+    /// Farm animals: mostly stand and peck, sometimes stroll, never far from where they were let out.
+    void Wander(IslandGame game)
+    {
+        float dt = Time.deltaTime;
+        var player = game.player;
+        bool near = player != null && (player.grid - grid).magnitude < 1.1f; // hold still to be fed / milked
+        bool moving = false;
+        if (!near && !game.Busy)
+        {
+            wanderT -= dt;
+            if (wanderT <= 0f)
+            {
+                wanderT = Random.Range(1.5f, 3.5f);
+                Vector2 toHome = home - grid;
+                wanderDir = Random.value < 0.5f ? Vector2.zero : toHome.magnitude > 2.2f ? toHome.normalized : Random.insideUnitCircle.normalized;
+            }
+            if (wanderDir != Vector2.zero)
+            {
+                float speed = kind == NodeKind.Cow ? 0.35f : 0.6f;
+                Vector2 next = grid + wanderDir * speed * dt;
+                if (game.CanWalk(next, 0.15f) && game.CanClimb(grid, next) && (player == null || (player.grid - next).magnitude > 0.5f)) { grid = next; moving = true; }
+                else wanderT = 0f;
+            }
+        }
+        if (moving)
+        {
+            walkT += dt * (kind == NodeKind.Cow ? 4f : 7f);
+            Vector3 w = IslandGame.GridToWorld(grid + wanderDir) - IslandGame.GridToWorld(grid);
+            if (Mathf.Abs(w.x) > 0.01f) sr.flipX = w.x < 0;
+            Vector3 flat = IslandGame.GridToWorld(grid);
+            basePos = flat + Vector3.up * game.HeightAt(grid);
+            sr.sortingOrder = IslandGame.SortOrder(flat.y);
+        }
+        else if (near && player != null) sr.flipX = player.transform.position.x < transform.position.x;
+        sr.sprite = IslandGame.HomeSprite(this, moving ? 1 + ((int)walkT & 1) : 0);
+    }
+
     /// Re-applies saved state after loading.
     public void Restore(bool isAvailable, int savedHits, float regrowSeconds)
     {
@@ -253,7 +323,12 @@ public class WorldNode : MonoBehaviour
     void Update()
     {
         var game = IslandGame.I;
-        if (regrowAt > 0f && game.Now >= regrowAt)
+        if (regrowAt > 0f && game.Now >= regrowAt && kind == NodeKind.Plot)
+        {
+            regrowAt = 0f;
+            game.CropGrown(this); // next growth stage (IslandGame.Farm.cs)
+        }
+        else if (regrowAt > 0f && game.Now >= regrowAt)
         {
             var player = game.player;
             if (kind == NodeKind.Stump && player != null && (player.grid - grid).magnitude < 0.7f)
@@ -267,6 +342,7 @@ public class WorldNode : MonoBehaviour
             }
         }
 
+        if (IsAnimal) Wander(game);
         Vector3 p = basePos;
         if (shakeT > 0f)
         {

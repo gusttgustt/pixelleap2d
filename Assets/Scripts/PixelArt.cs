@@ -12,7 +12,7 @@ using UnityEngine;
 ///
 /// Tile size: 32x16 px (2:1 isometric), 32 pixels per unit.
 /// </summary>
-public static class PixelArt
+public static partial class PixelArt
 {
     public const int PPU = 32;
     public const int HeightPx = 6; // pixels per terrain height level
@@ -75,6 +75,7 @@ public static class PixelArt
                     foreach (var o in outfits) Player(d, f, h, o);
         for (int look = 0; look < 4; look++) for (int f = 0; f < 3; f++) Villager(look, f);
         Hut(); Totem();
+        HomePlaceholders(); // private island (PixelArt.Home.cs)
         foreach (Item it in Enum.GetValues(typeof(Item))) Icon(it);
         return generated;
     }
@@ -2627,6 +2628,8 @@ public static class PixelArt
         Item.Fiber => Grass(),
         Item.Stick => Stick(),
         Item.Stone => Rock(),
+        Item.FurnBed => Bed(), Item.FurnTable => Table(), Item.FurnChair => Chair(), Item.FurnRug => Rug(),
+        Item.FurnPlant => PlantPot(), Item.FurnShelf => Shelf(), Item.FurnWorkbench => Workbench(),
         _ => Get("icon_" + it.ToString().ToLowerInvariant(), () => DrawIcon(it)),
     };
 
@@ -2636,6 +2639,7 @@ public static class PixelArt
         Color leaf = Hex("#4c8f37");
         var steam = new Color(1f, 1f, 1f, 0.6f);
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
+        if (DrawHomeIcon(c, it)) return c.ToSprite(8, 8); // private island items (PixelArt.Home.cs)
         switch (it)
         {
             case Item.Chitin:

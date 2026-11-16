@@ -101,6 +101,7 @@ public partial class IslandGame
         else if (IsWeapon(it)) ToggleWeapon(it);
         else if (it == Item.WaterFlask) DrinkFlask();
         else if (it == Item.Sundial) UseSundial();
+        else if (IsSeed(it)) { preferredSeed = it; Hint($"แปลงผักว่างจะปลูก{Name(it)}ก่อน", 2f); }
         else Hint($"{Name(it)}: ใช้ในการประดิษฐ์ (Tab)", 2f);
     }
 
@@ -313,13 +314,15 @@ public partial class IslandGame
         string info = FoodValue(sel) > 0 ? $"อาหาร: อิ่ม +{FoodValue(sel)}" + (HealValue(sel) > 0 ? $", พลังชีวิต +{HealValue(sel)}" : "")
                     : IsClothing(sel) || IsWeapon(sel) ? GearText(sel)
                     : IsPowerFruit(sel) ? $"กินแล้วได้พลัง{PowerName(PowerOf(sel))}"
+                    : IsSeed(sel) ? "เมล็ดพันธุ์ ปลูกในแปลงผักบนเกาะส่วนตัว"
+                    : SellPrice(sel) > 0 && TabOf(sel) != BagTab.Special ? $"ขายที่ตลาดได้ชิ้นละ {SellPrice(sel)} เหรียญ"
                     : TabOf(sel) == BagTab.Special ? "ของหายาก ใช้ทำของพิเศษหรือส่งภารกิจ"
                     : "วัตถุดิบสำหรับประดิษฐ์";
         ShadowLabel(new Rect(det.x + 8, det.y + 4, det.width - 16, 20), $"<b>{Name(sel)}</b>  x{Count(sel)}   <size=11>{info}</size>", label);
         float bx = det.x + 8, by = det.y + 30, bw = (det.width - 16 - 4 * 4) / 5f;
         var bst = new GUIStyle(GUI.skin.button) { fontSize = 11 };
         string useLabel = IsClothing(sel) ? (IsWorn(sel) ? "ถอด" : "สวม") : IsWeapon(sel) ? (weapon == sel ? "เก็บ" : "ถือ")
-                        : FoodValue(sel) > 0 ? "กิน" : IsPowerFruit(sel) ? "กิน" : sel == Item.Antidote || sel == Item.Sundial ? "ใช้" : "-";
+                        : FoodValue(sel) > 0 ? "กิน" : IsPowerFruit(sel) ? "กิน" : sel == Item.Antidote || sel == Item.Sundial ? "ใช้" : IsSeed(sel) ? "ปลูกก่อน" : "-";
         GUI.enabled = useLabel != "-";
         if (GUI.Button(new Rect(bx, by, bw, 24), useLabel, bst)) UseItem(sel);
         GUI.enabled = true;

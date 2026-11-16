@@ -21,11 +21,18 @@ public enum Item
     CrystalShard, CrystalArmor, // Crystal island
     Copper, StormHood, // Storm island
     Chitin, Honey, Nectar, ButterflyWings, // Giant Insect island
+    // Private island (IslandGame.Home.cs / Farm.cs / Shop.cs)
+    CarrotSeed, TomatoSeed, WheatSeed, Carrot, Tomato, Wheat, Egg, Milk, CookedEgg, Salad,
+    Tuna, GoldenFish, Hoe, WateringCan, FishingRod, Hammer, Plank,
+    Fertilizer, AnimalFeed, // made at the workbench in your house
+    FurnBed, FurnTable, FurnChair, FurnRug, FurnPlant, FurnShelf, FurnWorkbench, // furniture
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
     Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue, Kelp, CoralNode, Oyster, AirVent, SandCrystal, ClockRuin, ClockTower, IceCrystal, HotSpring,
-    Wreck, Chest, Pillar, GiantTree, Shrine, LostBundle, SunkenTemple, Relic, GiantClam, DigSpot, PirateShip, Tent, Cannon, CrystalCluster, Mirror, CrystalVault, LightningRod, CopperOre, GiantGrass, GiantFlower, Beehive, Anthill }
+    Wreck, Chest, Pillar, GiantTree, Shrine, LostBundle, SunkenTemple, Relic, GiantClam, DigSpot, PirateShip, Tent, Cannon, CrystalCluster, Mirror, CrystalVault, LightningRod, CopperOre, GiantGrass, GiantFlower, Beehive, Anthill,
+    Plot, Fence, StonePath, Flowers, Bench, Scarecrow, Cottage, Signpost, Chicken, Cow, // private island
+    Bed, Table, Chair, Rug, PlantPot, Shelf, Workbench, HouseDoor } // inside your house
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky, Bubble, Hourglass, Ice, Sunken, Pirate, Crystal, Storm, Insect }
 
@@ -40,6 +47,7 @@ public class Recipe
     public bool needsFire, atShore;
     public bool raftUpgrade;    // cost depends on the island's biome and raft level (see RefreshRaftUpgrade)
     public bool learn;          // must be taught by the tribe's weaver first
+    public int count = 1;       // how many you get
 }
 
 /// <summary>
@@ -127,6 +135,14 @@ public partial class IslandGame : MonoBehaviour
         new Recipe { name = "ผ้าคลุมพายุ", output = Item.StormHood, learn = true, cost = new[] { (Item.Copper, 3), (Item.Feather, 2), (Item.Fiber, 6) }, desc = "หมวก: โจมตีเร็วขึ้น 20%, ดาเมจ +1, ฟ้าผ่าไม่โดน" },
         // taught by the Giant Insect island's butterfly keeper
         new Recipe { name = "ปีกผีเสื้อ", output = Item.ButterflyWings, learn = true, cost = new[] { (Item.Nectar, 4), (Item.Chitin, 4), (Item.Fiber, 6) }, desc = "เดินเร็วขึ้น 15% ทุกที่" },
+        // private island: farming, fishing, building (IslandGame.Home.cs)
+        new Recipe { name = "แผ่นไม้", output = Item.Plank, count = 2, cost = new[] { (Item.Wood, 2) }, desc = "ไสไม้เป็นแผ่น ใช้สร้างบ้านและม้านั่ง (ได้ 2 แผ่น)" },
+        new Recipe { name = "จอบ", output = Item.Hoe, cost = new[] { (Item.Stick, 2), (Item.Stone, 2), (Item.Rope, 1) }, desc = "ขุดแปลงผักบนเกาะส่วนตัว (G)" },
+        new Recipe { name = "บัวรดน้ำ", output = Item.WateringCan, cost = new[] { (Item.Wood, 2), (Item.Stone, 1), (Item.Rope, 1) }, desc = "รดน้ำแปลงผักให้โต" },
+        new Recipe { name = "เบ็ดตกปลา", output = Item.FishingRod, cost = new[] { (Item.Stick, 3), (Item.Rope, 2), (Item.Fiber, 2) }, desc = "ตกปลาริมทะเล ได้ปลาหลายชนิด" },
+        new Recipe { name = "ค้อน", output = Item.Hammer, cost = new[] { (Item.Stick, 2), (Item.Stone, 3), (Item.Rope, 1) }, desc = "รื้อสิ่งก่อสร้าง ได้วัตถุดิบคืนครึ่งหนึ่ง (G)" },
+        new Recipe { name = "ไข่ทอด", output = Item.CookedEgg, cost = new[] { (Item.Egg, 1) }, needsFire = true, desc = "อิ่ม +30, พลังชีวิต +10" },
+        new Recipe { name = "สลัดผัก", output = Item.Salad, cost = new[] { (Item.Carrot, 1), (Item.Tomato, 1) }, desc = "อิ่ม +45, พลังชีวิต +15" },
         new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
     };
 
@@ -217,11 +233,13 @@ public partial class IslandGame : MonoBehaviour
         Item.Berry => 10, Item.Fruit => 20, Item.CookedFruit => 40,
         Item.RawFish => 8, Item.CookedFish => 35, Item.CrabMeat => 8, Item.CookedCrab => 45,
         Item.RawMeat => 10, Item.CookedMeat => 50, Item.Honey => 30,
+        Item.Carrot => 15, Item.Tomato => 10, Item.Milk => 10, Item.CookedEgg => 30, Item.Salad => 45, Item.Tuna => 12,
         _ => 0,
     };
-    public static int HealValue(Item it) => it switch { Item.Honey => 20, Item.CookedFruit => 10, Item.CookedFish => 10, Item.CookedCrab => 15, Item.CookedMeat => 15, _ => 0 };
-    public static int ThirstValue(Item it) => it switch { Item.Berry => 3, Item.Fruit => 6, _ => 0 }; // juicy food helps a little
-    public static bool IsTool(Item it) => it is Item.StoneAxe or Item.Spear or Item.StoneKnife or Item.WaterFlask or Item.ObsidianSpear or Item.ObsidianAxe or Item.MushroomLantern or Item.CanvasSail or Item.Balloon or Item.DivingBell or Item.Sundial or Item.SpikedBoots or Item.Shovel or Item.Compass or Item.ButterflyWings;
+    public static int HealValue(Item it) => it switch { Item.Honey => 20, Item.CookedFruit => 10, Item.CookedFish => 10, Item.CookedCrab => 15, Item.CookedMeat => 15, Item.CookedEgg => 10, Item.Salad => 15, Item.Milk => 5, _ => 0 };
+    public static int ThirstValue(Item it) => it switch { Item.Berry => 3, Item.Fruit => 6, Item.Tomato => 8, Item.Carrot => 3, Item.Milk => 25, _ => 0 }; // juicy food helps a little
+    public static bool IsTool(Item it) => it is Item.StoneAxe or Item.Spear or Item.StoneKnife or Item.WaterFlask or Item.ObsidianSpear or Item.ObsidianAxe or Item.MushroomLantern or Item.CanvasSail or Item.Balloon or Item.DivingBell or Item.Sundial or Item.SpikedBoots or Item.Shovel or Item.Compass or Item.ButterflyWings
+        or Item.Hoe or Item.WateringCan or Item.FishingRod or Item.Hammer;
     public static bool IsHat(Item it) => it is Item.StrawHat or Item.TribalHeadband or Item.StormHood;
     public static bool IsOutfit(Item it) => it is Item.LeafTunic or Item.HideVest or Item.CrystalArmor;
     public static bool IsClothing(Item it) => IsHat(it) || IsOutfit(it);
@@ -293,6 +311,32 @@ public partial class IslandGame : MonoBehaviour
         Item.Honey => "น้ำผึ้ง",
         Item.Nectar => "น้ำหวานดอกไม้",
         Item.ButterflyWings => "ปีกผีเสื้อ",
+        Item.CarrotSeed => "เมล็ดแครอท",
+        Item.TomatoSeed => "เมล็ดมะเขือเทศ",
+        Item.WheatSeed => "เมล็ดข้าวสาลี",
+        Item.Carrot => "แครอท",
+        Item.Tomato => "มะเขือเทศ",
+        Item.Wheat => "ข้าวสาลี",
+        Item.Egg => "ไข่ไก่",
+        Item.Milk => "นมวัว",
+        Item.CookedEgg => "ไข่ทอด",
+        Item.Salad => "สลัดผัก",
+        Item.Tuna => "ปลาทูน่า",
+        Item.GoldenFish => "ปลาทองคำ",
+        Item.Hoe => "จอบ",
+        Item.WateringCan => "บัวรดน้ำ",
+        Item.FishingRod => "เบ็ดตกปลา",
+        Item.Hammer => "ค้อน",
+        Item.Plank => "แผ่นไม้",
+        Item.Fertilizer => "ปุ๋ยหมัก",
+        Item.AnimalFeed => "อาหารสัตว์",
+        Item.FurnBed => "เตียงนอน",
+        Item.FurnTable => "โต๊ะไม้",
+        Item.FurnChair => "เก้าอี้ไม้",
+        Item.FurnRug => "พรมทอมือ",
+        Item.FurnPlant => "กระถางต้นไม้",
+        Item.FurnShelf => "ชั้นวางของ",
+        Item.FurnWorkbench => "โต๊ะช่าง",
         _ => it.ToString(),
     };
 
@@ -306,18 +350,32 @@ public partial class IslandGame : MonoBehaviour
         InitTitle(); // choose a name and online / offline first (IslandGame.Net.cs)
     }
 
-    static SaveData NewRun() => new SaveData
+    static SaveData NewRun()
     {
-        seed = System.Environment.TickCount, island = 1, fresh = true,
-        level = 1, health = 100f, hunger = 100f, thirst = 100f,
-    };
+        var d = new SaveData
+        {
+            seed = System.Environment.TickCount, island = 1, fresh = true,
+            level = 1, health = 100f, hunger = 100f, thirst = 100f,
+        };
+        var home = SaveSystem.TakeHomeKeep(); // your private island from the last run, if you built one
+        if (home != null && home.homeMade)
+        {
+            d.homeMade = true;
+            d.homeNodes.AddRange(home.homeNodes);
+            d.homeStickCap = home.homeStickCap; d.homeRockCap = home.homeRockCap;
+            d.houseLevel = home.houseLevel; d.roomMade = home.roomMade;
+            d.houseNodes.AddRange(home.houseNodes);
+        }
+        return d;
+    }
 
     /// Loads an island from save data. data == null starts a brand new run on island 1.
     /// data.fresh means the island hasn't been generated yet (new run / just arrived by raft).
     void StartGame(SaveData data)
     {
         if (data == null) data = NewRun();
-        if (Online)
+        LoadHome(data); // private island state (IslandGame.Home.cs)
+        if (Online && !atHome)
         {
             // Online everyone shares the island: build it fresh from the shared seed, then
             // catch up on what other players already changed (see "room" in IslandGame.Net.cs).
@@ -340,10 +398,10 @@ public partial class IslandGame : MonoBehaviour
         island = Mathf.Max(1, data.island);
         farthest = Mathf.Max(island, data.farthest);
         visited.Clear();
-        foreach (var v in data.visited) if (v != null && v.island != island) visited.Add(v);
+        foreach (var v in data.visited) if (v != null && (atHome || v.island != island)) visited.Add(v); // at home, the island you came from waits in `visited`
         // Saves before v6 used a 3-island cycle; keep their island the same biome it was.
-        biome = data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island);
-        tier = (island - 1) / 15;
+        biome = atHome ? Biome.Tropical : data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island);
+        tier = atHome ? 0 : (island - 1) / 15;
         seed = data.seed;
         raftLevel = data.raftLevel;
         learned.Clear();
@@ -363,7 +421,12 @@ public partial class IslandGame : MonoBehaviour
         rnd = new System.Random(seed);
         genPhase = true; // nodes made from the seed get the same ids on every machine
         ComputeTraits(); // name, shape, colours, weather, landmarks... (IslandGame.Traits.cs)
-        BuildIsland(Center, spawnResources: fresh);
+        if (atHome) HomeTraits();
+        if (inHouse) BuildRoom(fresh); // inside your house: a room instead of an island (IslandGame.House.cs)
+        else BuildIsland(Center, spawnResources: fresh);
+        if (fresh && atHome && !inHouse) BuildHome(); // first visit: town, starter farm and pen
+        if (!atHome)
+        {
         if (fresh && biome == Biome.Tribal) BuildVillage();
         if (fresh && biome == Biome.Mushroom) BuildMushroomCamp();
         if (fresh && biome is Biome.Turtle or Biome.Sky or Biome.Bubble or Biome.Hourglass or Biome.Ice) BuildCamp();
@@ -375,6 +438,7 @@ public partial class IslandGame : MonoBehaviour
         if (fresh) BuildInsectIsland();
         if (fresh) BuildClockTower();
         if (fresh) PlaceAirVents();
+        }
         genPhase = false;
 
         Vector2? landing = null;
@@ -382,8 +446,10 @@ public partial class IslandGame : MonoBehaviour
         {
             foreach (var ns in data.nodes)
             {
+                if (ns.kind == NodeKind.HouseDoor) continue; // older saves kept the doormat; the room makes a new one
                 var node = Spawn(ns.kind, ns.grid, ns.flip);
-                if (ns.kind == NodeKind.Drop) { node.dropItem = (Item)ns.item; node.dropCount = ns.count; }
+                if (ns.kind is NodeKind.Drop or NodeKind.Plot) { node.dropItem = (Item)ns.item; node.dropCount = ns.count; }
+                node.built = ns.built;
                 node.Restore(ns.available, ns.hits, ns.regrow);
             }
             stickCap = data.stickCap; rockCap = data.rockCap; obsidianCap = data.obsidianCap;
@@ -391,13 +457,16 @@ public partial class IslandGame : MonoBehaviour
             if (data.version < 5 && raftLevel == 0 && RaftNode != null) { raftLevel = island; RaftNode.Refresh(); }
         }
         // Arrived by boat (a new island, or one you're coming back to): it's pulled up on the west shore.
-        if (raftLevel > 0 && RaftNode == null) landing = BeachRaft();
+        if (raftLevel > 0 && RaftNode == null && !atHome) landing = BeachRaft();
         foreach (var st in data.items) if (st.count > 0) inv[st.item] = st.count;
         AutoEquipWeapon(); // old saves and empty hands: hold the best weapon you own
         System.Array.Clear(skills, 0, skills.Length);
         for (int i = 0; i < skills.Length && i < data.skills.Count; i++) skills[i] = data.skills[i];
         level = Mathf.Max(1, data.level); xp = data.xp; skillPoints = data.skillPoints; flaskWater = data.flaskWater;
         health = Mathf.Min(data.health, MaxHealth); hunger = data.hunger; thirst = data.thirst; clock = data.clock;
+        if (atHome) { if (!inHouse) SpawnHomeFolk(); } // the town's shopkeepers (IslandGame.Shop.cs)
+        else
+        {
         if (biome == Biome.Tribal) SpawnVillagers();
         SpawnIslandPeople(); // the shipwright (every island), and the mushroom doctor and her child
         BuildTurtle();       // flood water and the turtle's head (Turtle island only)
@@ -409,6 +478,7 @@ public partial class IslandGame : MonoBehaviour
         BuildWarship();
         SpawnThunderbird();
         SpawnQueen();
+        }
 
         Vector2 start = landing ?? (!fresh && IsLand(data.player) ? data.player : Center);
         player = new GameObject("Player").AddComponent<PlayerController>();
@@ -421,12 +491,16 @@ public partial class IslandGame : MonoBehaviour
         cursor.sortingOrder = -30000; // above ground, below objects
 
         camPos = player.transform.position;
-        if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
+        ResetHomeTools(); // build mode, fishing line
+        if (inHouse) Hint($"ในบ้าน{HouseName(houseLevel)} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก", 6f);
+        else if (atHome) Hint(fresh ? "ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น" : "กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่", 7f);
+        else if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
         else if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
         else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
         else Hint($"เห็นฝั่งแล้ว! {T.name} (เกาะที่ {island}, {BiomeName}) {BiomeIntro()}" + (T.alpha ? $" ได้ยินว่ามีจ่าฝูง{EnemyName(T.alphaKind)}อยู่บนเกาะนี้!" : ""), 9f);
         if (fresh || landing != null) SaveGame(); // replaces any old save right away
-        JoinRoom();            // online: meet whoever else is on this island
+        if (atHome) LeaveRoom(); // your private island is yours alone
+        else JoinRoom();         // online: meet whoever else is on this island
     }
 
     string BiomeIntro() => biome switch
@@ -547,13 +621,14 @@ public partial class IslandGame : MonoBehaviour
             powerId = (int)power, powerLv = powerLv, powerXp = powerXp,
         };
         d.visited.AddRange(visited);
+        SaveHome(d);
         SaveQuests(d);
         SaveBag(d);
         d.skills.AddRange(skills);
         foreach (var l in learned) d.learned.Add((int)l);
         foreach (var kv in inv) if (kv.Value > 0) d.items.Add(new ItemStack { item = kv.Key, count = kv.Value });
         foreach (var n in nodes)
-            if (n != null)
+            if (n != null && n.kind != NodeKind.HouseDoor) // the doormat is rebuilt with the room
                 d.nodes.Add(ToSave(n));
         return d;
     }
@@ -561,7 +636,7 @@ public partial class IslandGame : MonoBehaviour
     static NodeSave ToSave(WorldNode n) => new NodeSave
     {
         kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining,
-        item = (int)n.dropItem, count = n.dropCount,
+        item = (int)n.dropItem, count = n.dropCount, built = n.built,
     };
 
     public void SaveGame()
@@ -654,7 +729,7 @@ public partial class IslandGame : MonoBehaviour
                 if (k != null) Spawn(k.Value, g + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f);
             }
 
-        PlaceGlowingTree(); // a rare special-fruit tree (IslandGame.Power.cs)
+        if (!atHome) PlaceGlowingTree(); // a rare special-fruit tree (IslandGame.Power.cs)
         BuildProsperity();  // houses, lamps, farms... by island level (IslandGame.Town.cs)
         PlaceLandmarks();   // shipwreck, ruins, giant tree, shrine (IslandGame.Traits.cs)
 

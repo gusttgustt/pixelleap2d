@@ -29,6 +29,20 @@ public class SaveData
     public int powerId, powerLv = 1, powerXp;            // special-fruit power (IslandGame.Power.cs)
     public int weaponId;                                 // equipped weapon + 1 (0 = none)
     public List<int> hotbar = new List<int>();           // shortcut slots: item + 1 (0 = empty)
+    // Private island (IslandGame.Home.cs). While atHome, `nodes` holds the home island and the
+    // adventure island you came from is kept in `visited` (island = advIsland).
+    public bool atHome;
+    public bool homeMade;                                // the private island has been visited once
+    public int advIsland;                                // adventure island to go back to
+    public Vector2 advPlayer;                            // where you stood on it
+    public List<NodeSave> homeNodes = new List<NodeSave>(); // the private island while you're away
+    public int homeStickCap, homeRockCap;
+    // Inside your house (IslandGame.House.cs). While inHouse, `nodes` is the room and homeNodes the
+    // island outside; otherwise the room waits in houseNodes.
+    public bool inHouse, roomMade;
+    public int houseLevel;                               // 0 = no house built yet
+    public Vector2 homeReturn;                           // where you stood outside before going in
+    public List<NodeSave> houseNodes = new List<NodeSave>();
 }
 
 /// An island you've been to and left: rebuilt from its seed, then its saved objects put back.
@@ -55,7 +69,8 @@ public class NodeSave
     public bool available, flip;
     public int hits;
     public float regrow; // seconds left until it regrows
-    public int item, count; // dropped items (NodeKind.Drop)
+    public int item, count; // dropped items (NodeKind.Drop); crop type / growth stage on farm plots
+    public bool built;      // put there by the player (can be taken down with the hammer)
 }
 
 /// Reads and writes the save file as JSON in Application.persistentDataPath.
@@ -100,6 +115,29 @@ public static class SaveSystem
             Debug.LogWarning($"Load failed, starting a new island: {e.Message}");
             return null;
         }
+    }
+
+    /// The private island outlives a death on an adventure island: it's kept in its own small
+    /// file and handed to the next run (IslandGame.Home.cs).
+    static string HomeKeepPath => Path.Combine(Application.persistentDataPath, "island_home_keep.json");
+
+    public static void WriteHomeKeep(SaveData data)
+    {
+        try { File.WriteAllText(HomeKeepPath, JsonUtility.ToJson(data)); }
+        catch (Exception e) { Debug.LogWarning($"Keeping the home island failed: {e.Message}"); }
+    }
+
+    /// Reads and removes the kept home island (null if there is none).
+    public static SaveData TakeHomeKeep()
+    {
+        try
+        {
+            if (!File.Exists(HomeKeepPath)) return null;
+            var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(HomeKeepPath));
+            File.Delete(HomeKeepPath);
+            return data;
+        }
+        catch (Exception e) { Debug.LogWarning($"Reading the kept home island failed: {e.Message}"); return null; }
     }
 
     public static void Delete()

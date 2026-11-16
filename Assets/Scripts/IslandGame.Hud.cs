@@ -63,10 +63,12 @@ public partial class IslandGame
         if (biome == Biome.Sunken && voyage == null) col = Color.Lerp(col, new Color(0.4f, 0.75f, 1f), 0.6f);
         col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
         float intensity = Mathf.Lerp(0.22f, 1f, daylight);
+        if (inHouse) { intensity = Mathf.Max(intensity, 0.85f); col = Color.Lerp(col, new Color(1f, 0.92f, 0.8f), 0.7f); } // lamps on indoors
         if (sun != null) { sun.color = col; sun.intensity = intensity; }
         Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f)
                   : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f)
                   : biome == Biome.Sunken && voyage == null ? new Color(0.03f, 0.1f, 0.22f) : PixelArt.WaterColor) * col * intensity;
+        if (inHouse) bg = new Color(0.08f, 0.055f, 0.045f);
         bg.a = 1f;
         cam.backgroundColor = bg;
     }
@@ -122,6 +124,13 @@ public partial class IslandGame
         NodeKind.HotSpring => "แช่บ่อน้ำร้อน",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
+        NodeKind.Plot => PlotPrompt(n),
+        NodeKind.Chicken or NodeKind.Cow => AnimalPrompt(n),
+        NodeKind.Cottage => $"{HouseName(houseLevel)} Lv {Mathf.Max(1, houseLevel)} (เข้าบ้าน / อัปเกรด)",
+        NodeKind.Bed => IsNight ? "นอน" : "เตียง (นอนได้ตอนกลางคืน)",
+        NodeKind.Workbench => "ใช้โต๊ะช่าง (ของฟาร์ม / ของตกแต่ง)",
+        NodeKind.HouseDoor => "ออกจากบ้าน",
+        NodeKind.Signpost => "อ่านป้าย",
         _ => "",
     };
 
@@ -181,6 +190,7 @@ public partial class IslandGame
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
         float W = Screen.width / s, H = Screen.height / s;
         DrawSoundButton(W);
+        if (!title) DrawHomeButton(W); // private island <-> adventure (IslandGame.Home.cs)
         if (title)
         {
             // keep the creator box in the middle of tall screens (phones held upright, tall windows)
@@ -200,10 +210,13 @@ public partial class IslandGame
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
         Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
         Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
-        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
+        string where = inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
+            : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
+            : voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
             : $"เกาะที่ {island}: {T.name}  <size=11>{BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
-        string goal = voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
+        string goal = atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
+                    : voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
                     : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
                     : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
@@ -223,6 +236,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
             infoY += 16f;
         }
+        infoY = DrawHomeHud(infoY, s); // coins, fishing line, animals (IslandGame.Home.cs)
         infoY = DrawPowerHud(infoY);
         infoY = DrawTurtleHud(infoY);
         infoY = DrawSkyHud(infoY);
@@ -251,7 +265,7 @@ public partial class IslandGame
             foreach (var c in voyage.creatures)
                 if (c != null && c.hp < c.maxHp) HpBar(c.transform.position + Vector3.up * 0.6f, c.hp, c.maxHp, s);
 
-        if (!craftOpen && !skillsOpen && !dead && !Busy) DrawPrompt(s);
+        if (!craftOpen && !skillsOpen && !dead && !Busy && !buildOpen) DrawPrompt(s);
 
         for (int i = popups.Count - 1; i >= 0; i--)
         {
@@ -267,6 +281,7 @@ public partial class IslandGame
         if (bagOpen) DrawBag(W, H);
         if (craftOpen) DrawCrafting(W, H);
         if (skillsOpen) DrawSkills(W, H);
+        if (buildOpen && !Busy) DrawBuildPanel(W, H); // IslandGame.Build.cs
 
         // "!" over the weaver while she has something to teach
         foreach (var v in villagers)
@@ -280,7 +295,8 @@ public partial class IslandGame
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
         if (!touchUsed) ShadowLabel(new Rect(14, H - 22, W - 28, 20),
-            "WASD เดิน | E ใช้/โจมตี | R พลัง | T ท่าพิเศษ | B กระเป๋า | 1-8 ช่องลัด | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | M เสียง | ล้อเมาส์ ซูม | F5 เซฟ F9 โหลด F8 เริ่มใหม่", small);
+            buildOpen ? "WASD เดิน | E วาง/รื้อ | Z X เลือกของ | R หมุน | G หรือ Esc ออกจากโหมดสร้าง"
+            : "WASD เดิน | E ใช้/โจมตี | R พลัง | T ท่าพิเศษ | B กระเป๋า | 1-8 ช่องลัด | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | H เกาะส่วนตัว | G สร้าง/รื้อ | M เสียง | F5 เซฟ", small);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
@@ -296,6 +312,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(0, H / 2 - 20, W, 40), "คร่อก...", titleCenter, new Color(1f, 1f, 1f, a));
         }
 
+        DrawHomeWarp(W, H);
         if (sailT > 0f)
         {
             // fade to sea blue, swap islands behind it, fade back in
@@ -606,10 +623,12 @@ public partial class IslandGame
             if (voyage.target != null) { text = $"โจมตี{voyage.target.DisplayName} (ดาเมจ {WeaponDamage})"; at = voyage.target.transform.position + Vector3.up * 0.7f; }
             else if (HasSpear) { text = "แทงปลา"; at = PlayerPos + Vector3.up * 0.8f; }
         }
+        else if (fishState != 0) { text = fishState == 2 ? "ปลากินเบ็ด! กดเลย!" : "รอปลากินเบ็ด... (E เก็บสาย)"; at = PlayerPos + Vector3.up * 1.1f; }
         else if (enemyTarget != null) { text = $"โจมตี{enemyTarget.DisplayName} (ดาเมจ {WeaponDamage})"; at = enemyTarget.transform.position + Vector3.up * 0.6f; }
         else if (villagerTarget != null) { text = $"คุยกับ{villagerTarget.Title}"; at = villagerTarget.transform.position + Vector3.up * 0.95f; }
         else if (target != null) { text = Prompt(target); at = target.transform.position + Vector3.up * target.PromptHeight; }
         else if (pond != null) { text = "ดื่มน้ำ"; at = GridToWorld(pond.Value) + Vector3.up * 0.3f; }
+        else if (seaSpot != null && HasRod) { text = "ตกปลา (เบ็ด)"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }
         else if (seaSpot != null && HasSpear) { text = "แทงปลา"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }
         if (text == null) return;
         var gp = ToGui(at, s);
@@ -658,11 +677,12 @@ public partial class IslandGame
     void DrawCrafting(float W, float H)
     {
         const float pw = 330f, rowH = 52f, top = 70f;
+        var Recipes = CraftList; // the workbench has its own list (IslandGame.House.cs)
         float contentH = Recipes.Length * (rowH + 4f);
         var panel = new Rect(W - pw - 14, top, pw, Mathf.Min(H - top - 130f, contentH + 40f));
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
-        ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), "ประดิษฐ์   <size=11>(Tab ปิด, กดตัวเลขเพื่อสร้าง)</size>", label);
+        ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), (benchOpen ? "โต๊ะช่าง" : "ประดิษฐ์") + "   <size=11>(Tab ปิด, กดตัวเลขเพื่อสร้าง)</size>", label);
 
         var view = new Rect(panel.x + 4, panel.y + 32, pw - 8, panel.height - 36);
         var content = new Rect(0, 0, view.width - 18, contentH);
