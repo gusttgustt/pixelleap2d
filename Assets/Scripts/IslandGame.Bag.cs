@@ -17,14 +17,14 @@ public partial class IslandGame
     public readonly Item?[] hotbar = new Item?[8];
 
     // ------------------------------------------------------------------ item kinds and gear stats
-    public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear;
+    public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear or Item.Trident;
     static bool IsUsable(Item it) => FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial;
 
     static BagTab TabOf(Item it) =>
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
         : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
-            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur ? BagTab.Special
+            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic ? BagTab.Special
         : BagTab.Materials;
 
     static string TabName(BagTab t) => t switch
@@ -37,6 +37,7 @@ public partial class IslandGame
     {
         Item.Spear => (3, 0f, 0f, 0f, 0f),
         Item.ObsidianSpear => (6, 0.10f, 0f, 0f, 0f),
+        Item.Trident => (9, 0.15f, 0f, 0f, 0f),
         Item.StrawHat => (0, 0f, 0f, 0f, 0.15f),
         Item.TribalHeadband => (1, 0.15f, 0f, 0f, 0f),
         Item.LeafTunic => (0, 0.10f, 15f, 0f, 0f),
@@ -75,7 +76,7 @@ public partial class IslandGame
     void AutoEquipWeapon()
     {
         if (weapon != null && Count(weapon.Value) > 0) return;
-        weapon = Count(Item.ObsidianSpear) > 0 ? Item.ObsidianSpear : Count(Item.Spear) > 0 ? Item.Spear : (Item?)null;
+        weapon = Count(Item.Trident) > 0 ? Item.Trident : Count(Item.ObsidianSpear) > 0 ? Item.ObsidianSpear : Count(Item.Spear) > 0 ? Item.Spear : (Item?)null;
     }
 
     void ToggleWeapon(Item it)

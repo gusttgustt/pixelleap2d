@@ -27,7 +27,8 @@ public class WorldNode : MonoBehaviour
                                  or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree
                                  or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue
                                  or NodeKind.ClockRuin or NodeKind.ClockTower
-                                 or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine;
+                                 or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine
+                                 or NodeKind.SunkenTemple or NodeKind.GiantClam;
 
     public float BlockRadius => kind switch
     {
@@ -50,6 +51,8 @@ public class WorldNode : MonoBehaviour
         NodeKind.Pillar => 0.3f,
         NodeKind.Shrine => 0.5f,
         NodeKind.Chest => 0.35f,
+        NodeKind.SunkenTemple => 1.4f,
+        NodeKind.GiantClam => 0.5f,
         NodeKind.ClockRuin => 0.45f,
         _ => 0.32f,
     };
@@ -57,7 +60,8 @@ public class WorldNode : MonoBehaviour
     public bool CanTarget => kind switch
     {
         NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower
-            or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree => false,
+            or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.SunkenTemple => false,
+        NodeKind.GiantClam => true,
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
@@ -173,6 +177,9 @@ public class WorldNode : MonoBehaviour
             NodeKind.GiantTree => PixelArt.GiantTree(),
             NodeKind.Shrine => PixelArt.Shrine(),
             NodeKind.LostBundle => PixelArt.LostBundle(),
+            NodeKind.SunkenTemple => PixelArt.SunkenTemple(),
+            NodeKind.Relic => PixelArt.Relic(available),
+            NodeKind.GiantClam => PixelArt.GiantClam(),
             NodeKind.HotSpring => PixelArt.HotSpring(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
@@ -237,7 +244,7 @@ public class WorldNode : MonoBehaviour
         if (kind == NodeKind.Lamp && fireLight != null) fireLight.intensity = (1f - game.Daylight) * 1.2f;
         if (kind == NodeKind.HotSpring && Random.value < Time.deltaTime * 6f) // steam
             Fx.Burst(basePos + Vector3.up * 0.2f + (Vector3)(Random.insideUnitCircle * 0.3f), new Color(1f, 1f, 1f, 0.7f), 1, 0.2f, 0.4f, 1.5f, -0.8f);
-        if (kind == NodeKind.AirVent && Random.value < Time.deltaTime * 5f) // bubbles rising
+        if (kind is NodeKind.AirVent or NodeKind.GiantClam && Random.value < Time.deltaTime * 5f) // bubbles rising
             Fx.Burst(basePos + Vector3.up * 0.2f, new Color(0.8f, 0.95f, 1f, 0.9f), 1, 0.15f, 0.6f, 1.2f, -1.2f);
 
         if (kind == NodeKind.Campfire)

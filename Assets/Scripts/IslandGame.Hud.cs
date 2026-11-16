@@ -55,14 +55,17 @@ public partial class IslandGame
         Color night = new Color(0.45f, 0.55f, 1f), dusk = new Color(1f, 0.7f, 0.5f);
         if (biome == Biome.Mushroom && voyage == null) daylight = Mathf.Min(daylight, 0.42f); // the mushroom canopy keeps it dim
         if (biome == Biome.Bubble && voyage == null) daylight = Mathf.Clamp(daylight, 0.38f, 0.6f); // deep under the sea
+        if (biome == Biome.Sunken && voyage == null) daylight = Mathf.Clamp(daylight, 0.36f, 0.5f); // the sea floor
         Color col = Color.Lerp(night, Color.white, daylight);
         if (biome == Biome.Mushroom && voyage == null) col = Color.Lerp(col, new Color(0.7f, 0.55f, 1f), 0.35f);
         if (biome == Biome.Bubble && voyage == null) col = Color.Lerp(col, new Color(0.5f, 0.85f, 1f), 0.45f);
+        if (biome == Biome.Sunken && voyage == null) col = Color.Lerp(col, new Color(0.4f, 0.75f, 1f), 0.6f);
         col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
         float intensity = Mathf.Lerp(0.22f, 1f, daylight);
         if (sun != null) { sun.color = col; sun.intensity = intensity; }
         Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f)
-                  : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f) : PixelArt.WaterColor) * col * intensity;
+                  : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f)
+                  : biome == Biome.Sunken && voyage == null ? new Color(0.03f, 0.1f, 0.22f) : PixelArt.WaterColor) * col * intensity;
         bg.a = 1f;
         cam.backgroundColor = bg;
     }
@@ -101,6 +104,8 @@ public partial class IslandGame
         NodeKind.AirVent => "หายใจที่ช่องอากาศ",
         NodeKind.SandCrystal => "เก็บทรายเวลา",
         NodeKind.Chest => "เปิดหีบสมบัติ",
+        NodeKind.Relic => "อ่านแผ่นจารึก",
+        NodeKind.GiantClam => "หายใจจากหอยยักษ์",
         NodeKind.Shrine => "ไหว้ศาลเจ้าโบราณ",
         NodeKind.LostBundle => "เก็บห่อของที่หาย",
         NodeKind.IceCrystal => "เก็บเกล็ดน้ำแข็ง",
@@ -213,6 +218,7 @@ public partial class IslandGame
         infoY = DrawBubbleHud(infoY);
         infoY = DrawHourglassHud(infoY);
         infoY = DrawIceHud(infoY);
+        infoY = DrawSunkenHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,

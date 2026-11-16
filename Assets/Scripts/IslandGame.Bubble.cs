@@ -10,9 +10,9 @@ public partial class IslandGame
     float inkT;
     bool airWarned;
 
-    bool UnderSea => biome == Biome.Bubble && voyage == null;
+    bool UnderSea => biome is Biome.Bubble or Biome.Sunken && voyage == null;
     /// Seconds for a full tank to run out (much slower once the dome is fixed or with a diving bell).
-    float AirSeconds => Count(Item.DivingBell) > 0 ? 9999f : Flag("dome" + island) ? 600f : 160f;
+    float AirSeconds => Count(Item.DivingBell) > 0 ? 9999f : biome == Biome.Sunken ? 110f : Flag("dome" + island) ? 600f : 160f; // no dome in the Sunken City
 
     public void Ink(float seconds)
     {
@@ -36,7 +36,7 @@ public partial class IslandGame
         if (dead || Busy) return;
 
         // breathing at a vent fills you right up
-        bool atVent = nodes.Exists(n => n != null && n.kind == NodeKind.AirVent && (n.grid - player.grid).magnitude < 1.3f);
+        bool atVent = nodes.Exists(n => n != null && n.kind is NodeKind.AirVent or NodeKind.GiantClam && (n.grid - player.grid).magnitude < 1.3f);
         if (atVent)
         {
             if (air < 99f && Random.value < dt * 6f) Fx.Burst(PlayerPos + Vector3.up * 0.6f, new Color(0.8f, 0.95f, 1f), 1, 0.2f, 0.8f, 0.8f, -1.5f);
@@ -45,7 +45,7 @@ public partial class IslandGame
         }
         else air = Mathf.Max(0f, air - dt * 100f / AirSeconds);
 
-        if (air < 25f && !airWarned) { airWarned = true; Hint("อากาศใกล้หมด! รีบไปที่ช่องอากาศ (ฟองผุดจากพื้น)", 5f); }
+        if (air < 25f && !airWarned) { airWarned = true; Hint(biome == Biome.Sunken ? "อากาศใกล้หมด! รีบไปหาหอยยักษ์ที่พ่นฟองอากาศ" : "อากาศใกล้หมด! รีบไปที่ช่องอากาศ (ฟองผุดจากพื้น)", 5f); }
         if (air <= 0f)
         {
             health -= dt * 4f;

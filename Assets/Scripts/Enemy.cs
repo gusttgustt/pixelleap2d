@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -19,6 +19,9 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   TimeBeetle  - Hourglass island: blinks a couple of tiles towards you every few seconds.
 ///   Snowman     - Ice island: slow and sturdy; beaten, it bursts into two quick little snowlings.
 ///   FrostBat    - Ice island: swoops in fast; its bite chills you (warmth drops).
+///   Eel         - Sunken City: its shock leaves you stiff and slow.
+///   DeepCrab    - Sunken City: a heavy armoured crab, blows only half get through.
+///   Kraken      - Sunken City boss: lashes everything near it and clouds the water with ink.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -77,7 +80,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", EnemyKind.ChimeBird => "นกกระดิ่งลม",
         EnemyKind.LanternFish => "ปลาตะเกียง", EnemyKind.StoneSquid => "หมึกหิน",
         EnemyKind.WindupDoll => "ตุ๊กตาไขลาน", EnemyKind.TimeBeetle => "ด้วงทรายเวลา",
-        EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", _ => "ค้างคาวน้ำแข็ง",
+        EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", EnemyKind.FrostBat => "ค้างคาวน้ำแข็ง",
+        EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", _ => "อสูรหมึกยักษ์",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -125,6 +129,9 @@ public class Enemy : MonoBehaviour
             EnemyKind.Snowman => (9, 10f, 0.8f, 6f, 30),
             EnemyKind.Snowling => (2, 4f, 2.0f, 8f, 8),
             EnemyKind.FrostBat => (4, 6f, 2.2f, 8f, 20),
+            EnemyKind.Eel => (6, 9f, 1.7f, 6f, 28),
+            EnemyKind.DeepCrab => (12, 12f, 0.9f, 6f, 34),
+            EnemyKind.Kraken => (70, 18f, 0.7f, 8f, 200),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -240,6 +247,16 @@ public class Enemy : MonoBehaviour
             Apply();
             return;
         }
+        if (kind == EnemyKind.Kraken)
+        {
+            sporeT -= dt;
+            if (sporeT <= 0f && dist < 4.5f)
+            {
+                sporeT = 5f; // tentacles lash out and ink fills the water
+                Fx.Burst(transform.position + Vector3.up * 0.5f, new Color(0.15f, 0.1f, 0.25f), 24, 2.4f, 1.4f, 1f, 0f);
+                if (targetWho == 0 && dist < 3f) { game.DamagePlayer(damage * 0.6f, "หนวดฟาด!"); game.Ink(2.5f); }
+            }
+        }
         if (kind is EnemyKind.SporeSpider or EnemyKind.ShroomKing)
         {
             sporeT -= dt;
@@ -267,7 +284,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -307,6 +324,7 @@ public class Enemy : MonoBehaviour
                     if (kind == EnemyKind.Barnacle) game.Slow(2.5f);
                     if (kind == EnemyKind.StoneSquid) game.Ink(3f);
                     if (kind == EnemyKind.FrostBat) game.Chill(15f);
+                    if (kind == EnemyKind.Eel) game.Slow(2f);
                     if (kind == EnemyKind.ChimeBird && stolenCount == 0)
                     {
                         (stolenItem, stolenCount) = game.StealItem();
@@ -366,9 +384,9 @@ public class Enemy : MonoBehaviour
             }
             return false;
         }
-        if (variant == IslandGame.Variant.Armored) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * 0.6f)); // armour soaks blows
+        if (variant == IslandGame.Variant.Armored || kind == EnemyKind.DeepCrab) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind == EnemyKind.DeepCrab ? 0.5f : 0.6f))); // armour soaks blows
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind == EnemyKind.ShroomKing ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
         if (hp > 0) return false;
