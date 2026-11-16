@@ -193,6 +193,7 @@ public partial class IslandGame
         DrawQuestTracker(W);
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
+        DrawWarnings(W, H);
 
         Bar(new Rect(14, 14, 180, 14), health / MaxHealth, new Color(0.85f, 0.25f, 0.25f), $"พลังชีวิต {Mathf.CeilToInt(health)}/{MaxHealth:0}");
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");

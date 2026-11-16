@@ -23,6 +23,7 @@ public partial class IslandGame
         UpdateDayNight(dt);
         Fx.Tick(dt);
         hurtT -= dt;
+        UpdateWarnings(dt);
         UpdateTouch();
         UpdateLantern();
         TickPower(dt);

@@ -78,6 +78,19 @@ public static class Sfx
                 return Synth(name, 0.22f, (t, i) => Noise() * (Mathf.Sin(2 * Mathf.PI * 22 * t) > 0 ? 1f : 0.15f) * Mathf.Exp(-t * 10) * 0.6f);
             case "hurt":
                 return Synth(name, 0.22f, (t, i) => Mathf.Sign(Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(170, 80, t / 0.22f) * t)) * Mathf.Exp(-t * 12) * 0.35f);
+            case "warn": // two falling beeps: something's wrong
+                return Synth(name, 0.34f, (t, i) =>
+                {
+                    float lt = t % 0.17f;
+                    return Mathf.Sign(Mathf.Sin(2 * Mathf.PI * (t < 0.17f ? 880 : 620) * t)) * Mathf.Exp(-lt * 9) * 0.22f;
+                });
+            case "heartbeat": // lub-dub
+                return Synth(name, 0.42f, (t, i) =>
+                {
+                    float lt = t < 0.18f ? t : t - 0.18f;
+                    float amp = t < 0.18f ? 1f : 0.7f;
+                    return Mathf.Sin(2 * Mathf.PI * Mathf.Lerp(70, 45, lt / 0.18f) * lt) * Mathf.Exp(-lt * 22) * amp;
+                });
             case "hit":
                 return Synth(name, 0.1f, (t, i) => (Noise() * 0.5f + Mathf.Sin(2 * Mathf.PI * 320 * t)) * Mathf.Exp(-t * 40));
             case "craft": // two-note chime
