@@ -496,15 +496,69 @@ public partial class IslandGame
         if (Time.time < myChatUntil && player != null) ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat);
     }
 
+    static Texture2D bubbleTex, bubbleTailTex;
+    static GUIStyle bubbleBox, bubbleShadow;
+    static readonly Color BubbleFill = new Color32(255, 250, 238, 255), BubbleEdge = new Color32(70, 48, 30, 255);
+
+    /// Speech bubble over a player's head: rounded cream box with a dark outline, a soft
+    /// shadow and a little tail pointing down at the speaker. gp = top of the name tag.
     void ChatBubble(Vector2 gp, string text)
     {
-        var st = new GUIStyle(small) { wordWrap = true, alignment = TextAnchor.MiddleCenter, fontSize = 11 };
-        float w = Mathf.Min(200f, 14f + st.CalcSize(new GUIContent(text)).x);
-        float h = st.CalcHeight(new GUIContent(text), w - 8f) + 6f;
-        var r = new Rect(gp.x - w / 2f, gp.y - 22 - h, w, h);
-        Fill(r, new Color(1f, 1f, 1f, 0.92f));
-        st.normal.textColor = new Color(0.1f, 0.08f, 0.06f);
-        GUI.Label(new Rect(r.x + 4, r.y + 3, r.width - 8, r.height - 6), text, st);
+        if (bubbleTex == null) MakeBubbleTextures();
+        var content = new GUIContent(text);
+        var st = new GUIStyle(small) { wordWrap = true, alignment = TextAnchor.MiddleCenter, fontSize = 12, richText = false };
+        st.normal.textColor = new Color32(45, 30, 20, 255);
+        const float padX = 9f, padY = 5f, maxW = 190f;
+        float textW = Mathf.Min(maxW - padX * 2f, st.CalcSize(content).x + 2f);
+        float w = Mathf.Max(34f, textW + padX * 2f);
+        float h = st.CalcHeight(content, textW) + padY * 2f;
+        var r = new Rect(Mathf.Round(gp.x - w / 2f), Mathf.Round(gp.y - 27f - h), Mathf.Round(w), Mathf.Round(h));
+
+        GUI.Box(new Rect(r.x + 2f, r.y + 3f, r.width, r.height), GUIContent.none, bubbleShadow);       // shadow
+        GUI.Box(r, GUIContent.none, bubbleBox);                                                       // body
+        GUI.DrawTexture(new Rect(Mathf.Round(gp.x) - 6f, r.yMax - 2f, 12f, 9f), bubbleTailTex);       // tail
+        GUI.Label(new Rect(r.x + padX, r.y + padY, textW, r.height - padY * 2f), content, st);
+    }
+
+    /// The bubble's 9-sliced rounded box (and its shadow) and the tail, drawn once.
+    static void MakeBubbleTextures()
+    {
+        const int n = 24; const float rad = 7.5f, edge = 1.6f;
+        bubbleTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        var shadowTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                // signed distance to a rounded square filling the texture (negative inside)
+                float qx = Mathf.Abs(x + 0.5f - n / 2f) - (n / 2f - rad), qy = Mathf.Abs(y + 0.5f - n / 2f) - (n / 2f - rad);
+                float d = new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0f) - rad;
+                float a = Mathf.Clamp01(0.5f - d);                        // inside the shape
+                float inner = Mathf.Clamp01(0.5f - (d + edge));           // inside the outline
+                var c = Color.Lerp(BubbleEdge, BubbleFill, inner); c.a = a;
+                bubbleTex.SetPixel(x, y, c);
+                shadowTex.SetPixel(x, y, new Color(0f, 0f, 0f, a * 0.3f));
+            }
+        bubbleTex.Apply(); shadowTex.Apply();
+        var border = new RectOffset(10, 10, 10, 10);
+        bubbleBox = new GUIStyle { border = border }; bubbleBox.normal.background = bubbleTex;
+        bubbleShadow = new GUIStyle { border = border }; bubbleShadow.normal.background = shadowTex;
+
+        // tail: a downward triangle, outlined on its two slanted sides, open at the top
+        const int tw = 24, th = 18;
+        bubbleTailTex = new Texture2D(tw, th, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        for (int y = 0; y < th; y++)
+            for (int x = 0; x < tw; x++)
+            {
+                float fromTop = th - 1 - y + 0.5f;                       // texture y grows upwards
+                float half = (tw / 2f) * (1f - fromTop / th);            // half width at this row
+                float dx = Mathf.Abs(x + 0.5f - tw / 2f);
+                float d = (dx - half) * 0.85f;                           // ~distance to the slanted sides
+                float a = Mathf.Clamp01(0.5f - d);
+                float inner = Mathf.Clamp01(0.5f - (d + edge * 2f));
+                var c = Color.Lerp(BubbleEdge, BubbleFill, inner); c.a = a;
+                bubbleTailTex.SetPixel(x, y, c);
+            }
+        bubbleTailTex.Apply();
     }
 
     void DrawOnlineInfo(float W, float H)
