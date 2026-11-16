@@ -9,9 +9,12 @@ public struct CharacterLook
     public int preset;
 
     /// Ready-made characters: shown name + sprite name in Resources/Sprites
-    /// (hero_<id>_front_<frame>.png / hero_<id>_back_<frame>.png, frame 0 idle, 1-2 walk).
+    /// (hero_<id>_front_<frame>.png / hero_<id>_back_<frame>.png, frame 0 idle, 1-4 walk).
     public static readonly string[] Presets = { "ปรับแต่งเอง", "สาวหมวกเบเร่ต์ชมพู" };
     public static readonly string[] PresetIds = { null, "pinkberet" };
+    /// Art pixels per world pixel: 2 = drawn at double detail (64 px art shown at the
+    /// same size as 32 px art), so it is ready for a higher-detail world later.
+    public static readonly int[] PresetDetail = { 1, 2 };
     /// Codes from here up are ready-made characters, far above any build-your-own code.
     const int PresetBase = 1000000;
 
@@ -58,6 +61,7 @@ public struct CharacterLook
 
     /// Sprite id of a ready-made character, or null for build-your-own.
     public string PresetId => preset > 0 && preset < PresetIds.Length ? PresetIds[preset] : null;
+    public int PresetScale => preset > 0 && preset < PresetDetail.Length ? PresetDetail[preset] : 1;
 
     static Color C(string h) { ColorUtility.TryParseHtmlString(h, out var c); return c; }
     static Color Dark(Color c, float k = 0.2f) => Color.Lerp(c, Color.black, k);

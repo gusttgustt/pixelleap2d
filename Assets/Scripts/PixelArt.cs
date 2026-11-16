@@ -2107,10 +2107,11 @@ public static class PixelArt
     /// hat / outfit change the look (null = nothing worn).
     public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null, int look = 0)
     {
-        string preset = CharacterLook.FromCode(look).PresetId;
+        var pl = CharacterLook.FromCode(look);
+        string preset = pl.PresetId;
         if (preset != null)
         {
-            var ps = PresetPlayer(preset, dir, frame);
+            var ps = PresetPlayer(preset, pl.PresetScale, dir, frame);
             if (ps != null) return ps; // missing art falls back to the build-your-own look
         }
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
@@ -2179,14 +2180,15 @@ public static class PixelArt
     /// Ready-made characters have 4, the build-your-own look 2.
     public static int WalkFrames(int look)
     {
-        string preset = CharacterLook.FromCode(look).PresetId;
-        return preset != null && PresetPlayer(preset, 0, 4) != null ? 4 : 2;
+        var pl = CharacterLook.FromCode(look);
+        return pl.PresetId != null && PresetPlayer(pl.PresetId, pl.PresetScale, 0, 4) != null ? 4 : 2;
     }
 
     /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back>_<frame>.png).
-    /// The art has its feet 2 px above the bottom edge, like the generated player.
+    /// The art has its feet 2 world px (2 * scale art px) above the bottom edge, like the
+    /// generated player. scale = art pixels per world pixel (2 for double-detail art).
     /// Worn hats and outfits are not drawn on it.
-    static Sprite PresetPlayer(string id, int dir, int frame)
+    static Sprite PresetPlayer(string id, int scale, int dir, int frame)
     {
         string key = $"hero_{id}_{(dir == 0 ? "front" : "back")}_{frame}";
         if (cache.TryGetValue(key, out var s)) return s;
@@ -2194,7 +2196,7 @@ public static class PixelArt
         if (tex != null)
         {
             tex.filterMode = FilterMode.Point;
-            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 2f / tex.height), PPU, 0, SpriteMeshType.FullRect);
+            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 2f * scale / tex.height), PPU * scale, 0, SpriteMeshType.FullRect);
             s.name = key;
         }
         cache[key] = s;
