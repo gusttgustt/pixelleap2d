@@ -338,7 +338,7 @@ public partial class IslandGame
     {
         var big = new GUIStyle(titleCenter) { fontSize = 36 };
         ShadowLabel(new Rect(0, 28, W, 46), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
-        ShadowLabel(new Rect(0, 72, W, 22), "สร้างตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ", labelCenter, new Color(1f, 1f, 1f, 0.8f));
+        ShadowLabel(new Rect(0, 72, W, 22), "ตั้งชื่อตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ", labelCenter, new Color(1f, 1f, 1f, 0.8f));
 
         var box = new Rect(W / 2f - 280, 104, 560, 390);
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
@@ -361,6 +361,15 @@ public partial class IslandGame
         ShadowLabel(new Rect(x, y, w, 20), "ชื่อ", label);
         playerName = GUI.TextField(new Rect(x, y + 22, w, 26), playerName ?? "", 16, new GUIStyle(GUI.skin.textField) { fontSize = 15 });
         y += 60;
+        if (!CharacterLook.CanChoose)
+        {
+            ShadowLabel(new Rect(x, y, w, 20), "ตัวละคร", label);
+            ShadowLabel(new Rect(x, y + 22, w, 24), CharacterLook.Presets[look.preset], label, new Color(1f, 0.8f, 0.9f));
+            var note = new GUIStyle(small) { wordWrap = true };
+            ShadowLabel(new Rect(x, y + 52, w, 60), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม (ตัวละครอื่นจะเพิ่มในอนาคต)", note, new Color(1f, 1f, 1f, 0.75f));
+        }
+        else
+        {
         look.preset = Chooser(x, y, w, "ตัวละคร", look.preset, CharacterLook.Presets.Length, null, CharacterLook.Presets[look.preset]); y += 34;
         if (look.preset > 0)
         {
@@ -377,6 +386,7 @@ public partial class IslandGame
         look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 30;
         look.pants = Chooser(x, y, w, look.gender == 1 ? "กระโปรง" : "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 32;
         if (GUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
+        }
         }
 
         // --- play

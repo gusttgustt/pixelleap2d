@@ -15,6 +15,11 @@ public struct CharacterLook
     /// Art pixels per world pixel: 2 = drawn at double detail (64 px art shown at the
     /// same size as 32 px art), so it is ready for a higher-detail world later.
     public static readonly int[] PresetDetail = { 1, 2 };
+    /// For now everyone plays the one ready-made character (Presets[DefaultPreset]) and the
+    /// title screen has no chooser. Set to true to bring back picking / building a look.
+    public const bool CanChoose = false;
+    public const int DefaultPreset = 1;
+    public static CharacterLook Default => new CharacterLook { preset = DefaultPreset, gender = 1, style = 1 };
     /// Codes from here up are ready-made characters, far above any build-your-own code.
     const int PresetBase = 1000000;
 
