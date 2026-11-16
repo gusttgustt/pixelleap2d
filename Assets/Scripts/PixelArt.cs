@@ -2640,6 +2640,7 @@ public static partial class PixelArt
         var steam = new Color(1f, 1f, 1f, 0.6f);
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         if (DrawHomeIcon(c, it)) return c.ToSprite(8, 8); // private island items (PixelArt.Home.cs)
+        if (DrawPetIcon(c, it)) return c.ToSprite(8, 8);  // pet net (PixelArt.Pet.cs)
         switch (it)
         {
             case Item.Chitin:

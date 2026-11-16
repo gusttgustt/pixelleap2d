@@ -210,12 +210,14 @@ public partial class IslandGame
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
         Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
         Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
-        string where = inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
+        string where = visiting ? (inHouse ? $"ในบ้านของ {visitName}  <size=11>{HouseName(houseLevel)} Lv {Mathf.Max(1, houseLevel)}</size>" : $"เกาะส่วนตัวของ {visitName}  <size=11>มาเยี่ยมบ้าน</size>")
+            : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
             : voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
             : $"เกาะที่ {island}: {T.name}  <size=11>{BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
-        string goal = atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
+        string goal = visiting ? "เดินชมบ้านเพื่อน ทักทายด้วย Enter ร้านค้าในตลาดใช้ได้ตามปกติ  (H กลับบ้านตัวเอง)"
+                    : atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
                     : voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
                     : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
@@ -550,6 +552,7 @@ public partial class IslandGame
         Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 28, 20), d.speaker, label, new Color(1f, 0.85f, 0.3f));
         GUI.Label(new Rect(box.x + 14, box.y + 30, pw - 28, textH), d.text, textStyle);
+        if (renamePet >= 0) { DrawRenameField(new Rect(box.x + 16, box.y + 30 + textH - 30, Mathf.Min(320f, pw - 32f), 22f)); if (dialog != d) return; } // naming a pet (IslandGame.Pet.cs)
         float optY = box.y + 32f + textH;
         for (int i = 0; i < d.options.Count; i++)
         {
@@ -624,9 +627,14 @@ public partial class IslandGame
             else if (HasSpear) { text = "แทงปลา"; at = PlayerPos + Vector3.up * 0.8f; }
         }
         else if (fishState != 0) { text = fishState == 2 ? "ปลากินเบ็ด! กดเลย!" : "รอปลากินเบ็ด... (E เก็บสาย)"; at = PlayerPos + Vector3.up * 1.1f; }
-        else if (enemyTarget != null) { text = $"โจมตี{enemyTarget.DisplayName} (ดาเมจ {WeaponDamage})"; at = enemyTarget.transform.position + Vector3.up * 0.6f; }
+        else if (enemyTarget != null)
+        {
+            text = $"โจมตี{enemyTarget.DisplayName} (ดาเมจ {WeaponDamage})";
+            if (CatchTarget(enemyTarget) && Count(Item.PetNet) > 0 && enemyTarget.hp * 2 <= enemyTarget.maxHp) text += "  [P] จับมาเลี้ยง!"; // IslandGame.Pet.cs
+            at = enemyTarget.transform.position + Vector3.up * 0.6f;
+        }
         else if (villagerTarget != null) { text = $"คุยกับ{villagerTarget.Title}"; at = villagerTarget.transform.position + Vector3.up * 0.95f; }
-        else if (target != null) { text = Prompt(target); at = target.transform.position + Vector3.up * target.PromptHeight; }
+        else if (target != null) { text = visiting && !VisitAllowed(target.kind) ? $"ของ{visitName} (ดูได้อย่างเดียว)" : Prompt(target); at = target.transform.position + Vector3.up * target.PromptHeight; }
         else if (pond != null) { text = "ดื่มน้ำ"; at = GridToWorld(pond.Value) + Vector3.up * 0.3f; }
         else if (seaSpot != null && HasRod) { text = "ตกปลา (เบ็ด)"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }
         else if (seaSpot != null && HasSpear) { text = "แทงปลา"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }

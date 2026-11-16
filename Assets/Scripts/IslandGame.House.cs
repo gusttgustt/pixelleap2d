@@ -62,7 +62,12 @@ public partial class IslandGame
         var d = new Dialog { speaker = $"{HouseName(L)} Lv {L}" };
         d.text = $"บ้านของคุณ ห้องข้างในกว้าง {RoomSize}x{RoomSize} ช่อง เข้าไปจัดเฟอร์นิเจอร์และใช้โต๊ะช่างได้";
         d.options.Add(("เข้าบ้าน", () => BeginWarp(Warp.EnterHouse), true));
-        if (L < MaxHouseLevel)
+        if (visiting) // a friend's house (IslandGame.Visit.cs)
+        {
+            d.speaker = $"{HouseName(L)} ของ {visitName}";
+            d.text = $"บ้านของ {visitName} ห้องข้างในกว้าง {RoomSize}x{RoomSize} ช่อง เข้าไปดูการจัดบ้านได้";
+        }
+        else if (L < MaxHouseLevel)
         {
             var cost = UpgradeCost(L + 1);
             d.text += $"\nอัปเกรดเป็น{HouseName(L + 1)}: ห้องกว้างขึ้นเป็น {3 + 2 * (L + 1)}x{3 + 2 * (L + 1)} ช่อง";

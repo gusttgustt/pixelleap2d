@@ -16,6 +16,8 @@ public class RemotePlayer : MonoBehaviour
     Item? hat, outfit;
     float height;
     SpriteRenderer sr;
+    int petCode = -1;
+    Pet pet;
 
     public void Init(int id, string name)
     {
@@ -39,6 +41,24 @@ public class RemotePlayer : MonoBehaviour
         level = Mathf.Max(1, m.lv);
         look = Mathf.Max(0, m.look);
         if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
+        int pc = m.pet - 1;
+        if (pc != petCode)
+        {
+            petCode = pc;
+            if (pet != null) Destroy(pet.gameObject);
+            pet = null;
+            if (pc >= 0)
+            {
+                pet = new GameObject("Remote pet").AddComponent<Pet>();
+                pet.transform.SetParent(transform.parent);
+                pet.Init(pc, "", grid + new Vector2(-0.7f, 0.5f), () => this != null && seen ? grid : (Vector2?)null);
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (pet != null) Destroy(pet.gameObject);
     }
 
     void Update()

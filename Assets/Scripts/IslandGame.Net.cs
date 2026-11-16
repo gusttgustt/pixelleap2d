@@ -32,7 +32,7 @@ public partial class IslandGame
 
     public bool Online => link != null && myId > 0;
     bool Shared => Online && inRoom;                        // other players may be on this island
-    public bool IsHost => !Shared || hostId == myId;        // offline you run everything yourself
+    public bool IsHost => atHome ? !visiting : !Shared || hostId == myId; // offline you run everything yourself; a private island is its owner's
     public bool InputBlocked => Busy || chatOpen;
 
     /// Island layouts are the same for everyone online: derived from the server's world seed.
@@ -143,6 +143,7 @@ public partial class IslandGame
         myId = 0;
         inRoom = false;
         ClearRemotes();
+        VisitDisconnected(); // visiting a friend: back home
         foreach (var e in enemies) if (e != null && e.puppet) Destroy(e.gameObject);
         enemies.RemoveAll(e => e == null || e.puppet);
         if (!title) Hint("หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 5f);
@@ -153,7 +154,7 @@ public partial class IslandGame
         ClearRemotes();
         inRoom = false;
         hostId = 0;
-        if (Online) Send(new NetMsg { t = "join", island = island });
+        if (Online) Send(new NetMsg { t = "join", island = RoomKey }); // a private island has a room of its own (IslandGame.Visit.cs)
     }
 
     void LeaveRoom()
@@ -202,7 +203,7 @@ public partial class IslandGame
                 break;
 
             case "room":
-                if (m.island != island || voyage != null) break;
+                if (m.island != RoomKey || voyage != null) break;
                 inRoom = true;
                 SetHost(m.host);
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
@@ -230,6 +231,11 @@ public partial class IslandGame
             case "host":
                 SetHost(m.host);
                 break;
+
+            // visiting private islands (IslandGame.Visit.cs)
+            case "homes": ShowHomes(m.players); break;
+            case "visit": OnVisitData(m); break;
+            case "knock": OnKnock(m); break;
 
             case "p":
                 if (inRoom) AddRemote(m.from, m.name).Apply(m);
@@ -305,7 +311,7 @@ public partial class IslandGame
             {
                 t = "p", x = player.grid.x, y = player.grid.y, d = player.Dir, f = player.Frame, fl = player.Flip ? 1 : 0,
                 hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
-                lv = level, name = playerName, look = lookCode,
+                lv = level, name = playerName, look = lookCode, pet = ActivePetSave != null ? ActivePetSave.code + 1 : 0,
             });
         }
         if (!IsHost || remotes.Count == 0) return;
@@ -332,12 +338,12 @@ public partial class IslandGame
 
     void SendNode(WorldNode n, string ev, float dur = 0f)
     {
-        if (Shared) Send(new NetMsg { t = "node", id = n.id, ev = ev, dur = dur, hits = n.hits });
+        if (Shared && !atHome) Send(new NetMsg { t = "node", id = n.id, ev = ev, dur = dur, hits = n.hits }); // private islands aren't shared
     }
 
     void SendSpawn(WorldNode n)
     {
-        if (Shared) Send(new NetMsg { t = "spawn", id = n.id, kind = (int)n.kind, x = n.grid.x, y = n.grid.y });
+        if (Shared && !atHome) Send(new NetMsg { t = "spawn", id = n.id, kind = (int)n.kind, x = n.grid.x, y = n.grid.y });
     }
 
     void DepleteShared(WorldNode n, float dur) { n.Deplete(dur); SendNode(n, "deplete", dur); }

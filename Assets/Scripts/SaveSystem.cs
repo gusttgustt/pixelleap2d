@@ -43,6 +43,16 @@ public class SaveData
     public int houseLevel;                               // 0 = no house built yet
     public Vector2 homeReturn;                           // where you stood outside before going in
     public List<NodeSave> houseNodes = new List<NodeSave>();
+    // Pets (IslandGame.Pet.cs): all you own, and the one out walking with you (-1 = none).
+    public List<PetSave> pets = new List<PetSave>();
+    public int activePet = -1;
+}
+
+[Serializable]
+public class PetSave
+{
+    public int code;     // 0 dog, 1 cat, 2 rabbit, 3 parrot; 100 + EnemyKind = a tamed wild creature
+    public string name;
 }
 
 /// An island you've been to and left: rebuilt from its seed, then its saved objects put back.

@@ -35,7 +35,7 @@ public partial class IslandGame
             Hint($"[dev] พลัง{PowerName(power)} Lv {powerLv}", 2f);
         }
         if (kb.f3Key.wasPressedThisFrame)
-            for (int i = 0; i < 8; i++)
+            for (int i = 0, n = kb.shiftKey.isPressed ? 1 : 8; i < n; i++) // shift: just one (catching pets)
             {
                 float a = i * Mathf.PI * 2f / 8f;
                 var g = WalkableNear(player.grid + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (1.8f + (i % 3) * 1.2f));

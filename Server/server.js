@@ -13,6 +13,11 @@
 //                        {t:"join", island}           -> {t:"room", host, players, events}
 //                        {t:"leave"}                  (paddling out to sea)
 //                        {t:"node"|"spawn", ...}      world change: remembered + passed on
+//                        {t:"home", text, room, lv, pets}  my private island, for visitors (kept, not passed on)
+//                        {t:"homes"}                  -> {t:"homes", players}  who has a private island to visit
+//                        {t:"visit", id}              -> {t:"visit", id, name, text, room, lv, pets}  (text "" = gone)
+//                        {t:"knock", to}              "I'm visiting your island" (reaches them anywhere)
+//   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
 // - http://<host>:<port>/  serves the web build from docs/.
 "use strict";
@@ -23,7 +28,7 @@ const path = require("path");
 
 const PORT = parseInt(process.argv[2] || process.env.PORT || "8787", 10);
 const WEB_ROOT = path.resolve(__dirname, "..", "docs");
-const MAX_FRAME = 64 * 1024;          // game messages are tiny
+const MAX_FRAME = 512 * 1024;         // game messages are tiny; a private island sent for visitors is the big one
 const MAX_EVENTS = 4000;              // remembered world changes per island
 const WORLD_SEED = crypto.randomInt(1, 2 ** 31 - 1); // every island layout comes from this
 
@@ -200,7 +205,7 @@ function onMessage(socket, text) {
   switch (m.t) {
     case "join": {
       leaveRoom(socket);
-      const island = Math.max(1, m.island | 0);
+      const island = (m.island | 0) || 1; // below 0: someone's private island (not remembered)
       const r = room(island);
       socket.island = island;
       r.order.push(socket.pid);
@@ -212,10 +217,31 @@ function onMessage(socket, text) {
     case "leave":
       leaveRoom(socket);
       return;
+    case "home":
+      socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000) };
+      return;
+    case "homes": {
+      const players = [];
+      for (const [id, s] of clients) if (id !== socket.pid && s.home && s.home.text) players.push({ id, name: s.name });
+      send(socket, { t: "homes", players: players.slice(0, 40) });
+      return;
+    }
+    case "visit": {
+      const s = clients.get(m.id | 0);
+      if (!s || !s.home || !s.home.text) { send(socket, { t: "visit", id: m.id | 0, text: "" }); return; }
+      send(socket, { t: "visit", id: s.pid, name: s.name, text: s.home.text, room: s.home.room, lv: s.home.lv, pets: s.home.pets });
+      log("  " + socket.name + " visits " + s.name + "'s island");
+      return;
+    }
+    case "knock": {
+      const s = clients.get(m.to | 0);
+      if (s) send(s, { t: "knock", from: socket.pid, name: socket.name });
+      return;
+    }
     case "node":
     case "spawn":
       if (!socket.island) return;
-      remember(room(socket.island), m);
+      if (socket.island > 0) remember(room(socket.island), m);
       toRoom(socket.island, m, socket.pid);
       return;
     default:

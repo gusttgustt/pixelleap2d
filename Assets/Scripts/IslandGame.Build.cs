@@ -65,6 +65,7 @@ public partial class IslandGame
     {
         if (buildOpen) { CloseBuild(); return; }
         if (player == null || voyage != null || dead || Busy) return;
+        if (visiting) { Hint("นี่เป็นบ้านของเพื่อน สร้างหรือรื้ออะไรไม่ได้", 2.5f); return; }
         if (!atHome && Count(Item.Hammer) == 0) { Hint("โหมดสร้างใช้ได้บนเกาะส่วนตัว (H) ส่วนบนเกาะผจญภัยใช้ค้อนรื้อกองไฟหรือเพิงพักที่สร้างไว้ได้", 3.5f); return; }
         buildOpen = true;
         buildSel = Mathf.Clamp(buildSel, 0, Palette.Length - 1);

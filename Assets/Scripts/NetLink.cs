@@ -166,8 +166,9 @@ public class NetMsg
     public int from, to;           // sender (set by the server) / single receiver (0 = whole island)
     public int id, host, island, worldSeed;
     public string name, text, ev, why;
+    public string room, pets;      // a private island sent for visitors (IslandGame.Visit.cs)
     public float x, y, clock, dur, dmg;
-    public int d, f, fl, hat, outfit, lv, hits, kind, by, hp, look;
+    public int d, f, fl, hat, outfit, lv, hits, kind, by, hp, look, pet;
     public NetEnemy[] en;
     public NetEvent[] events;
     public NetPeer[] players;

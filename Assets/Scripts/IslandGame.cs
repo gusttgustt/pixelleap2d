@@ -26,6 +26,7 @@ public enum Item
     Tuna, GoldenFish, Hoe, WateringCan, FishingRod, Hammer, Plank,
     Fertilizer, AnimalFeed, // made at the workbench in your house
     FurnBed, FurnTable, FurnChair, FurnRug, FurnPlant, FurnShelf, FurnWorkbench, // furniture
+    PetNet, // catches a weakened wild creature to keep as a pet (IslandGame.Pet.cs)
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
@@ -138,6 +139,7 @@ public partial class IslandGame : MonoBehaviour
         // private island: farming, fishing, building (IslandGame.Home.cs)
         new Recipe { name = "แผ่นไม้", output = Item.Plank, count = 2, cost = new[] { (Item.Wood, 2) }, desc = "ไสไม้เป็นแผ่น ใช้สร้างบ้านและม้านั่ง (ได้ 2 แผ่น)" },
         new Recipe { name = "จอบ", output = Item.Hoe, cost = new[] { (Item.Stick, 2), (Item.Stone, 2), (Item.Rope, 1) }, desc = "ขุดแปลงผักบนเกาะส่วนตัว (G)" },
+        new Recipe { name = "ตาข่ายจับสัตว์", output = Item.PetNet, count = 2, cost = new[] { (Item.Rope, 2), (Item.Fiber, 4), (Item.Stick, 1) }, desc = "ตีสัตว์ป่าให้เลือดเหลือครึ่ง แล้วกด P จับ" },
         new Recipe { name = "บัวรดน้ำ", output = Item.WateringCan, cost = new[] { (Item.Wood, 2), (Item.Stone, 1), (Item.Rope, 1) }, desc = "รดน้ำแปลงผักให้โต" },
         new Recipe { name = "เบ็ดตกปลา", output = Item.FishingRod, cost = new[] { (Item.Stick, 3), (Item.Rope, 2), (Item.Fiber, 2) }, desc = "ตกปลาริมทะเล ได้ปลาหลายชนิด" },
         new Recipe { name = "ค้อน", output = Item.Hammer, cost = new[] { (Item.Stick, 2), (Item.Stone, 3), (Item.Rope, 1) }, desc = "รื้อสิ่งก่อสร้าง ได้วัตถุดิบคืนครึ่งหนึ่ง (G)" },
@@ -337,6 +339,7 @@ public partial class IslandGame : MonoBehaviour
         Item.FurnPlant => "กระถางต้นไม้",
         Item.FurnShelf => "ชั้นวางของ",
         Item.FurnWorkbench => "โต๊ะช่าง",
+        Item.PetNet => "ตาข่ายจับสัตว์",
         _ => it.ToString(),
     };
 
@@ -358,6 +361,7 @@ public partial class IslandGame : MonoBehaviour
             level = 1, health = 100f, hunger = 100f, thirst = 100f,
         };
         var home = SaveSystem.TakeHomeKeep(); // your private island from the last run, if you built one
+        if (home != null) { d.pets.AddRange(home.pets); d.activePet = home.activePet; } // and your pets
         if (home != null && home.homeMade)
         {
             d.homeMade = true;
@@ -374,6 +378,7 @@ public partial class IslandGame : MonoBehaviour
     void StartGame(SaveData data)
     {
         if (data == null) data = NewRun();
+        if (!visitLoad) { visiting = false; visitBack = null; } // any other load ends a visit (IslandGame.Visit.cs)
         LoadHome(data); // private island state (IslandGame.Home.cs)
         if (Online && !atHome)
         {
@@ -484,6 +489,7 @@ public partial class IslandGame : MonoBehaviour
         player = new GameObject("Player").AddComponent<PlayerController>();
         player.transform.SetParent(world);
         player.Init(start);
+        SpawnPets(); // the one walking with you, and the others at home (IslandGame.Pet.cs)
 
         cursor = new GameObject("Cursor").AddComponent<SpriteRenderer>();
         cursor.transform.SetParent(world);
@@ -499,8 +505,8 @@ public partial class IslandGame : MonoBehaviour
         else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
         else Hint($"เห็นฝั่งแล้ว! {T.name} (เกาะที่ {island}, {BiomeName}) {BiomeIntro()}" + (T.alpha ? $" ได้ยินว่ามีจ่าฝูง{EnemyName(T.alphaKind)}อยู่บนเกาะนี้!" : ""), 9f);
         if (fresh || landing != null) SaveGame(); // replaces any old save right away
-        if (atHome) LeaveRoom(); // your private island is yours alone
-        else JoinRoom();         // online: meet whoever else is on this island
+        JoinRoom();   // online: meet whoever else is on this island (a private island: its owner and visitors)
+        homeSendT = Mathf.Min(homeSendT, 3f); // tell the server what your private island looks like now
     }
 
     string BiomeIntro() => biome switch
@@ -642,7 +648,7 @@ public partial class IslandGame : MonoBehaviour
     public void SaveGame()
     {
         // At sea or mid-fade there's nothing to save: the last save (next to the raft) stands.
-        if (dead || player == null || sailT > 0f || voyage != null) return;
+        if (dead || player == null || sailT > 0f || voyage != null || visiting) return; // visiting: your own save waits
         SaveSystem.Write(Snapshot());
         savedAt = Time.time;
         autosaveTimer = 0f;

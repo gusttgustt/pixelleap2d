@@ -9,7 +9,8 @@ public partial class IslandGame
     {
         public string name;
         public Item? item;      // goods, or
-        public NodeKind? animal; // a farm animal, let out next to you
+        public NodeKind? animal; // a farm animal, let out next to you, or
+        public int? pet;         // a pet (IslandGame.Pet.cs)
         public int n = 1, price;
     }
 
@@ -31,6 +32,14 @@ public partial class IslandGame
         new Ware { item = Item.Rope, n = 3, price = 6 },
         new Ware { item = Item.Fiber, n = 5, price = 3 },
         new Ware { item = Item.Hammer, price = 10 },
+    };
+    static readonly Ware[] PetWares =
+    {
+        new Ware { name = "ลูกหมา 1 ตัว", pet = 0, price = 40 },
+        new Ware { name = "ลูกแมว 1 ตัว", pet = 1, price = 40 },
+        new Ware { name = "กระต่าย 1 ตัว", pet = 2, price = 30 },
+        new Ware { name = "นกแก้ว 1 ตัว", pet = 3, price = 60 },
+        new Ware { item = Item.PetNet, n = 2, price = 8 },
     };
     static readonly Ware[] FishWares =
     {
@@ -71,6 +80,10 @@ public partial class IslandGame
             v.Init(shops[i].Item1, shops[i].Item2, shops[i].Item3, WalkableNear(at));
             villagers.Add(v);
         }
+        var pk = new GameObject("Shopkeeper").AddComponent<Villager>(); // the pet shop, by the fountain
+        pk.transform.SetParent(world);
+        pk.Init(VillagerRole.PetShop, "พี่ปุยฝ้าย", 20, WalkableNear(TownCenter + new Vector2(-1.7f, 2.3f)));
+        villagers.Add(pk);
         for (int i = 0; i < 2; i++)
         {
             var v = new GameObject("Townsfolk").AddComponent<Villager>();
@@ -91,12 +104,13 @@ public partial class IslandGame
             VillagerRole.FarmShop => "เมล็ดพันธุ์สดๆ ไก่ วัว มีครบจ้า ปลูกเยอะๆ แล้วเอาผลผลิตไปขายร้านเจ๊ได้เลย",
             VillagerRole.BuildShop => "อยากสร้างบ้าน รั้ว หรือม้านั่ง? ไม้กับหินลุงมีให้ทั้งหมด",
             VillagerRole.Fisher => "ทะเลรอบเกาะนี้ปลาชุม! มีเบ็ดสักคันแล้วไปยืนริมหาดดูสิ",
+            VillagerRole.PetShop => "น้องๆ ทุกตัวขี้อ้อนมากเลยนะ! ตัวที่พาไปด้วยจะเดินตามไปทุกเกาะ และคาบของมาให้ด้วย อยากได้สัตว์ป่าก็ใช้ตาข่ายจับเอาเองได้",
             _ => "ผัก ไข่ นม ปลา ของจากเกาะไกลๆ เจ๊รับซื้อหมด ราคายุติธรรม!",
         };
         d.text = $"{text ?? greet}\n<color=#ffd84d>เหรียญทองของคุณ: {coins}</color>";
         if (shopSelling) { SellOptions(v, d); return; }
 
-        var wares = v.role switch { VillagerRole.FarmShop => FarmWares, VillagerRole.BuildShop => BuildWares, _ => FishWares };
+        var wares = v.role switch { VillagerRole.FarmShop => FarmWares, VillagerRole.BuildShop => BuildWares, VillagerRole.PetShop => PetWares, _ => FishWares };
         foreach (var ware in wares)
         {
             var w = ware;
@@ -110,7 +124,18 @@ public partial class IslandGame
     void Buy(Villager v, Ware w)
     {
         if (Count(Item.GoldCoin) < w.price) return;
+        if (w.pet != null && pets.Count >= MaxPets) { OpenDialog(v, $"โอ๊ะ มีสัตว์เลี้ยงครบ {MaxPets} ตัวแล้วนี่ ดูแลไม่ไหวหรอก"); return; }
         inv[Item.GoldCoin] -= w.price;
+        if (w.pet != null)
+        {
+            var p = AddPet(w.pet.Value);
+            Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.45f, 0.55f), 12, 0.8f, 1.2f, 1f, 2f);
+            Sfx.Play("craft", 0.5f);
+            Hint($"ได้{PetSpecies(p.code)}ชื่อ \"{p.name}\"! " + (ActivePetSave == p ? "มันจะเดินตามคุณไปทุกที่" : "มันไปเล่นอยู่แถวบ้านแล้ว") + " (กด P เพื่อตั้งชื่อ)", 5f);
+            OpenDialog(v, $"ฝาก{p.name}ด้วยนะ เลี้ยงให้ดีๆ ล่ะ!");
+            SaveGame();
+            return;
+        }
         if (w.animal != null)
         {
             var g = WalkableNear(player.grid + player.facing.normalized * 1.2f);

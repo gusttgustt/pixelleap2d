@@ -146,6 +146,7 @@ public partial class IslandGame
             case VillagerRole.FarmShop:
             case VillagerRole.BuildShop:
             case VillagerRole.Buyer:
+            case VillagerRole.PetShop:
             case VillagerRole.Fisher:
                 ShopDialog(v, d, text); // the private island's town (IslandGame.Shop.cs)
                 break;
@@ -159,7 +160,7 @@ public partial class IslandGame
         dialog = d;
     }
 
-    void CloseDialog() { dialog = null; lastInteract = Time.time; }
+    void CloseDialog() { dialog = null; renamePet = -1; lastInteract = Time.time; }
 
     bool CanPay((Item item, int n)[] price)
     {
@@ -210,6 +211,7 @@ public partial class IslandGame
     void HandleDialog(Keyboard kb)
     {
         if (dialog == null) return;
+        if (renamePet >= 0) return; // typing a pet's name: keys go to the text box (IslandGame.Pet.cs)
         if (touchActionPressed) { CloseDialog(); return; } // the E button on a touch screen
         if (kb == null) return;
         if (kb.escapeKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame) { CloseDialog(); return; }

@@ -24,7 +24,7 @@ public partial class IslandGame
 
     float homeT;                   // fade while travelling (home <-> adventure, in and out of the house)
     bool homeApplied;
-    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse }
+    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit }
     Warp warp;
 
     public Vector2 TownCenter => Center + new Vector2(5f, -5f); // the market, to the east of your house
@@ -40,6 +40,7 @@ public partial class IslandGame
         homeNodes.AddRange(d.homeNodes);
         homeStickCap = d.homeStickCap; homeRockCap = d.homeRockCap;
         LoadHouse(d); // IslandGame.House.cs
+        LoadPets(d);  // IslandGame.Pet.cs
     }
 
     void SaveHome(SaveData d)
@@ -52,6 +53,7 @@ public partial class IslandGame
         d.homeNodes.Clear();
         if (!atHome || inHouse) d.homeNodes.AddRange(homeNodes); // outdoors at home they're the live nodes (d.nodes)
         SaveHouse(d);
+        SavePets(d);
     }
 
     void HomeTraits()
@@ -66,7 +68,7 @@ public partial class IslandGame
         if (title || dead || player == null) return false;
         if (voyage != null) { why = "กลางทะเลกลับเกาะส่วนตัวไม่ได้ ขึ้นฝั่งก่อน"; return false; }
         if (Busy || homeT > 0f) return false;
-        if (atHome && (health < 25f || hunger <= 5f || thirst <= 5f))
+        if (atHome && !visiting && (health < 25f || hunger <= 5f || thirst <= 5f))
         { why = "ยังอ่อนแรงเกินไปที่จะออกผจญภัย กินอาหาร ดื่มน้ำ หรือนอนพักก่อน"; return false; }
         if (!atHome)
             foreach (var e in enemies)
@@ -76,6 +78,7 @@ public partial class IslandGame
 
     void ToggleHome()
     {
+        if (visiting) { if (!Busy && homeT <= 0f) EndVisit(); return; } // back from a friend's island (IslandGame.Visit.cs)
         if (!CanTravelHome(out var why)) { if (why != null) Hint(why, 2.5f); return; }
         BeginWarp(atHome ? Warp.LeaveHome : Warp.GoHome);
     }
@@ -105,10 +108,11 @@ public partial class IslandGame
                 case Warp.GoHome: GoHome(); break;
                 case Warp.LeaveHome: LeaveHome(); break;
                 case Warp.EnterHouse: EnterHouse(); break;
+                case Warp.Visit: visitLoad = true; try { DoVisit(); } finally { visitLoad = false; } break;
+                case Warp.EndVisit: DoEndVisit(); break;
                 default: ExitHouse(); break;
             }
-            SaveSystem.Write(Snapshot());
-            savedAt = Time.time;
+            if (!visiting) { SaveSystem.Write(Snapshot()); savedAt = Time.time; }
         }
         if (homeT >= 2.4f) homeT = 0f;
     }
@@ -176,10 +180,11 @@ public partial class IslandGame
 
     void KeepHomeOnDeath()
     {
-        if (!homeMade) return;
-        var d = new SaveData { homeMade = true, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade };
+        if (!homeMade && pets.Count == 0) return;
+        var d = new SaveData { homeMade = homeMade, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade };
         d.homeNodes.AddRange(homeNodes);
         d.houseNodes.AddRange(houseNodes);
+        SavePets(d);
         SaveSystem.WriteHomeKeep(d);
     }
 
@@ -299,14 +304,17 @@ public partial class IslandGame
     {
         bool town = (n.grid - TownCenter).magnitude < 7f;
         if (inHouse) town = false;
-        var d = new Dialog { speaker = town ? "ป้ายตลาดเมืองท่า" : "ป้ายหน้าบ้าน" };
+        var d = new Dialog { speaker = town ? "ป้ายตลาดเมืองท่า" : visiting ? $"ป้ายหน้าบ้านของ {visitName}" : "ป้ายหน้าบ้าน" };
         d.text = town
-            ? "ตลาดเมืองท่า: ร้านเมล็ดพันธุ์และสัตว์ (ปลูก/เลี้ยง), ร้านช่างไม้ (วัสดุก่อสร้าง), ร้านอุปกรณ์ประมง และร้านรับซื้อของ ใช้เหรียญทองซื้อขาย เอาผัก ไข่ นม ปลา มาขายแลกเหรียญได้เลย"
+            ? "ตลาดเมืองท่า: ร้านเมล็ดพันธุ์และสัตว์ (ปลูก/เลี้ยง), ร้านช่างไม้ (วัสดุก่อสร้าง), ร้านอุปกรณ์ประมง, ร้านสัตว์เลี้ยง (หมา แมว กระต่าย นกแก้ว ตาข่ายจับสัตว์) และร้านรับซื้อของ ใช้เหรียญทองซื้อขาย เอาผัก ไข่ นม ปลา มาขายแลกเหรียญได้เลย"
+            : visiting ? $"ยินดีต้อนรับสู่เกาะของ {visitName}!\nเดินชมฟาร์ม บ้าน และสัตว์เลี้ยงได้ตามสบาย (ดูได้อย่างเดียว) ร้านค้าในตลาดใช้ได้ตามปกติ กด Enter เพื่อแชตกับเจ้าของบ้าน กด H เพื่อกลับ"
             : "เกาะส่วนตัวของคุณ ที่นี่ปลอดภัย ไม่มีสัตว์ร้าย\n" +
               "• ฟาร์ม: กด G เลือก \"แปลงผัก\" ขุดด้วยจอบ ยืนที่แปลงกด E เพื่อปลูก รดน้ำ (ทุกช่วงการโต) แล้วเก็บเกี่ยว\n" +
               "• สัตว์: ให้อาหาร (ข้าวสาลี/เบอร์รี่/หญ้า) แล้วรอเก็บไข่หรือรีดนม ซื้อเพิ่มได้ที่ตลาด\n" +
               "• ตกปลา: มีเบ็ดแล้วยืนริมทะเลกด E รอทุ่นจม แล้วกด E อีกครั้ง\n" +
               "• สร้าง: กด G วางรั้ว ทางเดิน ดอกไม้ บ้าน ฯลฯ ตามช่อง (Z X เลือก, R หมุน) ช่องแรกคือค้อนไว้รื้อ\n" +
+              "• สัตว์เลี้ยง: ซื้อที่ร้านสัตว์เลี้ยง หรือจับสัตว์ป่าด้วยตาข่าย กด P ดูสัตว์เลี้ยง\n" +
+              "• เล่นออนไลน์: กด V ไปเยี่ยมบ้านเพื่อน และเพื่อนก็มาเยี่ยมบ้านคุณได้\n" +
               "• ตลาดอยู่ทางขวา (ตะวันออก) กด H เพื่อกลับไปผจญภัยต่อ";
         d.options.Add(("ปิด", CloseDialog, true));
         dialog = d;
@@ -349,12 +357,19 @@ public partial class IslandGame
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
         st.hover.textColor = Color.white;
-        if (GUI.Button(new Rect(W - 182, 50, 172, 22), atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
-        if (atHome && !buildOpen)
+        if (GUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
+        float y = 76f;
+        if (atHome && !buildOpen && !visiting)
         {
             var bst = new GUIStyle(st); bst.normal.textColor = new Color(0.75f, 1f, 0.7f);
-            if (GUI.Button(new Rect(W - 182, 76, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
+            if (GUI.Button(new Rect(W - 182, y, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
+            y += 26f;
         }
+        if (buildOpen) return;
+        var pst = new GUIStyle(st); pst.normal.textColor = new Color(1f, 0.72f, 0.82f);
+        if (Online && GUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
+        if (Online) y += 26f;
+        if (GUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
     }
 
     void DrawHomeWarp(float W, float H)
@@ -367,6 +382,8 @@ public partial class IslandGame
             Warp.GoHome => homeApplied ? "เกาะส่วนตัว" : "กำลังล่องเรือกลับบ้าน...",
             Warp.LeaveHome => homeApplied ? $"เกาะที่ {island}: {T.name}" : "ออกไปผจญภัยต่อ...",
             Warp.EnterHouse => homeApplied ? $"{HouseName(houseLevel)}" : "เข้าบ้าน...",
+            Warp.Visit => homeApplied ? $"บ้านของ {visitName}" : "กำลังล่องเรือไปเยี่ยมบ้านเพื่อน...",
+            Warp.EndVisit => homeApplied ? (atHome ? "เกาะส่วนตัว" : $"เกาะที่ {island}: {T.name}") : "กลับบ้าน...",
             _ => homeApplied ? "เกาะส่วนตัว" : "ออกจากบ้าน...",
         };
         ShadowLabel(new Rect(0, H / 2 - 20, W, 40), text, titleCenter, new Color(1f, 1f, 1f, a));
@@ -381,6 +398,7 @@ public partial class IslandGame
             infoY += 16f;
         }
         if (dialog != null || Busy || voyage != null) return infoY;
+        DrawPetTags(s); // pet names up close (IslandGame.Pet.cs)
         float bounce = Mathf.Sin(Time.time * 4f) * 2f;
         foreach (var n in nodes)
         {

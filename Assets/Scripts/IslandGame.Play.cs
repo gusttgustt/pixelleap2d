@@ -32,6 +32,7 @@ public partial class IslandGame
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
+        TickVisit(dt); // online: keep the server's copy of your private island fresh (IslandGame.Visit.cs)
         DevKeys(kb);
         DevHomeKeys(kb); // ?dev=1: F6 skip a minute, F7 coins and materials (IslandGame.Home.cs)
 
@@ -99,6 +100,7 @@ public partial class IslandGame
         }
         FindTarget();
         TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
+        TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
     }
@@ -128,6 +130,8 @@ public partial class IslandGame
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
         if (kb.hKey.wasPressedThisFrame) ToggleHome();  // private island <-> adventure (IslandGame.Home.cs)
         if (kb.gKey.wasPressedThisFrame) ToggleBuild(); // build / take down (IslandGame.Build.cs)
+        if (kb.pKey.wasPressedThisFrame) PetKey();      // catch a weakened creature / your pets (IslandGame.Pet.cs)
+        if (kb.vKey.wasPressedThisFrame) AskHomes();    // visit a friend's private island (IslandGame.Visit.cs)
         if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
         if (craftOpen)
             for (int i = 0; i < CraftList.Length && i < 10; i++)
@@ -291,6 +295,7 @@ public partial class IslandGame
 
     void Interact(WorldNode n)
     {
+        if (visiting && !VisitAllowed(n.kind)) { Hint($"นี่เป็นของ{visitName} ดูได้อย่างเดียวนะ", 2f); return; } // a friend's island (IslandGame.Visit.cs)
         Vector3 at = n.transform.position;
         Color leaf = new Color(0.4f, 0.75f, 0.3f), wood = new Color(0.6f, 0.4f, 0.2f);
         bool knife = Count(Item.StoneKnife) > 0;
