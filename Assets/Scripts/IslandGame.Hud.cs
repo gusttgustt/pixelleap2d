@@ -379,6 +379,28 @@ public partial class IslandGame
         if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "ยกเลิก")) PlayOffline();
 
         ShadowLabel(new Rect(0, H - 22, W, 18), "ความคืบหน้าเซฟไว้ในเบราว์เซอร์นี้ ถ้าเล่นออนไลน์ ทุกคนบนเกาะเดียวกันจะเห็นโลกเดียวกัน", smallCenter, new Color(1f, 1f, 1f, 0.6f));
+        string built = BuildTimeText();
+        if (built != null) ShadowLabel(new Rect(14, 8, 320, 18), built, small, new Color(1f, 1f, 1f, 0.7f)); // top left, clear of the sound button
+    }
+
+    static string buildTimeText;
+    static readonly string[] ThaiMonths = { "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค." };
+
+    /// "อัปเดตล่าสุด ..." from the build stamp (Resources/BuildVersion.txt, UTC yyyyMMddHHmmss),
+    /// shown in Thai time (UTC+7) - the web player often has no time zone of its own.
+    static string BuildTimeText()
+    {
+        if (buildTimeText != null) return buildTimeText.Length > 0 ? buildTimeText : null;
+        buildTimeText = "";
+        var asset = Resources.Load<TextAsset>("BuildVersion");
+        string v = asset != null ? asset.text.Trim() : "";
+        if (System.DateTime.TryParseExact(v, "yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var utc))
+        {
+            var th = utc.AddHours(7);
+            buildTimeText = $"อัปเดตล่าสุด {th.Day} {ThaiMonths[th.Month - 1]} {th.Year + 543} เวลา {th:HH:mm} น.";
+        }
+        return buildTimeText.Length > 0 ? buildTimeText : null;
     }
 
     /// One "< value >" row of the character creator. Shows a colour swatch or a text value.
