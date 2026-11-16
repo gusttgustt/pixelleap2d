@@ -396,7 +396,7 @@ public partial class IslandGame : MonoBehaviour
         world = new GameObject("World").transform;
         world.SetParent(transform);
         nodes.Clear(); enemies.Clear(); water.Clear(); inv.Clear(); popups.Clear();
-        dead = false; craftOpen = false; skillsOpen = false;
+        dead = false; downed = false; craftOpen = false; skillsOpen = false;
         Now = 0f; autosaveTimer = 0f; respawnTimer = 0f; enemyTimer = 0f; sleepT = 0f; nightWarnedDay = 0;
         stickCap = 0; rockCap = 0; obsidianCap = 0; pond = null; seaSpot = null; target = null; enemyTarget = null;
 
@@ -445,6 +445,7 @@ public partial class IslandGame : MonoBehaviour
         if (fresh) PlaceAirVents();
         }
         genPhase = false;
+        if (atHome) InitHomeIds(data); // private island ids stay the same for its owner and visitors (IslandGame.HomeSync.cs)
 
         Vector2? landing = null;
         if (!fresh)
@@ -452,7 +453,8 @@ public partial class IslandGame : MonoBehaviour
             foreach (var ns in data.nodes)
             {
                 if (ns.kind == NodeKind.HouseDoor) continue; // older saves kept the doormat; the room makes a new one
-                var node = Spawn(ns.kind, ns.grid, ns.flip);
+                int? keepId = atHome && ns.id > 0 && !nodeById.ContainsKey(ns.id) ? ns.id : (int?)null;
+                var node = Spawn(ns.kind, ns.grid, ns.flip, keepId);
                 if (ns.kind is NodeKind.Drop or NodeKind.Plot) { node.dropItem = (Item)ns.item; node.dropCount = ns.count; }
                 node.built = ns.built;
                 node.Restore(ns.available, ns.hits, ns.regrow);
@@ -485,7 +487,7 @@ public partial class IslandGame : MonoBehaviour
         SpawnQueen();
         }
 
-        Vector2 start = landing ?? (!fresh && IsLand(data.player) ? data.player : Center);
+        Vector2 start = FreeStand(landing ?? (!fresh && IsLand(data.player) ? data.player : Center)); // never inside a campfire or tree
         player = new GameObject("Player").AddComponent<PlayerController>();
         player.transform.SetParent(world);
         player.Init(start);
@@ -506,6 +508,7 @@ public partial class IslandGame : MonoBehaviour
         else Hint($"เห็นฝั่งแล้ว! {T.name} (เกาะที่ {island}, {BiomeName}) {BiomeIntro()}" + (T.alpha ? $" ได้ยินว่ามีจ่าฝูง{EnemyName(T.alphaKind)}อยู่บนเกาะนี้!" : ""), 9f);
         if (fresh || landing != null) SaveGame(); // replaces any old save right away
         JoinRoom();   // online: meet whoever else is on this island (a private island: its owner and visitors)
+        ResetHomeSync(); // what friends on the private island have already seen
         homeSendT = Mathf.Min(homeSendT, 3f); // tell the server what your private island looks like now
     }
 
@@ -642,7 +645,7 @@ public partial class IslandGame : MonoBehaviour
     static NodeSave ToSave(WorldNode n) => new NodeSave
     {
         kind = n.kind, grid = n.grid, available = n.available, flip = n.flip, hits = n.hits, regrow = n.RegrowRemaining,
-        item = (int)n.dropItem, count = n.dropCount, built = n.built,
+        item = (int)n.dropItem, count = n.dropCount, built = n.built, id = n.id,
     };
 
     public void SaveGame()
@@ -962,6 +965,33 @@ public partial class IslandGame : MonoBehaviour
             if ((n.grid - g).sqrMagnitude < r * r) return false;
         }
         return true;
+    }
+
+    /// How deep g sits inside solid things (0 = free). Lets a stuck player walk out.
+    public float Overlap(Vector2 g, float pad)
+    {
+        float sum = 0f;
+        foreach (var n in nodes)
+        {
+            if (!n.Blocking) continue;
+            float r = n.BlockRadius + pad, d = (n.grid - g).magnitude;
+            if (d < r) sum += r - d;
+        }
+        return sum;
+    }
+
+    /// Nearest spot to g where a player can stand (g itself if it's free).
+    public Vector2 FreeStand(Vector2 g)
+    {
+        if (CanWalk(g, 0.18f)) return g;
+        for (float r = 0.5f; r < 6f; r += 0.4f)
+            for (int a = 0; a < 16; a++)
+            {
+                float ang = a * Mathf.PI / 8f;
+                var p = g + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * r;
+                if (CanWalk(p, 0.18f) && CanClimb(g, p)) return p;
+            }
+        return g;
     }
 
     /// True if nothing stands within reach of g (blocking things get extra padding).

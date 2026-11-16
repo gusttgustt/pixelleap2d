@@ -169,6 +169,7 @@ public class NetMsg
     public string room, pets;      // a private island sent for visitors (IslandGame.Visit.cs)
     public float x, y, clock, dur, dmg;
     public int d, f, fl, hat, outfit, lv, hits, kind, by, hp, look, pet;
+    public int dn;                 // 1 = this player is knocked out, waiting to be revived (IslandGame.Revive.cs)
     public NetEnemy[] en;
     public NetEvent[] events;
     public NetPeer[] players;

@@ -58,6 +58,13 @@ public partial class IslandGame
     bool buildOk;
     string buildWhy;
     WorldNode demolishTarget;
+    // Point and click / tap to place: the ghost follows the mouse, a click or tap on the ground
+    // puts the thing right there (no need to walk up and face the spot).
+    bool buildPointer, buildTap;
+    Vector2 lastMousePx = new Vector2(-1f, -1f);
+    Vector2Int pointerTile;
+    Rect buildPanelRect;
+    const float PointerReach = 6f;
 
     BuildDef CurrentBuild => Palette[Mathf.Clamp(buildSel, 0, Palette.Length - 1)];
 
@@ -72,7 +79,7 @@ public partial class IslandGame
         if (!atHome) buildSel = 0; // only the hammer away from home
         craftOpen = false; skillsOpen = false; bagOpen = false;
         CancelLine();
- Hint(inHouse ? "จัดบ้าน: Z X เลือก, R หมุน, E วาง ช่องแรกคือมือไว้เก็บ/ย้ายของ" : atHome ? "โหมดสร้าง: Z X เลือก, R หมุน, E วาง, G ออก" : "ค้อน: หันไปที่สิ่งที่สร้างไว้แล้วกด E เพื่อรื้อ", 3f);
+        Hint(inHouse ? "จัดบ้าน: เลือกของ แล้วแตะ/คลิกที่พื้นตรงไหนก็ได้เพื่อวาง ช่องแรกคือมือไว้เก็บ/ย้ายของ" : atHome ? "โหมดสร้าง: เลือกของ แล้วแตะ/คลิกที่พื้นเพื่อวาง (หรือหันหน้าแล้วกด E) R หมุน G ออก" : "ค้อน: แตะสิ่งที่สร้างไว้ หรือหันไปหาแล้วกด E เพื่อรื้อ", 4f);
     }
 
     void CloseBuild()
@@ -107,6 +114,23 @@ public partial class IslandGame
         }
         UpdateBuildCursor();
 
+        if (buildTap) // clicked / tapped the ground: act right there
+        {
+            buildTap = false;
+            lastInteract = Time.time;
+            var tb = CurrentBuild;
+            if (tb.hammer)
+            {
+                if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ประดิษฐ์ใน Tab หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
+                if (demolishTarget == null) { Hint(inHouse ? "แตะที่เฟอร์นิเจอร์เพื่อเก็บ" : "แตะที่สิ่งที่สร้างไว้เพื่อรื้อ", 2f); return; }
+                Demolish(demolishTarget);
+                return;
+            }
+            if (!buildOk) { Hint(buildWhy, 2f); return; }
+            Place(tb, buildTile);
+            return;
+        }
+
         bool pressed = touchActionPressed || (kb != null && !chatOpen && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         bool held = touchActionHeld || (kb != null && !chatOpen && (kb.eKey.isPressed || kb.spaceKey.isPressed));
         float since = Time.time - lastInteract;
@@ -127,6 +151,55 @@ public partial class IslandGame
 
     Vector2Int FacingTile(float dist) => Tile(player.grid + player.facing.normalized * dist);
 
+    /// The tile under a screen position (pixels, origin bottom-left), if it's ground within reach.
+    Vector2Int? ScreenTile(Vector2 px)
+    {
+        if (cam == null || player == null) return null;
+        Vector3 w = cam.ScreenToWorldPoint(new Vector3(px.x, px.y, 0f));
+        Vector2 g = WorldDeltaToGrid(w);
+        g = WorldDeltaToGrid(new Vector2(w.x, w.y - HeightAt(g))); // stand on hills
+        var t = Tile(g);
+        if (!InMap(t.x, t.y) || (tiles[t.x, t.y] != 1 && tiles[t.x, t.y] != 2)) return null;
+        if (!inHouse && ((Vector2)t - player.grid).magnitude > PointerReach) return null;
+        return t;
+    }
+
+    /// Mouse hover moves the build cursor; walking (keys / stick) hands it back to facing.
+    void UpdateBuildPointer()
+    {
+        if (PlayerController.ReadInput().sqrMagnitude > 0.01f) buildPointer = false;
+        var m = Mouse.current;
+        if (m == null || touchUsed) return; // on a phone, only taps aim
+        Vector2 px = m.position.ReadValue();
+        if ((px - lastMousePx).sqrMagnitude > 9f)
+        {
+            bool first = lastMousePx.x < 0f;
+            lastMousePx = px;
+            if (!first) buildPointer = true;
+        }
+        if (buildPointer)
+        {
+            var t = ScreenTile(px);
+            if (t != null) pointerTile = t.Value; else buildPointer = false;
+        }
+    }
+
+    /// OnGUI: a click / tap on the ground (not on a button or the panel) while building.
+    void BuildPointerEvent(float s)
+    {
+        var e = Event.current;
+        if (!buildOpen || Busy || e.type != EventType.MouseDown || e.button != 0) return;
+        if (buildPanelRect.Contains(e.mousePosition)) return;
+        var bar = HotbarRect(Screen.width / s, Screen.height / s);
+        if (new Rect(bar.x - 8, bar.y - 8, bar.width + 16, bar.height + 16).Contains(e.mousePosition)) return;
+        var t = ScreenTile(new Vector2(e.mousePosition.x * s, Screen.height - e.mousePosition.y * s));
+        if (t == null) return;
+        e.Use();
+        pointerTile = t.Value;
+        buildPointer = true;
+        buildTap = true;
+    }
+
     void UpdateBuildCursor()
     {
         var b = CurrentBuild;
@@ -137,6 +210,7 @@ public partial class IslandGame
             ghost.sortingOrder = 32000;
         }
         demolishTarget = null;
+        UpdateBuildPointer();
         if (b.hammer)
         {
             ghost.enabled = false;
@@ -151,7 +225,7 @@ public partial class IslandGame
             buildWhy = demolishTarget != null ? $"กด E เพื่อ{(inHouse ? "เก็บ" : "รื้อ")}{NodeName(demolishTarget.kind)}" : inHouse ? "ไม่มีเฟอร์นิเจอร์ตรงหน้า" : "ไม่มีสิ่งที่สร้างไว้ตรงหน้า";
             return;
         }
-        buildTile = FacingTile(b.kind == NodeKind.Cottage ? 2.2f : 1.25f);
+        buildTile = buildPointer ? pointerTile : FacingTile(b.kind == NodeKind.Cottage ? 2.2f : 1.25f);
         buildOk = CanPlace(b, buildTile, out buildWhy);
         Vector2 g = buildTile;
         Vector3 pos = GridToWorld(g) + Vector3.up * HeightAt(g);
@@ -235,7 +309,6 @@ public partial class IslandGame
             if (n.Blocking) need = Mathf.Max(need, n.BlockRadius + (big ? 0.9f : 0.2f));
             if ((n.grid - g).magnitude < need) { why = $"มี{(n.built ? NodeName(n.kind) : "ของ")}อยู่ตรงนี้แล้ว"; return false; }
         }
-        if (own > 0f && (player.grid - g).magnitude < own + 0.3f) { why = "ยืนทับที่จะสร้างอยู่ ถอยออกมาหน่อย"; return false; }
         foreach (var v in villagers) if (v != null && own > 0f && (v.grid - g).magnitude < own + 0.3f) { why = "มีคนยืนอยู่ตรงนี้"; return false; }
         foreach (var c in b.cost) if (Count(c.item) < c.n) { why = MissingMaterials; return false; }
         return true;
@@ -256,6 +329,7 @@ public partial class IslandGame
         if (b.kind == NodeKind.Cottage) houseLevel = Mathf.Max(1, houseLevel);
         var node = Spawn(b.kind, g, b.turns && buildTurn);
         node.built = true;
+        if (!CanWalk(player.grid, 0.18f)) player.grid = FreeStand(player.grid); // built on top of yourself: step aside
         node.Shake();
         Fx.Burst(node.transform.position + Vector3.up * 0.2f, new Color(0.85f, 0.75f, 0.55f), b.kind == NodeKind.Cottage ? 24 : 8, 1f, 0.9f);
         Sfx.Play(b.kind == NodeKind.Plot ? "chop" : "craft", 0.45f);
@@ -264,7 +338,8 @@ public partial class IslandGame
 
     WorldNode FindDemolishTarget()
     {
-        Vector2 p = player.grid + player.facing.normalized * 1.0f;
+        bool aim = buildPointer;
+        Vector2 p = aim ? (Vector2)pointerTile : player.grid + player.facing.normalized * 1.0f;
         WorldNode best = null;
         float bd = float.MaxValue;
         foreach (var n in nodes)
@@ -273,7 +348,7 @@ public partial class IslandGame
             if (n.kind == NodeKind.Cottage) continue; // the house stays (upgrade it instead)
             float d = (n.grid - p).magnitude;
             float reach = Mathf.Max(0.75f, BuildRadius(n.kind) + 0.35f);
-            if (d < reach && d < bd && (n.grid - player.grid).magnitude < 2.6f) { bd = d; best = n; }
+            if (d < reach && d < bd && (aim || (n.grid - player.grid).magnitude < 2.6f)) { bd = d; best = n; }
         }
         return best;
     }
@@ -318,6 +393,7 @@ public partial class IslandGame
         float w = count * (cell + gap) - gap;
         float x0 = W / 2f - w / 2f, y0 = bar.y - cell - 64f;
         var panel = new Rect(x0 - 10, y0 - 26, w + 20, cell + 84f);
+        buildPanelRect = panel;
         Fill(panel, new Color(0.08f, 0.06f, 0.04f, 0.85f));
         Fill(new Rect(panel.x, panel.y, panel.width, 2), new Color(0.6f, 1f, 0.6f, 0.8f));
         ShadowLabel(new Rect(panel.x + 10, panel.y + 4, 300, 20), inHouse ? "จัดบ้าน" : atHome ? "โหมดสร้าง" : "ค้อน", label, new Color(0.7f, 1f, 0.7f));
@@ -352,7 +428,7 @@ public partial class IslandGame
         if (sel.item != null) cost.Append($"<color=#cccccc>มีในกระเป๋า {Count(sel.item.Value)} ชิ้น</color>");
         else if (sel.cost.Length == 0) cost.Append(sel.hammer ? (inHouse ? "<color=#cccccc>เก็บได้คืนครบ</color>" : "<color=#cccccc>ใช้ค้อน</color>") : "<color=#cccccc>ใช้จอบ ไม่เสียวัตถุดิบ</color>");
         ShadowLabel(new Rect(x0, y0 + cell + 4, w, 18), $"<b>{sel.name}</b>   {cost}", small);
-        string sub = buildOk ? $"<color=#cccccc>{sel.desc}</color>" : $"<color=#ffcc66>{buildWhy}</color>";
+        string sub = buildOk ? $"<color=#cccccc>{sel.desc}  ·  แตะ/คลิกที่พื้นเพื่อวาง</color>" : $"<color=#ffcc66>{buildWhy}</color>";
         ShadowLabel(new Rect(x0, y0 + cell + 22, w, 18), sub, small);
     }
 }

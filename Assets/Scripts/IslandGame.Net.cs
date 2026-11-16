@@ -72,6 +72,8 @@ public partial class IslandGame
         KeepCharacter();
         link = NetLink.Open(NetLink.ServerUrl());
         helloSent = false;
+        if (pendingAuth == null && SavedToken.Length > 0 && SavedUser.Length > 0) pendingAuth = "token"; // this device is logged in (IslandGame.Account.cs)
+        authSent = false;
         connecting = true;
         connectStart = Time.time;
         netStatus = "กำลังเชื่อมต่อ...";
@@ -80,6 +82,7 @@ public partial class IslandGame
     void PlayOffline()
     {
         KeepCharacter();
+        pendingAuth = null;
         if (link != null) { link.Close(); link = null; }
         connecting = false;
         myId = 0;
@@ -102,6 +105,7 @@ public partial class IslandGame
         if (link.Connected && !helloSent) { Send(new NetMsg { t = "hello", name = playerName }); helloSent = true; }
         if (myId > 0) // welcome arrived
         {
+            if (TitleAuthStep()) return; // logging in first (IslandGame.Account.cs)
             connecting = false;
             title = false;
             StartGame(SaveSystem.Read());
@@ -214,6 +218,7 @@ public partial class IslandGame
                 if (m.events != null) foreach (var e in m.events) ApplyEvent(e);
                 int others = m.players?.Length ?? 0;
                 if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! กด Enter เพื่อแชต", 5f);
+                if (others > 0 && atHome && !visiting) SendFullHome(0); // friends already here see my island as it is now
                 break;
 
             case "joined":
@@ -221,6 +226,7 @@ public partial class IslandGame
                 AddRemote(m.from, m.name);
                 AddChat("", $"{m.name} มาถึงเกาะแล้ว");
                 if (IsHost) { clockSendT = 0f; enemySendT = 0f; }
+                if (atHome && !visiting) SendFullHome(m.from); // a visitor: show them my island exactly as it is
                 break;
 
             case "left":
@@ -240,6 +246,9 @@ public partial class IslandGame
             case "homes": OnHomes(m.players); break;
             case "visit": OnVisitData(m); break;
             case "knock": OnKnock(m); break;
+            case "auth": OnAuth(m); break;       // logged in (IslandGame.Account.cs)
+            case "hnode": OnHomeNodes(m); break;   // private island changes (IslandGame.HomeSync.cs)
+            case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
 
             case "p":
                 if (inRoom) AddRemote(m.from, m.name).Apply(m);
@@ -290,6 +299,10 @@ public partial class IslandGame
                 if (m.to == myId) DamagePlayer(m.dmg, m.why);
                 break;
 
+            case "rev": // a friend brought me back (IslandGame.Revive.cs)
+                if (m.to == myId) Revived(m.from);
+                break;
+
             case "clock":
                 if (!IsHost && Mathf.Abs(clock - m.clock) > 1.5f) clock = m.clock;
                 break;
@@ -316,6 +329,7 @@ public partial class IslandGame
                 t = "p", x = player.grid.x, y = player.grid.y, d = player.Dir, f = player.Frame, fl = player.Flip ? 1 : 0,
                 hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
                 lv = level, name = playerName, look = lookCode, pet = ActivePetSave != null ? ActivePetSave.code + 1 : 0,
+                dn = downed ? 1 : 0,
             });
         }
         if (!IsHost || remotes.Count == 0) return;
@@ -338,7 +352,7 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ shared world changes
-    int NewLocalId() => myId * 1000000 + 500000 + ++localCounter;
+    int NewLocalId() => atHome && !visiting ? ++homeIdNext : myId * 1000000 + 500000 + ++localCounter; // home ids are kept in the save
 
     void SendNode(WorldNode n, string ev, float dur = 0f)
     {
@@ -413,7 +427,7 @@ public partial class IslandGame
         float bd = player != null && !dead && !Invisible ? (best - from).sqrMagnitude : float.MaxValue;
         foreach (var r in remotes.Values)
         {
-            if (r == null) continue;
+            if (r == null || r.downed) continue; // creatures leave a knocked-out player alone
             float d = (r.grid - from).sqrMagnitude;
             if (d < bd) { bd = d; best = r.grid; who = r.netId; }
         }

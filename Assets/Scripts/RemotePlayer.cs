@@ -9,6 +9,7 @@ public class RemotePlayer : MonoBehaviour
     public Vector2 grid;
     public string chat;
     public float chatUntil;
+    public bool downed;          // knocked out: a friend can revive them (IslandGame.Revive.cs)
 
     Vector2 target;
     int dir, frame, look;
@@ -41,6 +42,9 @@ public class RemotePlayer : MonoBehaviour
         level = Mathf.Max(1, m.lv);
         look = Mathf.Max(0, m.look);
         if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
+        bool wasDown = downed;
+        downed = m.dn == 1;
+        if (downed && !wasDown) IslandGame.I.FriendDowned(this);
         int pc = m.pet - 1;
         if (pc != petCode)
         {

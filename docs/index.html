@@ -20,6 +20,27 @@
             pointer-events: none; opacity: 0; transition: opacity .6s; }
     #note.show { opacity: 1; }
     #error { color: #ff9a8a; }
+    /* Phones: full screen + landscape. The browser's bars eat half the height of a phone held sideways. */
+    #full { position: fixed; left: max(6px, env(safe-area-inset-left)); bottom: 6px; display: none; z-index: 5;
+            padding: 3px 10px; border: 1px solid rgba(255,224,138,.7); border-radius: 12px; background: rgba(0,0,0,.55);
+            color: #ffe08a; font: 13px "Kanit", "Tahoma", sans-serif; }
+    #full.show { display: block; }
+    /* "What's new": shown on every page load until closed for today; a new update shows again. */
+    #news { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+            padding: 16px; background: rgba(0,0,0,.55); }
+    #news.show { display: flex; }
+    #news .card { width: min(440px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column;
+                  box-sizing: border-box; padding: 16px 18px 14px; border: 2px solid #ffd34d; border-radius: 14px;
+                  background: #1b2a38; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+    #news h2 { margin: 0 0 2px; font-size: 20px; color: #ffe08a; }
+    #news .date { font-size: 13px; opacity: .7; margin-bottom: 10px; }
+    #news ul { margin: 0; padding: 0 4px 0 20px; overflow-y: auto; font-size: 14px; line-height: 1.55; color: #f5e6b8; }
+    #news li { margin-bottom: 6px; }
+    #news li b { color: #ffe08a; font-weight: normal; }
+    #news .btns { display: flex; gap: 8px; margin-top: 14px; }
+    #news button { flex: 1; min-height: 40px; border-radius: 10px; font: 14px "Kanit", "Tahoma", sans-serif; cursor: pointer; }
+    #news .ok { border: 0; background: #ffd34d; color: #1b2a38; }
+    #news .later { border: 1px solid rgba(255,224,138,.6); background: transparent; color: #ffe08a; }
   </style>
 </head>
 <body>
@@ -30,6 +51,18 @@
     <div id="msg">กำลังโหลดเกม...</div>
   </div>
   <div id="note"></div>
+  <button id="full" type="button">⛶ เต็มจอแนวนอน</button>
+  <div id="news" role="dialog" aria-modal="true" aria-labelledby="news-title">
+    <div class="card">
+      <h2 id="news-title">มีอะไรใหม่</h2>
+      <div class="date" id="news-date"></div>
+      <ul id="news-list"></ul>
+      <div class="btns">
+        <button type="button" class="later" id="news-today">วันนี้ไม่ต้องแสดงอีก</button>
+        <button type="button" class="ok" id="news-ok">ปิด</button>
+      </div>
+    </div>
+  </div>
   <script>
     var canvas = document.getElementById("game");
     var note = document.getElementById("note");
@@ -51,10 +84,75 @@
     window.addEventListener("resize", updateNote);
     updateNote();
 
+    // Full screen + landscape for phones: more room for the game, and the screen stays sideways
+    // (Android). iPhones can't lock the screen, but the game follows whichever way it's held.
+    var full = document.getElementById("full");
+    function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    function updateFull() { full.classList.toggle("show", touch && !isFull()); }
+    full.addEventListener("click", function () {
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      var p = req ? req.call(el, { navigationUI: "hide" }) : null;
+      function lock() {
+        try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(function () {}); } catch (e) {}
+      }
+      if (p && p.then) p.then(lock).catch(lock); else lock();
+      setTimeout(fitCanvas, 300);
+    });
+    document.addEventListener("fullscreenchange", function () { updateFull(); fitCanvas(); });
+    document.addEventListener("webkitfullscreenchange", function () { updateFull(); fitCanvas(); });
+    updateFull();
+
+    // Turning the phone: make sure the canvas takes the new size (some phones report it late).
+    function fitCanvas() {
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+    }
+    window.addEventListener("resize", fitCanvas);
+    window.addEventListener("orientationchange", function () { setTimeout(fitCanvas, 250); setTimeout(fitCanvas, 800); });
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", fitCanvas);
+    fitCanvas();
+
     function showBanner(msg, type) {
       if (type === "error") { document.getElementById("msg").innerHTML = '<span id="error">' + msg + "</span>"; }
       else console.warn(msg);
     }
+
+    // ---------- "What's new" ----------
+    // Each release: put the newest update FIRST with a new id. Players see it every time they open or
+    // refresh the page, until they press "วันนี้ไม่ต้องแสดงอีก" (hidden for the rest of that day only).
+    // A new id shows again straight away, even on a day they hid the old one.
+    var UPDATES = [
+      { id: "2026-11-17", date: "17 พ.ย. 2569", items: [
+        "<b>ระบบบัญชีผู้เล่น</b> สมัครและเข้าสู่ระบบที่หน้าแรก แล้วเล่นตัวละครเดิมได้จากทุกเครื่อง",
+        "<b>ช่วยทำฟาร์มบ้านเพื่อน</b> ปลูก รดน้ำ เก็บเกี่ยว ให้อาหารสัตว์ได้ ของที่เก็บได้ เพื่อนได้ด้วยเท่ากัน",
+        "<b>บ้านเพื่อนเห็นตรงกัน</b> ทุกคนบนเกาะส่วนตัวเห็นฟาร์ม สิ่งก่อสร้าง และสัตว์เหมือนกันแบบสดๆ",
+        "<b>จัดบ้านง่ายขึ้น</b> ในโหมดสร้าง แตะหรือคลิกที่พื้นตรงไหนก็ได้เพื่อวางของ",
+        "<b>ดับกองไฟได้</b> กด X หรือปุ่ม \"ดับกองไฟ\" และไม่ติดอยู่ในกองไฟตอนเกิดอีกแล้ว",
+        "<b>ตัดตอไม้ออกได้</b> ใช้ขวานฟันตอ 2 ที แล้วต้นไม้ใหม่จะไปงอกที่อื่นบนเกาะ",
+        "<b>มือถือแนวนอน</b> มีปุ่ม \"เต็มจอแนวนอน\" ที่มุมล่างซ้าย",
+      ] },
+    ];
+    (function () {
+      var news = document.getElementById("news"), latest = UPDATES[0];
+      if (!latest) return;
+      function today() { var d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+      var hidden = null;
+      try { hidden = JSON.parse(localStorage.getItem("newsHidden") || "null"); } catch (e) {}
+      if (hidden && hidden.id === latest.id && hidden.day === today()) return; // closed for today
+      document.getElementById("news-date").textContent = "อัปเดตวันที่ " + latest.date;
+      document.getElementById("news-list").innerHTML = latest.items.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+      function close() { news.classList.remove("show"); canvas.focus(); }
+      document.getElementById("news-ok").addEventListener("click", close);
+      document.getElementById("news-today").addEventListener("click", function () {
+        try { localStorage.setItem("newsHidden", JSON.stringify({ id: latest.id, day: today() })); } catch (e) {}
+        close();
+      });
+      // keys typed while it's open belong to it, not to the game behind
+      news.addEventListener("keydown", function (e) { e.stopPropagation(); if (e.key === "Escape") close(); });
+      news.classList.add("show");
+      document.getElementById("news-ok").focus();
+    })();
 
     var buildUrl = "Build";
     var config = {

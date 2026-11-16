@@ -33,13 +33,16 @@ public partial class IslandGame
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
+        TickCloud(dt); // logged in: the server keeps a copy of the save (IslandGame.Account.cs)
         TickVisit(dt); // online: keep the server's copy of your private island fresh (IslandGame.Visit.cs)
+        TickHomeSync(dt); // online: friends on a private island see the same thing (IslandGame.HomeSync.cs)
         DevKeys(kb);
         DevHomeKeys(kb); // ?dev=1: F6 skip a minute, F7 coins and materials (IslandGame.Home.cs)
 
         if (dead)
         {
-            if (kb != null && kb.rKey.wasPressedThisFrame) StartGame(null);
+            if (downed) TickDowned(dt); // waiting for a friend to revive me (IslandGame.Revive.cs)
+            if (dead && kb != null && kb.rKey.wasPressedThisFrame) Respawn();
             return;
         }
         if (sailT > 0f) { UpdateSail(dt); return; }
@@ -164,7 +167,8 @@ public partial class IslandGame
         }
         health = 0f; dead = true; craftOpen = false; skillsOpen = false;
         if (cursor != null) cursor.enabled = false;
-        if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
+        if (FriendsCanRevive) GoDown(); // friends here: knocked out, they can bring you back (IslandGame.Revive.cs)
+        else if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
         Sfx.Play("hurt", 0.8f);
         KeepHomeOnDeath();   // ...but your private island waits for the next run (IslandGame.Home.cs)
         SaveSystem.Delete(); // death is permanent: next start is a new run
@@ -177,6 +181,7 @@ public partial class IslandGame
         if (kb != null) HandleCommonKeys(kb);
         if (kb != null && kb.rKey.wasPressedThisFrame) UsePower();
         if (kb != null && kb.tKey.wasPressedThisFrame) UsePowerAttack();
+        if (kb != null && kb.xKey.wasPressedThisFrame) { var f = FireInReach(); if (f != null) PutOutFire(f); }
 
         bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
@@ -186,6 +191,7 @@ public partial class IslandGame
             if (pressed && since > 0.15f) { lastInteract = Time.time; ReelIn(); }
             return;
         }
+        if (TickRevive(held)) return; // holding E over a knocked-out friend (IslandGame.Revive.cs)
         bool Trigger(float repeatDelay)
         {
             if ((pressed && since > 0.15f) || (held && since > repeatDelay)) { lastInteract = Time.time; return true; }
@@ -458,6 +464,7 @@ public partial class IslandGame
                     else Popup("ฉับ!", at + Vector3.up * 1.1f, Color.white);
                 }
                 break;
+            case NodeKind.Stump: DigStump(n); break;
             case NodeKind.Campfire: craftOpen = true; skillsOpen = false; break;
             case NodeKind.Shelter: TrySleep(); break;
             case NodeKind.Cottage: CottageDialog(n); break; // go in, sleep, upgrade (IslandGame.House.cs)
@@ -470,6 +477,70 @@ public partial class IslandGame
             case NodeKind.Signpost: ReadSign(n); break;
             case NodeKind.Raft: TrySail(); break;
         }
+    }
+
+    const int StumpChops = 2;
+
+    /// Chop a stump out with an axe: a little wood, the spot is clear, and a new tree grows
+    /// somewhere else on the island instead.
+    void DigStump(WorldNode n)
+    {
+        Vector3 at = n.transform.position;
+        n.Shake();
+        if (!HasAxe) { Hint("ต้องมีขวานถึงจะตัดตอไม้ออกได้", 2.5f); return; }
+        Sfx.Play("chop", 0.6f);
+        Fx.Burst(at + Vector3.up * 0.2f, new Color(0.6f, 0.4f, 0.2f), 6, 1f, 1.2f);
+        if (++n.hits < StumpChops) { SendNode(n, "hits"); Popup("ฉับ!", at + Vector3.up * 0.6f, Color.white); return; }
+        Give(Item.Wood, 1 + Bonus(), n);
+        Fx.Burst(at + Vector3.up * 0.2f, new Color(0.45f, 0.32f, 0.2f), 14, 1.3f, 1.4f);
+        RemoveShared(n);
+        var tree = PlantTreeElsewhere();
+        Hint(tree != null ? "ตัดตอไม้ออกแล้ว! มีต้นไม้ต้นใหม่งอกขึ้นที่อื่นบนเกาะ" : "ตัดตอไม้ออกแล้ว!", 3f);
+    }
+
+    /// A new tree on a random free grass spot, away from the player. Shared online.
+    WorldNode PlantTreeElsewhere()
+    {
+        if (inHouse || tiles == null) return null;
+        for (int attempt = 0; attempt < 60; attempt++)
+        {
+            var g = new Vector2(rnd.Next(Size), rnd.Next(Size)) + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f;
+            var t = Tile(g);
+            if (!InMap(t.x, t.y) || tiles[t.x, t.y] != 2) continue;
+            if ((g - player.grid).magnitude < 4f || (g - Center).magnitude < 2.5f || !FreeSpot(g, 0.6f)) continue;
+            bool crowded = false;
+            foreach (var o in nodes) if (o != null && o.Blocking && (o.grid - g).magnitude < 1.1f) { crowded = true; break; }
+            if (crowded) continue;
+            var tree = Spawn(NodeKind.Tree, g, rnd.Next(2) == 0);
+            tree.Shake();
+            SendSpawn(tree);
+            return tree;
+        }
+        return null;
+    }
+
+    /// The campfire right next to you, if any (X puts it out).
+    WorldNode FireInReach()
+    {
+        if (player == null) return null;
+        WorldNode best = null;
+        float bd = InteractRange + 0.2f;
+        foreach (var n in nodes)
+            if (n != null && n.kind == NodeKind.Campfire && (n.grid - player.grid).magnitude < bd) { bd = (n.grid - player.grid).magnitude; best = n; }
+        return best;
+    }
+
+    /// Put a campfire out: it's gone (for everyone on the island) and a couple of stones are left.
+    void PutOutFire(WorldNode n)
+    {
+        if (visiting && !VisitAllowed(n.kind)) { Hint($"นี่เป็นของ{visitName} ดับไม่ได้", 2f); return; }
+        Vector3 at = n.transform.position;
+        Fx.Burst(at + Vector3.up * 0.3f, new Color(0.75f, 0.75f, 0.78f, 0.9f), 16, 0.9f, 1.4f, 1.2f, -0.6f); // smoke
+        Sfx.Play("splash", 0.5f);
+        Give(Item.Stone, 2, n);
+        Popup("ดับไฟแล้ว", at + Vector3.up * 0.9f, new Color(0.8f, 0.9f, 1f));
+        if (craftOpen && !benchOpen && DistanceToFire(player.grid) > 2.2f) craftOpen = false;
+        RemoveShared(n);
     }
 
     void Give(Item it, int amount, WorldNode from)

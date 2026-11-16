@@ -85,6 +85,7 @@ public partial class IslandGame
     string Prompt(WorldNode n) => n.kind switch
     {
         NodeKind.Tree => HasAxe ? $"ตัดต้นไม้ ({n.hits}/{ChopsNeeded})" : "เขย่าต้นไม้",
+        NodeKind.Stump => HasAxe ? $"ตัดตอไม้ออก ({n.hits}/{StumpChops})" : "ตอไม้ (ต้องมีขวาน)",
         NodeKind.Bamboo => "ตัดไม้ไผ่",
         NodeKind.Obsidian => "เก็บออบซิเดียน",
         NodeKind.FruitTree => "เก็บผลไม้",
@@ -92,7 +93,7 @@ public partial class IslandGame
         NodeKind.Grass => "ตัดหญ้า",
         NodeKind.Stick => "เก็บกิ่งไม้",
         NodeKind.Rock => "เก็บหิน",
-        NodeKind.Campfire => "ใช้กองไฟ",
+        NodeKind.Campfire => "ใช้กองไฟ  (X ดับไฟ)",
         NodeKind.GlowShroom => "เก็บเห็ดเรืองแสง",
         NodeKind.GlowTree => "เก็บผลไม้เรืองแสง",
         NodeKind.Shell => "เก็บเปลือกหอย",
@@ -284,6 +285,7 @@ public partial class IslandGame
         if (craftOpen) DrawCrafting(W, H);
         if (skillsOpen) DrawSkills(W, H);
         if (buildOpen && !Busy) DrawBuildPanel(W, H); // IslandGame.Build.cs
+        BuildPointerEvent(s); // a click / tap on the ground places right there
 
         // "!" over the weaver while she has something to teach
         foreach (var v in villagers)
@@ -328,14 +330,28 @@ public partial class IslandGame
 
         if (dead)
         {
-            Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, 0.6f));
-            ShadowLabel(new Rect(0, H / 2 - 44, W, 40), voyage != null ? "หายไปกลางทะเล..." : "คุณไม่รอด...", titleCenter);
-            ShadowLabel(new Rect(0, H / 2 + 4, W, 24), $"ไปถึงเกาะที่ {island} เลเวล {level} วันที่ {Day}", labelCenter);
+            // The character lies in the middle of the screen: keep it clear. Text goes in a band at
+            // the top, the button in a band at the bottom, and the middle is only lightly dimmed.
+            Fill(new Rect(0, 0, W, H), new Color(0f, 0f, 0f, downed ? 0.15f : 0.3f));
+            Fill(new Rect(0, 0, W, 120), new Color(0f, 0f, 0f, 0.45f));
+            Fill(new Rect(0, H - 110, W, 110), new Color(0f, 0f, 0f, 0.45f));
+            if (downed)
+            {
+                ShadowLabel(new Rect(0, 28, W, 40), "หมดสติ!", titleCenter, new Color(1f, 0.6f, 0.5f));
+                ShadowLabel(new Rect(0, 72, W, 24), $"รอเพื่อนมาชุบชีวิต... เหลืออีก {Mathf.CeilToInt(Mathf.Max(0f, downedT))} วินาที", labelCenter,
+                    new Color(1f, 0.92f, 0.5f, 0.7f + 0.3f * Mathf.Sin(Time.time * 4f)));
+            }
+            else
+            {
+                ShadowLabel(new Rect(0, 28, W, 40), voyage != null ? "หายไปกลางทะเล..." : "คุณไม่รอด...", titleCenter);
+                ShadowLabel(new Rect(0, 72, W, 24), $"ไปถึงเกาะที่ {island} เลเวล {level} วันที่ {Day}", labelCenter);
+            }
             // a real button (mouse or finger); the R key still works too
-            var again = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
+            var again = new GUIStyle(GUI.skin.button) { fontSize = downed ? 15 : 18, fontStyle = FontStyle.Bold };
             again.normal.textColor = new Color(1f, 0.85f, 0.3f);
             again.hover.textColor = Color.white;
-            if (GUI.Button(new Rect(W / 2f - 130f, H / 2 + 40, 260f, 46f), "เริ่มการผจญภัยใหม่ (R)", again)) StartGame(null);
+            string btnText = downed ? "ยอมแพ้ เริ่มการผจญภัยใหม่ (R)" : "เริ่มการผจญภัยใหม่ (R)";
+            if (GUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
         }
         DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
         DrawTouchControls();
@@ -386,7 +402,8 @@ public partial class IslandGame
             ShadowLabel(new Rect(x, y, w, 20), "ตัวละคร", label);
             ShadowLabel(new Rect(x, y + 22, w, 24), CharacterLook.Presets[look.preset], label, new Color(1f, 0.8f, 0.9f));
             var note = new GUIStyle(small) { wordWrap = true };
-            ShadowLabel(new Rect(x, y + 52, w, 60), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม (ตัวละครอื่นจะเพิ่มในอนาคต)", note, new Color(1f, 1f, 1f, 0.75f));
+            ShadowLabel(new Rect(x, y + 52, w, 40), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม (ตัวละครอื่นจะเพิ่มในอนาคต)", note, new Color(1f, 1f, 1f, 0.75f));
+            DrawAccount(x, box.y + 176, w); // log in to play the same character anywhere (IslandGame.Account.cs)
         }
         else
         {
@@ -411,7 +428,8 @@ public partial class IslandGame
 
         // --- play
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
-        if (GUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), "เล่นออนไลน์ (เจอผู้เล่นอื่น)", btn)) PlayOnline();
+        string acct = acctName ?? (SavedToken.Length > 0 ? SavedUser : "");
+        if (GUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), acct.Length > 0 ? $"เล่นออนไลน์ (บัญชี {acct})" : "เล่นออนไลน์ (เจอผู้เล่นอื่น)", btn)) PlayOnline();
         if (GUI.Button(new Rect(box.x + 360, box.yMax - 54, 180, 36), "เล่นออฟไลน์", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
         GUI.enabled = true;
 
@@ -419,7 +437,7 @@ public partial class IslandGame
         ShadowLabel(new Rect(box.x, box.yMax + 6, box.width, 34), netStatus, status, new Color(1f, 0.9f, 0.6f));
         if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "ยกเลิก")) PlayOffline();
 
-        ShadowLabel(new Rect(0, H - 22, W, 18), "ความคืบหน้าเซฟไว้ในเบราว์เซอร์นี้ ถ้าเล่นออนไลน์ ทุกคนบนเกาะเดียวกันจะเห็นโลกเดียวกัน", smallCenter, new Color(1f, 1f, 1f, 0.6f));
+        ShadowLabel(new Rect(0, H - 22, W, 18), "ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น  ·  ล็อกอิน: เล่นตัวเดิมได้จากทุกเครื่อง", smallCenter, new Color(1f, 1f, 1f, 0.6f));
         string built = BuildTimeText();
         if (built != null) ShadowLabel(new Rect(14, 8, 320, 18), built, small, new Color(1f, 1f, 1f, 0.7f)); // top left, clear of the sound button
     }
@@ -470,7 +488,8 @@ public partial class IslandGame
             if (r == null) continue;
             var gp = ToGui(r.transform.position + Vector3.up * 0.85f, s);
             ShadowLabel(new Rect(gp.x - 70, gp.y - 18, 140, 18), $"{r.playerName}  <size=10>Lv {r.level}</size>", smallCenter, new Color(0.7f, 0.9f, 1f));
-            if (Time.time < r.chatUntil) ChatBubble(gp, r.chat);
+            if (r.downed) DrawReviveTag(r, gp); // knocked out: a friend can bring them back (IslandGame.Revive.cs)
+            else if (Time.time < r.chatUntil) ChatBubble(gp, r.chat);
         }
         if (Time.time < myChatUntil && player != null) ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat);
     }
@@ -495,36 +514,7 @@ public partial class IslandGame
         ShadowLabel(new Rect(W - 330, 30, 316, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight },
             Online ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.5f));
 
-        // recent chat
-        float y = H - 140;
-        for (int i = chatLog.Count - 1; i >= 0 && y > H - 260; i--)
-        {
-            var c = chatLog[i];
-            float age = Time.time - c.t;
-            if (age > 20f && !chatOpen) continue;
-            float a = chatOpen ? 1f : Mathf.Clamp01((20f - age) / 3f);
-            string line = string.IsNullOrEmpty(c.who) ? $"<i>{c.text}</i>" : $"<b>{c.who}:</b> {c.text}";
-            ShadowLabel(new Rect(14, y, 420, 18), line, small, new Color(1f, 1f, 1f, a));
-            y -= 16;
-        }
-
-        if (chatOpen)
-        {
-            var e = Event.current;
-            bool justOpened = Time.time - chatOpenedAt < 0.2f;
-            if (e.type == EventType.KeyDown && !justOpened)
-            {
-                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { SubmitChat(); e.Use(); return; }
-                if (e.keyCode == KeyCode.Escape) { chatOpen = false; e.Use(); return; }
-            }
-            Fill(new Rect(10, H - 120, 430, 26), new Color(0f, 0f, 0f, 0.6f));
-            GUI.SetNextControlName("chat");
-            chatText = GUI.TextField(new Rect(14, H - 117, 422, 20), chatText ?? "", 80);
-            GUI.FocusControl("chat");
-            ShadowLabel(new Rect(14, H - 96, 420, 16), "Enter ส่ง, Esc ยกเลิก", small, new Color(1f, 1f, 1f, 0.6f));
-        }
-        else if (Shared && remotes.Count > 0)
-            ShadowLabel(new Rect(W - 330, 46, 316, 18), "Enter: แชต", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 0.5f));
+        DrawChat(W, H); // chat log + typing box, laid out for mouse or touch (IslandGame.ChatMobile.cs)
     }
 
     static string ClothingBonus(Item it) => it switch
@@ -692,6 +682,8 @@ public partial class IslandGame
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
         ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), (benchOpen ? "โต๊ะช่าง" : "ประดิษฐ์") + "   <size=11>(Tab ปิด, กดตัวเลขเพื่อสร้าง)</size>", label);
+        var fire = benchOpen ? null : FireInReach();
+        if (fire != null && GUI.Button(new Rect(panel.xMax - 92, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
 
         var view = new Rect(panel.x + 4, panel.y + 32, pw - 8, panel.height - 36);
         var content = new Rect(0, 0, view.width - 18, contentH);

@@ -169,7 +169,7 @@ public partial class IslandGame
         }
         stickCap = 0; rockCap = 0; obsidianCap = 0;
 
-        var door = Spawn(NodeKind.HouseDoor, DoorTile, false);
+        var door = Spawn(NodeKind.HouseDoor, DoorTile, false, DoorId); // fixed id: never clashes with the furniture's
         door.built = false;
         if (!fresh) return;
         foreach (var (k, g) in new[] { (NodeKind.Workbench, new Vector2(min.x + 1, min.y)), (NodeKind.Bed, new Vector2(min.x + n - 2, min.y + 1)), (NodeKind.Rug, new Vector2(min.x + n / 2, min.y + n / 2)), (NodeKind.PlantPot, new Vector2(min.x, min.y)) })

@@ -46,3 +46,9 @@ Server/cloudflared.exe
 
 # art sheet output (Island > Export Art Sheet)
 /Art/
+
+# Player accounts and saves (Server/server.js)
+Server/data/
+
+# Local MCP config (holds API keys)
+.mcp.json

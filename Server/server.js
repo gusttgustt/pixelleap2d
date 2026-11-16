@@ -17,6 +17,15 @@
 //                        {t:"homes"}                  -> {t:"homes", players}  who has a private island to visit
 //                        {t:"visit", id}              -> {t:"visit", id, name, text, room, lv, pets}  (text "" = gone)
 //                        {t:"knock", to}              "I'm visiting your island" (reaches them anywhere)
+//                        {t:"hnode", id, text, room}  a private island changed (to everyone on it + its owner)
+//                        {t:"hgift", to, kind, hits}  "I harvested on your farm": the owner gets the same
+//   Accounts (play the same character anywhere):
+//                        {t:"register"|"login", name, text: password} or {t:"token", name, text: token}
+//                                                     -> {t:"auth", hits:1, name, ev: token, text: save, room: keep}
+//                                                        or {t:"auth", hits:0, why}
+//                        {t:"save", text, room}       the logged-in player's save (and kept home island)
+//                        {t:"logout", ev: token}
+//   Accounts live in DATA_DIR (default Server/data): accounts.json + one file per player's save.
 //   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
 // - http://<host>:<port>/  serves the web build from docs/.
@@ -28,9 +37,12 @@ const path = require("path");
 
 const PORT = parseInt(process.argv[2] || process.env.PORT || "8787", 10);
 const WEB_ROOT = path.resolve(__dirname, "..", "docs");
-const MAX_FRAME = 512 * 1024;         // game messages are tiny; a private island sent for visitors is the big one
+const MAX_FRAME = 4 * 1024 * 1024;   // game messages are tiny; a save (accounts) or a private island are the big ones
+const MAX_SAVE = 3500000;             // characters of save text kept per player
 const MAX_EVENTS = 4000;              // remembered world changes per island
 const WORLD_SEED = crypto.randomInt(1, 2 ** 31 - 1); // every island layout comes from this
+
+const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, "data"));
 
 const clients = new Map();            // id -> socket
 const rooms = new Map();              // island -> { order: [ids], events: Map(nodeId -> event) }
@@ -217,6 +229,24 @@ function onMessage(socket, text) {
     case "leave":
       leaveRoom(socket);
       return;
+    case "register":
+    case "login":
+    case "token":
+      onAccount(socket, m);
+      return;
+    case "save": {
+      if (!socket.acct || !accounts[socket.acct]) return;
+      const text = String(m.text || ""), keep = String(m.room || "");
+      if (text.length > MAX_SAVE || keep.length > MAX_SAVE) return;
+      try { writeFileSafe(saveFile(socket.acct), JSON.stringify({ save: text, keep, at: Date.now() })); } catch (e) { log("! save failed: " + e.message); }
+      return;
+    }
+    case "logout": {
+      const acc = socket.acct && accounts[socket.acct];
+      if (acc && m.ev) { acc.tokens = (acc.tokens || []).filter(t => t !== hashToken(m.ev)); saveAccountsSoon(); }
+      socket.acct = null;
+      return;
+    }
     case "home":
       socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000) };
       return;
@@ -238,6 +268,21 @@ function onMessage(socket, text) {
       if (s) send(s, { t: "knock", from: socket.pid, name: socket.name });
       return;
     }
+    case "hnode": {
+      // A private island changed (m.id = its owner): everyone on it sees it, and the owner gets it
+      // wherever they are, so a friend's help on the farm is kept even while the owner is away.
+      if (m.to > 0) { const s = clients.get(m.to); if (s) send(s, m); return; }
+      if (socket.island) toRoom(socket.island, m, socket.pid);
+      const o = clients.get(m.id | 0);
+      if (o && o !== socket && o.island !== socket.island) send(o, m);
+      return;
+    }
+    case "hgift": {
+      // a friend harvested on your farm: you get the same
+      const s = clients.get(m.to | 0);
+      if (s) { m.name = socket.name; send(s, m); }
+      return;
+    }
     case "node":
     case "spawn":
       if (!socket.island) return;
@@ -249,6 +294,74 @@ function onMessage(socket, text) {
       if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); }
       else toRoom(socket.island, m, socket.pid);
   }
+}
+
+// ---------- accounts ----------
+
+let accounts = {};                    // key (lower-case name) -> { name, salt, hash, tokens: [sha256], at }
+try { accounts = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "accounts.json"), "utf8")) || {}; } catch (e) { accounts = {}; }
+let accountsTimer = null;
+
+function writeFileSafe(file, text) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = file + ".tmp";
+  fs.writeFileSync(tmp, text);
+  fs.renameSync(tmp, file);
+}
+
+function saveAccountsSoon() {
+  if (accountsTimer) return;
+  accountsTimer = setTimeout(() => {
+    accountsTimer = null;
+    try { writeFileSafe(path.join(DATA_DIR, "accounts.json"), JSON.stringify(accounts)); } catch (e) { log("! accounts not saved: " + e.message); }
+  }, 1000);
+}
+
+const keyOf = name => String(name || "").trim().toLowerCase();
+const saveFile = key => path.join(DATA_DIR, "u_" + Buffer.from(key, "utf8").toString("hex") + ".json");
+const hashPass = (pass, salt) => crypto.scryptSync(String(pass), salt, 32).toString("hex");
+const hashToken = t => crypto.createHash("sha256").update(String(t)).digest("hex");
+
+function readSave(key) {
+  try { return JSON.parse(fs.readFileSync(saveFile(key), "utf8")); } catch (e) { return { save: "", keep: "" }; }
+}
+
+function authOk(socket, acc) {
+  const token = crypto.randomBytes(24).toString("hex");
+  acc.tokens = (acc.tokens || []).concat(hashToken(token)).slice(-8); // up to 8 devices stay logged in
+  acc.at = Date.now();
+  saveAccountsSoon();
+  socket.acct = keyOf(acc.name);
+  const data = readSave(socket.acct);
+  send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "" });
+  log("  " + socket.name + " logged in as " + acc.name);
+}
+
+function onAccount(socket, m) {
+  socket.tries = (socket.tries || 0) + 1;
+  if (socket.tries > 20) { send(socket, { t: "auth", hits: 0, why: "ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่" }); return; }
+  const name = String(m.name || "").trim(), key = keyOf(name), pass = String(m.text || "");
+  if (m.t === "register") {
+    if (!/^[\p{L}\p{M}\p{N}_.\-]{3,20}$/u.test(name)) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค" }); return; }
+    if (pass.length < 4) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย 4 ตัว" }); return; }
+    if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
+    const salt = crypto.randomBytes(16).toString("hex");
+    accounts[key] = { name, salt, hash: hashPass(pass, salt), tokens: [], at: Date.now() };
+    log("+ account " + name);
+    authOk(socket, accounts[key]);
+    return;
+  }
+  const acc = accounts[key];
+  if (m.t === "token") {
+    if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
+    acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
+    authOk(socket, acc);
+    return;
+  }
+  if (!acc) { send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; }
+  const h = hashPass(pass, acc.salt);
+  if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านไม่ถูกต้อง" }); return; }
+  authOk(socket, acc);
 }
 
 function drop(socket) {
@@ -266,6 +379,7 @@ server.listen(PORT, "0.0.0.0", () => {
   log("Island server on port " + PORT + " (world seed " + WORLD_SEED + ")");
   log("  game connects to  ws://127.0.0.1:" + PORT + "/ws");
   log("  web build at      http://localhost:" + PORT + "/  (from " + WEB_ROOT + ")");
+  log("  accounts in       " + DATA_DIR + " (" + Object.keys(accounts).length + " players)");
 });
 
 // Render's free plan sleeps after 15 minutes without requests; ping ourselves every 10 minutes.

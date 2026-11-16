@@ -46,6 +46,7 @@ public class SaveData
     // Pets (IslandGame.Pet.cs): all you own, and the one out walking with you (-1 = none).
     public List<PetSave> pets = new List<PetSave>();
     public int activePet = -1;
+    public long savedAt;    // unix seconds of the last write: the newer of the cloud and local save wins (IslandGame.Account.cs)
 }
 
 [Serializable]
@@ -81,6 +82,7 @@ public class NodeSave
     public float regrow; // seconds left until it regrows
     public int item, count; // dropped items (NodeKind.Drop); crop type / growth stage on farm plots
     public bool built;      // put there by the player (can be taken down with the hammer)
+    public int id;          // private island: the same on the owner's and visitors' machines (IslandGame.HomeSync.cs)
 }
 
 /// Reads and writes the save file as JSON in Application.persistentDataPath.
@@ -98,17 +100,52 @@ public static class SaveSystem
 
     public static bool HasSave => File.Exists(SavePath);
 
+    /// Any change to the save files (written, deleted on death, home kept): an account copies them to the server.
+    public static Action Changed;
+    static void Touch() { try { Changed?.Invoke(); } catch (Exception e) { Debug.LogWarning(e.Message); } }
+
+    /// The save and kept-home files as they are on disk ("" = none), for the account copy.
+    public static string RawSave() { try { return File.Exists(SavePath) ? File.ReadAllText(SavePath) : ""; } catch { return ""; } }
+    public static string RawKeep() { try { return File.Exists(HomeKeepPath) ? File.ReadAllText(HomeKeepPath) : ""; } catch { return ""; } }
+
+    /// Puts the account's copy in place of the files on this device.
+    public static void WriteRaw(string save, string keep)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(save)) { if (File.Exists(SavePath)) File.Delete(SavePath); }
+            else File.WriteAllText(SavePath, save);
+            if (string.IsNullOrEmpty(keep)) { if (File.Exists(HomeKeepPath)) File.Delete(HomeKeepPath); }
+            else File.WriteAllText(HomeKeepPath, keep);
+        }
+        catch (Exception e) { Debug.LogWarning($"Writing the account's save failed: {e.Message}"); }
+    }
+
+    public static SaveData Parse(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return null;
+        try
+        {
+            var data = JsonUtility.FromJson<SaveData>(text);
+            if (data == null || data.version < OldestReadable || data.version > Version) return null;
+            return data;
+        }
+        catch { return null; }
+    }
+
     public static void Write(SaveData data)
     {
         try
         {
             // Write to a temp file first so a crash mid-write can't corrupt the save.
+            data.savedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string tmp = SavePath + ".tmp";
-            File.WriteAllText(tmp, JsonUtility.ToJson(data, true));
+            File.WriteAllText(tmp, JsonUtility.ToJson(data)); // compact: it also goes to the server for accounts
             File.Copy(tmp, SavePath, true);
             File.Delete(tmp);
         }
         catch (Exception e) { Debug.LogWarning($"Save failed: {e.Message}"); }
+        Touch();
     }
 
     public static SaveData Read()
@@ -135,6 +172,7 @@ public static class SaveSystem
     {
         try { File.WriteAllText(HomeKeepPath, JsonUtility.ToJson(data)); }
         catch (Exception e) { Debug.LogWarning($"Keeping the home island failed: {e.Message}"); }
+        Touch();
     }
 
     /// Reads and removes the kept home island (null if there is none).
@@ -145,6 +183,7 @@ public static class SaveSystem
             if (!File.Exists(HomeKeepPath)) return null;
             var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(HomeKeepPath));
             File.Delete(HomeKeepPath);
+            Touch();
             return data;
         }
         catch (Exception e) { Debug.LogWarning($"Reading the kept home island failed: {e.Message}"); return null; }
@@ -154,5 +193,6 @@ public static class SaveSystem
     {
         try { if (HasSave) File.Delete(SavePath); }
         catch (Exception e) { Debug.LogWarning($"Delete save failed: {e.Message}"); }
+        Touch();
     }
 }

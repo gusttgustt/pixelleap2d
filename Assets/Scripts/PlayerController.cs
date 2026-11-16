@@ -145,7 +145,15 @@ public class PlayerController : MonoBehaviour
         return v;
     }
 
-    bool CanStand(Vector2 g) => IslandGame.I.CanWalk(g, 0.18f) && IslandGame.I.CanClimb(grid, g);
+    /// Stuck inside something solid (spawned on a campfire, a tree regrew around you...): any step
+    /// onto land that doesn't push deeper in is allowed, so you can always walk out.
+    bool CanStand(Vector2 g)
+    {
+        var game = IslandGame.I;
+        if (!game.CanClimb(grid, g)) return false;
+        if (game.CanWalk(g, 0.18f)) return true;
+        return game.IsLand(g) && !game.CanWalk(grid, 0.18f) && game.Overlap(g, 0.18f) <= game.Overlap(grid, 0.18f) + 0.0001f;
+    }
 
     void Apply(int frame)
     {

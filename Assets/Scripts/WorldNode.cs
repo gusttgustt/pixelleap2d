@@ -17,6 +17,7 @@ public class WorldNode : MonoBehaviour
 
     // farm animals stroll around where they were let out (IslandGame.Farm.cs)
     Vector2 home, wanderDir;
+    Vector2? netGrid; // a friend's animal: walks where its owner's game says it is (IslandGame.HomeSync.cs)
     float wanderT, walkT;
 
     // Regrow timers run on game time (IslandGame.Now) so sleeping through the night makes plants grow.
@@ -86,7 +87,8 @@ public class WorldNode : MonoBehaviour
 
     public bool CanTarget => kind switch
     {
-        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower
+        NodeKind.Stump => true, // chop it out with an axe (IslandGame.Play.cs)
+        NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower
             or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.SunkenTemple
             or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon => false,
         NodeKind.GiantClam => true,
@@ -280,8 +282,20 @@ public class WorldNode : MonoBehaviour
         float dt = Time.deltaTime;
         var player = game.player;
         bool near = player != null && (player.grid - grid).magnitude < 1.1f; // hold still to be fed / milked
+        foreach (var r in game.remotes.Values) if (r != null && (r.grid - grid).magnitude < 1.1f) near = true; // a visiting friend too
         bool moving = false;
-        if (!near && !game.Busy)
+        if (netGrid != null) // someone else's animal: follow the owner's copy
+        {
+            Vector2 to = netGrid.Value - grid;
+            if (to.magnitude > 3f) grid = netGrid.Value;
+            else if (to.magnitude > 0.02f)
+            {
+                wanderDir = to.normalized;
+                grid = Vector2.MoveTowards(grid, netGrid.Value, (kind == NodeKind.Cow ? 0.5f : 0.8f) * dt);
+                moving = true;
+            }
+        }
+        else if (!near && !game.Busy)
         {
             wanderT -= dt;
             if (wanderT <= 0f)
@@ -311,6 +325,27 @@ public class WorldNode : MonoBehaviour
         sr.sprite = IslandGame.HomeSprite(this, moving ? 1 + ((int)walkT & 1) : 0);
     }
 
+    /// A friend's copy of this node changed (private islands online, IslandGame.HomeSync.cs).
+    public void ApplyState(NodeSave s, bool follow)
+    {
+        kind = s.kind;
+        available = s.available;
+        hits = s.hits;
+        built = s.built;
+        dropItem = (Item)s.item;
+        dropCount = s.count;
+        regrowAt = s.regrow > 0f ? IslandGame.I.Now + s.regrow : 0f;
+        if (IsAnimal && follow) netGrid = s.grid;
+        else if ((s.grid - grid).sqrMagnitude > 0.0001f && !IsAnimal)
+        {
+            grid = s.grid;
+            Vector3 flat = IslandGame.GridToWorld(grid);
+            basePos = flat + Vector3.up * IslandGame.I.HeightAt(grid);
+            sr.sortingOrder = IslandGame.SortOrder(flat.y);
+        }
+        Refresh();
+    }
+
     /// Re-applies saved state after loading.
     public void Restore(bool isAvailable, int savedHits, float regrowSeconds)
     {
@@ -337,7 +372,7 @@ public class WorldNode : MonoBehaviour
             {
                 regrowAt = 0f;
                 available = true;
-                if (kind == NodeKind.Stump) kind = NodeKind.Tree;
+                if (kind == NodeKind.Stump) { kind = NodeKind.Tree; hits = 0; }
                 Refresh();
             }
         }

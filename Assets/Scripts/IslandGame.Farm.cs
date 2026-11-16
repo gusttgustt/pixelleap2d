@@ -73,7 +73,9 @@ public partial class IslandGame
                 break;
             default:
                 var (lo, hi) = CropYield(n.dropItem);
-                Give(CropOf(n.dropItem), rnd.Next(lo, hi + 1) + Bonus(), n);
+                int crops = rnd.Next(lo, hi + 1) + Bonus();
+                Give(CropOf(n.dropItem), crops, n);
+                GiftOwner(CropOf(n.dropItem), crops); // a friend's farm: they get the same (IslandGame.HomeSync.cs)
                 if (rnd.NextDouble() < 0.4) Give(n.dropItem, 1, n); // sometimes a seed to plant again
                 Fx.Burst(at + Vector3.up * 0.3f, new Color(0.5f, 0.85f, 0.35f), 10, 0.9f, 1.2f, 1f, 2f);
                 n.dropCount = 0; n.hits = 0; n.available = false;
@@ -125,8 +127,10 @@ public partial class IslandGame
         string who = AnimalName(n.kind);
         if (n.available)
         {
-            if (n.kind == NodeKind.Cow) Give(Item.Milk, 1 + (rnd.NextDouble() < 0.2 ? 1 : 0), n);
-            else Give(Item.Egg, 1 + (rnd.NextDouble() < 0.25 ? 1 : 0), n);
+            var product = n.kind == NodeKind.Cow ? Item.Milk : Item.Egg;
+            int got = 1 + (rnd.NextDouble() < (n.kind == NodeKind.Cow ? 0.2 : 0.25) ? 1 : 0);
+            Give(product, got, n);
+            GiftOwner(product, got);
             n.available = false; n.hits = 0;
             n.Refresh();
             n.Shake();

@@ -35,7 +35,9 @@ public partial class IslandGame
     int RoomKey => atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : island;
 
     /// While visiting you can look around but only these do anything.
-    static bool VisitAllowed(NodeKind k) => k is NodeKind.Signpost or NodeKind.Cottage or NodeKind.HouseDoor or NodeKind.Well or NodeKind.Fountain;
+    /// Farming is allowed too: plant, water and harvest, feed the animals (the owner gets what you harvest as well).
+    static bool VisitAllowed(NodeKind k) => k is NodeKind.Signpost or NodeKind.Cottage or NodeKind.HouseDoor or NodeKind.Well or NodeKind.Fountain
+        or NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow;
 
     // ------------------------------------------------------------------ sending your island
     void TickVisit(float dt)
@@ -73,7 +75,7 @@ public partial class IslandGame
             sb.Append((int)n.kind).Append(',')
               .Append(n.grid.x.ToString("0.##", ci)).Append(',').Append(n.grid.y.ToString("0.##", ci)).Append(',')
               .Append(flags).Append(',').Append(n.hits).Append(',').Append(Mathf.RoundToInt(n.regrow)).Append(',')
-              .Append(n.item).Append(',').Append(n.count).Append(';');
+              .Append(n.item).Append(',').Append(n.count).Append(',').Append(n.id).Append(';');
         }
         return sb.ToString();
     }
@@ -99,6 +101,7 @@ public partial class IslandGame
                     available = (flags & 1) != 0, flip = (flags & 2) != 0, built = (flags & 4) != 0,
                     hits = int.Parse(f[4], ci), regrow = int.Parse(f[5], ci),
                     item = int.Parse(f[6], ci), count = int.Parse(f[7], ci),
+                    id = f.Length > 8 ? int.Parse(f[8], ci) : 0,
                 });
             }
             catch { }
@@ -136,7 +139,7 @@ public partial class IslandGame
         int n = list?.Length ?? 0;
         d.text = n == 0
             ? "ตอนนี้ยังไม่มีผู้เล่นคนอื่นที่ออนไลน์และมีเกาะส่วนตัวเลย ลองใหม่ทีหลังนะ"
-            : "เลือกบ้านที่อยากไปเยี่ยม ไปดูฟาร์ม บ้าน และสัตว์เลี้ยงของเขาได้ (ดูได้อย่างเดียว เก็บหรือสร้างอะไรไม่ได้)";
+            : "เลือกบ้านที่อยากไปเยี่ยม ช่วยปลูก รดน้ำ เก็บเกี่ยว และเลี้ยงสัตว์ในฟาร์มของเพื่อนได้ (ของที่เก็บได้ เพื่อนจะได้ด้วยเท่ากัน) แต่สร้างหรือรื้ออะไรไม่ได้";
         for (int i = 0; i < n && i < 8; i++)
         {
             var p = list[i];
@@ -208,7 +211,7 @@ public partial class IslandGame
         }
         StartGame(d);
         Send(new NetMsg { t = "knock", to = visitOwner });
-        Hint($"มาถึงบ้านของ {visitName} แล้ว! เดินชมได้ตามสบาย กด Enter เพื่อทักทาย กด H เพื่อกลับ", 7f);
+        Hint($"มาถึงบ้านของ {visitName} แล้ว! ช่วยดูแลฟาร์มได้ (เพื่อนได้ผลผลิตด้วย) กด Enter เพื่อทักทาย กด H เพื่อกลับ", 7f);
     }
 
     void EndVisit()
