@@ -212,6 +212,9 @@ public partial class IslandGame
             case VillagerRole.Hunter:
                 var hq = HunterQuest();
                 return Done(hq) ? null : hq;
+            case VillagerRole.Local:
+                var lq = LocalQuest();
+                return Done(lq) ? null : lq;
             default: return null;
         }
     }
@@ -245,6 +248,7 @@ public partial class IslandGame
             case VillagerRole.Diver:
             case VillagerRole.Clockmaker:
             case VillagerRole.Hunter:
+            case VillagerRole.Local:
                 break;
             default:
                 return false;
@@ -256,6 +260,7 @@ public partial class IslandGame
             d.text = text ?? (v.role == VillagerRole.Shipwright
                 ? (raftLevel == 0 ? "ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น"
                                   : $"{BoatName(raftLevel)} Lv {raftLevel} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ")
+                : v.role == VillagerRole.Local ? "ขอบคุณมากนะ! ถ้าผ่านมาอีก แวะมาทักทายกันได้เสมอ"
                 : v.role == VillagerRole.Hunter ? "กองไฟใหญ่ลุกโชนแล้ว ทั้งหมู่บ้านอุ่นสบาย รองเท้าหนามคู่นั้นจะพาเจ้าเดินบนน้ำแข็งได้มั่นคง"
                 : v.role == VillagerRole.Clockmaker ? "ติ๊กต่อก... ได้ยินไหม หอนาฬิกาเดินแล้ว! นาฬิกาแดดของเจ้าใช้หยุดเวลาได้เมื่อจวนตัว"
                 : v.role == VillagerRole.Diver ? "โดมแน่นหนาแล้ว หายใจได้เต็มปอดเลย ระฆังดำน้ำจะพาเจ้าเก็บมุกในทะเลได้อีกมาก"
@@ -271,12 +276,13 @@ public partial class IslandGame
                      : v.role == VillagerRole.Diver ? DiverIntro
                      : v.role == VillagerRole.Clockmaker ? ClockIntro
                      : v.role == VillagerRole.Hunter ? HunterIntro
+                     : v.role == VillagerRole.Local ? LocalIntro(q)
                      : q.id.StartsWith("lost") ? "ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้"
                      : "แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน";
         if (!Accepted(q))
         {
             d.text = text ?? $"{intro}\n<b>{q.title}</b>  รางวัล: {q.rewardText}\n{string.Join("\n", QuestLines(q))}";
-            d.options.Add(($"รับภารกิจ: {q.title}", () => { flags.Add("acc:" + q.id); OpenDialog(v, $"ขอบใจ! ภารกิจ \"{q.title}\" ดูความคืบหน้าได้ที่มุมขวาบน"); }, true));
+            d.options.Add(($"รับภารกิจ: {q.title}", () => { flags.Add("acc:" + q.id); if (q.id.StartsWith("local") && q.help.Length > 0) PlaceLostBundle(); OpenDialog(v, $"ขอบใจ! ภารกิจ \"{q.title}\" ดูความคืบหน้าได้ที่มุมขวาบน"); }, true));
         }
         else
         {

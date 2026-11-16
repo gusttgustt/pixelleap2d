@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum VillagerRole { Weaver, Elder, Trader, Villager, Shipwright, Doctor, Child, Keeper, Sage, Diver, Clockmaker, Hunter }
+public enum VillagerRole { Weaver, Elder, Trader, Villager, Shipwright, Doctor, Child, Keeper, Sage, Diver, Clockmaker, Hunter, Local }
 
 /// A friendly member of the tribe. Strolls around their hut and stops to face you when you're near.
 public class Villager : MonoBehaviour

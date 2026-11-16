@@ -19,7 +19,8 @@ public enum Item
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
-    Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue, Kelp, CoralNode, Oyster, AirVent, SandCrystal, ClockRuin, ClockTower, IceCrystal, HotSpring }
+    Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue, Kelp, CoralNode, Oyster, AirVent, SandCrystal, ClockRuin, ClockTower, IceCrystal, HotSpring,
+    Wreck, Chest, Pillar, GiantTree, Shrine, LostBundle }
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky, Bubble, Hourglass, Ice }
 
@@ -109,7 +110,7 @@ public partial class IslandGame : MonoBehaviour
         // taught by the Hourglass island's clockmaker
         new Recipe { name = "นาฬิกาแดด", output = Item.Sundial, learn = true, cost = new[] { (Item.Gear, 4), (Item.TimeSand, 4), (Item.Stone, 4) }, desc = "หยุดเวลาสัตว์รอบตัว 5 วิ (ใช้จากช่องลัด)" },
         // taught by the Ice island's snow hunter
-        new Recipe { name = "รองเท้าหนาม", output = Item.SpikedBoots, learn = true, cost = new[] { (Item.Fur, 2), (Item.IceShard, 4), (Item.Hide, 1), (Item.Rope, 2) }, desc = "เดินบนน้ำแข็งไม่ลื่น" },
+        new Recipe { name = "รองเท้าหนาม", output = Item.SpikedBoots, learn = true, cost = new[] { (Item.Fur, 3), (Item.IceShard, 4), (Item.Rope, 2) }, desc = "เดินบนน้ำแข็งไม่ลื่น" },
         new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
     };
 
@@ -177,7 +178,9 @@ public partial class IslandGame : MonoBehaviour
         new[] { Biome.Tropical, Biome.Mushroom, Biome.Turtle, Biome.Sky, Biome.Bubble, Biome.Hourglass, Biome.Ice, Biome.Jungle, Biome.Tribal, Biome.Volcanic }[(islandNumber - 1) % 10];
 
     /// Colour tint for plants that have no biome-specific sprite.
-    public Color Tint(NodeKind k) =>
+    public Color Tint(NodeKind k) => TintBase(k) * (k is NodeKind.Tree or NodeKind.FruitTree or NodeKind.Bush or NodeKind.Grass or NodeKind.GiantTree ? T.tint : Color.white);
+
+    Color TintBase(NodeKind k) =>
         biome == Biome.Volcanic && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.85f, 0.78f, 0.6f)
         : biome == Biome.Jungle && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.8f, 0.95f, 0.8f)
         : biome == Biome.Mushroom && k is NodeKind.Grass or NodeKind.Bush ? new Color(0.75f, 0.7f, 1f)
@@ -326,6 +329,7 @@ public partial class IslandGame : MonoBehaviour
         dialog = null;
         rnd = new System.Random(seed);
         genPhase = true; // nodes made from the seed get the same ids on every machine
+        ComputeTraits(); // name, shape, colours, weather, landmarks... (IslandGame.Traits.cs)
         BuildIsland(Center, spawnResources: fresh);
         if (fresh && biome == Biome.Tribal) BuildVillage();
         if (fresh && biome == Biome.Mushroom) BuildMushroomCamp();
@@ -361,6 +365,7 @@ public partial class IslandGame : MonoBehaviour
         BuildTurtle();       // flood water and the turtle's head (Turtle island only)
         SpawnTownsfolk();
         SpawnBoss();
+        SpawnAlpha(); // this island's pack leader, if it has one
 
         Vector2 start = landing ?? (!fresh && IsLand(data.player) ? data.player : Center);
         player = new GameObject("Player").AddComponent<PlayerController>();
@@ -376,7 +381,7 @@ public partial class IslandGame : MonoBehaviour
         if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
         else if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
         else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
-        else Hint($"เห็นฝั่งแล้ว! เกาะที่ {island}: {BiomeName} {BiomeIntro()}", 9f);
+        else Hint($"เห็นฝั่งแล้ว! {T.name} (เกาะที่ {island}, {BiomeName}) {BiomeIntro()}" + (T.alpha ? $" ได้ยินว่ามีจ่าฝูง{EnemyName(T.alphaKind)}อยู่บนเกาะนี้!" : ""), 9f);
         if (fresh || landing != null) SaveGame(); // replaces any old save right away
         JoinRoom();            // online: meet whoever else is on this island
     }
@@ -537,12 +542,12 @@ public partial class IslandGame : MonoBehaviour
             {
                 float d = Vector2.Distance(new Vector2(gx, gy), center) / radius;
                 float n = Mathf.PerlinNoise(ox + gx * 0.13f, oy + gy * 0.13f);
-                float v = 1f - d + (n - 0.5f) * 0.7f;
+                float v = ShapeValue(gx, gy, center, radius, n); // round, long, crescent, twin, archipelago...
                 tiles[gx, gy] = d < 0.25f || v > 0.3f ? 2 : v > 0.13f ? 1 : 0;
             }
 
         float hillBias = biome switch { Biome.Volcanic => 0.1f, Biome.Jungle => 0.03f, Biome.Mushroom => 0.02f, Biome.Turtle => 0.16f, Biome.Sky => 0.05f, Biome.Bubble => 0.04f, Biome.Hourglass => 0.06f, Biome.Ice => 0.05f, _ => 0f }; // the shell rises in the middle
-        BuildHills(center, radius, hx, hy, hillBias);
+        BuildHills(center, radius, hx, hy, hillBias + ShapeHillBias);
         CarvePonds(center);
 
         // Ground tiles. Water is drawn under all land so cliff edges show over the sea.
@@ -580,6 +585,7 @@ public partial class IslandGame : MonoBehaviour
                 {
                     int h = heights[gx, gy];
                     sr.sprite = PixelArt.Land(t == 2, rnd.Next(4), h, biome);
+                    sr.color = T.tint; // each island's own colour cast
                     sr.sortingOrder = -31000 + 2 * (gx + gy); // gaps leave room for the turtle island's flood water
                     p.y += PixelArt.HeightUnits(h);
                 }
@@ -601,6 +607,7 @@ public partial class IslandGame : MonoBehaviour
 
         PlaceGlowingTree(); // a rare special-fruit tree (IslandGame.Power.cs)
         BuildProsperity();  // houses, lamps, farms... by island level (IslandGame.Town.cs)
+        PlaceLandmarks();   // shipwreck, ruins, giant tree, shrine (IslandGame.Traits.cs)
 
         // A starter kit close to the landing point
         Spawn(NodeKind.Stick, center + new Vector2(2.2f, -0.4f));
@@ -634,14 +641,14 @@ public partial class IslandGame : MonoBehaviour
             (Biome.Turtle, false) => new[] { (NodeKind.Shell, .07), (NodeKind.Stick, .03), (NodeKind.Rock, .03) },
             (Biome.Sky, true) => new[] { (NodeKind.Tree, .08), (NodeKind.CloudPlant, .07), (NodeKind.FruitTree, .03), (NodeKind.Bush, .04), (NodeKind.Grass, .10), (NodeKind.Stick, .04), (NodeKind.Rock, .04) },
             (Biome.Sky, false) => new[] { (NodeKind.CloudPlant, .04), (NodeKind.Stick, .03), (NodeKind.Rock, .04) },
-            (Biome.Bubble, true) => new[] { (NodeKind.Kelp, .10), (NodeKind.CoralNode, .07), (NodeKind.Bush, .03), (NodeKind.Grass, .10), (NodeKind.Stick, .03), (NodeKind.Rock, .05) },
+            (Biome.Bubble, true) => new[] { (NodeKind.Tree, .05), (NodeKind.Kelp, .08), (NodeKind.CoralNode, .07), (NodeKind.Bush, .03), (NodeKind.Grass, .10), (NodeKind.Stick, .03), (NodeKind.Rock, .05) },
             (Biome.Bubble, false) => new[] { (NodeKind.Oyster, .07), (NodeKind.CoralNode, .03), (NodeKind.Rock, .03) },
             (Biome.Hourglass, true) => new[] { (NodeKind.Tree, .07), (NodeKind.FruitTree, .05), (NodeKind.Bush, .05), (NodeKind.Grass, .10), (NodeKind.Stick, .04), (NodeKind.Rock, .04) },
             (Biome.Hourglass, false) => new[] { (NodeKind.SandCrystal, .06), (NodeKind.Stick, .03), (NodeKind.Rock, .03) },
             (Biome.Ice, true) => new[] { (NodeKind.Tree, .10), (NodeKind.Bush, .03), (NodeKind.Grass, .05), (NodeKind.Stick, .05), (NodeKind.Rock, .05), (NodeKind.IceCrystal, .02) },
             (Biome.Ice, false) => new[] { (NodeKind.IceCrystal, .06), (NodeKind.Stick, .02), (NodeKind.Rock, .03) },
             (Biome.Tribal, true) => new[] { (NodeKind.Tree, .08), (NodeKind.FruitTree, .06), (NodeKind.Bush, .06), (NodeKind.Grass, .18), (NodeKind.Stick, .04), (NodeKind.Rock, .025), (NodeKind.Bamboo, .02) },
-            (_, true) => new[] { (NodeKind.Tree, .10), (NodeKind.FruitTree, .035), (NodeKind.Bush, .04), (NodeKind.Grass, .145), (NodeKind.Stick, .04), (NodeKind.Rock, .025) },
+            (_, true) => new[] { (NodeKind.Tree, .10), (NodeKind.FruitTree, .035), (NodeKind.Bush, .04), (NodeKind.Grass, .145), (NodeKind.Stick, .04), (NodeKind.Rock, .025), (NodeKind.Bamboo, .015) }, // a little bamboo: water flasks early on
             _ => new[] { (NodeKind.Stick, .05), (NodeKind.Rock, .05) },
         };
         double acc = 0;

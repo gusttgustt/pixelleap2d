@@ -27,7 +27,7 @@ public partial class IslandGame
         UpdateLantern();
         TickPower(dt);
         TickHourglass(dt);
-        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); }
+        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); UpdateWeather(dt); }
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -288,6 +288,9 @@ public partial class IslandGame
                 DepleteShared(n, 90f);
                 break;
             case NodeKind.Drop: PickUpDrop(n); break;
+            case NodeKind.Chest: if (n.available) OpenChest(n); break;
+            case NodeKind.Shrine: PrayAtShrine(n); break;
+            case NodeKind.LostBundle: PickLostBundle(n); break;
             case NodeKind.Kelp: // tall kelp: fibre (and sometimes a fish hiding in it)
                 Give(Item.Fiber, rnd.Next(2, 4) + Bonus(), n);
                 if (rnd.NextDouble() < 0.25) Give(Item.RawFish, 1, n);
@@ -464,7 +467,7 @@ public partial class IslandGame
         {
             enemies.Remove(e);
             if (Shared) Send(new NetMsg { t = "kill", id = e.netId, by = myId, kind = (int)e.kind, x = at.x, y = at.y });
-            ReturnStolen(e);
+            KillExtras(e); // stolen goods back, alpha loot
             GrantKill(e.kind, e.xp, at);
         }
         else Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
@@ -658,6 +661,7 @@ public partial class IslandGame
             var e = new GameObject(kind.ToString()).AddComponent<Enemy>();
             e.transform.SetParent(world);
             e.Init(kind, g, tier, ++enemyCounter);
+            if (T.variant != Variant.None && rnd.NextDouble() < 0.25) e.SetVariant(T.variant); // this island's tougher breed
             enemies.Add(e);
             Fx.Burst(e.transform.position, kind == EnemyKind.Crab ? new Color(0.7f, 0.85f, 1f) : new Color(0.5f, 0.6f, 0.3f), 6);
             return true;
@@ -858,7 +862,7 @@ public partial class IslandGame
         for (int i = page * perPage; i < known.Count && i < (page + 1) * perPage; i++)
         {
             int dest = known[i];
-            d.options.Add(($"ล่องไปเกาะที่ {dest}: {BiomeNameOf(BiomeOf(dest))}", () => ChooseVoyage(dest), true));
+            d.options.Add(($"ล่องไปเกาะที่ {dest} {IslandName(dest)} ({BiomeNameOf(BiomeOf(dest))})", () => ChooseVoyage(dest), true));
         }
         if (page > 0) d.options.Add(("◀ หน้าก่อน", () => TrySail(page - 1), true));
         if ((page + 1) * perPage < known.Count) d.options.Add(($"หน้าถัดไป ▶ (อีก {known.Count - (page + 1) * perPage} เกาะ)", () => TrySail(page + 1), true));

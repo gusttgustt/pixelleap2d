@@ -100,6 +100,9 @@ public partial class IslandGame
         NodeKind.Oyster => "งัดหอยมุก",
         NodeKind.AirVent => "หายใจที่ช่องอากาศ",
         NodeKind.SandCrystal => "เก็บทรายเวลา",
+        NodeKind.Chest => "เปิดหีบสมบัติ",
+        NodeKind.Shrine => "ไหว้ศาลเจ้าโบราณ",
+        NodeKind.LostBundle => "เก็บห่อของที่หาย",
         NodeKind.IceCrystal => "เก็บเกล็ดน้ำแข็ง",
         NodeKind.HotSpring => "แช่บ่อน้ำร้อน",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
@@ -181,7 +184,8 @@ public partial class IslandGame
         Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
         Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
         Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
-        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}" : $"เกาะที่ {island}: {BiomeName}  <size=11>Lv {IslandLevel} · {ProsperityName(Prosperity)}</size>";
+        string where = voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
+            : $"เกาะที่ {island}: {T.name}  <size=11>{BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
         ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
@@ -260,6 +264,7 @@ public partial class IslandGame
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
+        DrawWeatherOverlay(W, H);
         DrawInk(W, H);
         if (sleepT > 0f)
         {

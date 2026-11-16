@@ -286,7 +286,7 @@ public static class PixelArt
     {
         Biome.Volcanic => DeadTree(),
         Biome.Mushroom => GiantMushroom(),
-        Biome.Bubble => Kelp(true),
+        Biome.Bubble => LeafyTree("tree_bubble", "#1f5a5a", "#2f8a7a", "#6ac8b0"), // sea-green trees: wood for fires down here
         Biome.Ice => SnowPine(),
         Biome.Hourglass => LeafyTree("tree_hourglass", "#8a5a1a", "#c8862a", "#f2c45a"), // amber autumn trees
         Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
@@ -592,6 +592,90 @@ public static class PixelArt
         EnemyKind.FrostBat => FrostBat(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ landmarks (every island its own)
+    /// A broken ship lying on its side on the beach.
+    public static Sprite Wreck() => Get("wreck", () =>
+    {
+        var c = new Canvas(56, 40);
+        c.Ellipse(28, 35, 25, 4, Shadow);
+        Color h = Hex("#6b4226"), hD = Hex("#4a2c1a"), hL = Hex("#8a5a36");
+        for (int y = 18; y <= 34; y++)
+        {
+            int x0 = 6 + (34 - y) / 3, x1 = 50 - (34 - y) / 2;
+            for (int x = x0; x <= x1; x++) c.Set(x, y, (x / 5) % 2 == 0 ? h : hL);
+            c.Set(x1, y, hD);
+        }
+        for (int x = 14; x <= 40; x += 6) c.Rect(x, 22, 3, 8, Hex("#2a1a10")); // holes in the planks
+        c.Line(22, 18, 34, 2, hD); c.Line(23, 18, 35, 2, h);                  // snapped mast
+        for (int y = 4; y <= 12; y++) c.Rect(35, y, 8 - (y - 4) / 2, 1, y % 3 == 0 ? Hex("#cbbf9c") : Hex("#f0e6c8")); // torn sail
+        c.Rect(36, 13, 2, 3, Hex("#f0e6c8"));
+        return c.ToSprite(28, 35);
+    });
+
+    public static Sprite Chest(bool closed) => Get(closed ? "chest" : "chest_open", () =>
+    {
+        var c = new Canvas(18, 16);
+        c.Ellipse(9, 14, 7, 1.5f, Shadow);
+        Color w = Hex("#8a5a36"), wD = Hex("#6b4226"), gold = Hex("#f2c43a");
+        c.Rect(2, 7, 14, 7, w); c.Rect(2, 7, 14, 1, wD); c.Rect(13, 7, 3, 7, wD);
+        c.Rect(2, 10, 14, 1, gold); c.Rect(8, 9, 2, 3, gold);
+        if (closed) { c.Rect(2, 3, 14, 4, w); c.Rect(2, 3, 14, 1, Hex("#a87a48")); c.Rect(2, 6, 14, 1, gold); }
+        else { c.Rect(2, 1, 14, 3, wD); c.Ball(9, 7, 4, 1.5f, Hex("#b88a1a"), gold, Hex("#fff0a0")); } // lid up, gold inside
+        return c.ToSprite(9, 14);
+    });
+
+    /// An old stone pillar, cracked and mossy (ruins).
+    public static Sprite Pillar() => Get("pillar", () =>
+    {
+        var c = new Canvas(14, 34);
+        c.Ellipse(7, 32, 5, 1.5f, Shadow);
+        Color s = Hex("#b8b0a0"), sD = Hex("#908878"), moss = Hex("#5a8a3f");
+        c.Rect(2, 29, 10, 3, s); c.Rect(3, 6, 8, 23, s); c.Rect(9, 6, 2, 23, sD); c.Rect(2, 4, 10, 3, s);
+        for (int y = 8; y < 28; y += 5) c.Rect(4, y, 1, 3, sD);
+        c.Line(6, 12, 8, 18, sD);                                        // crack
+        c.Rect(3, 26, 3, 3, moss); c.Set(10, 5, moss); c.Set(4, 6, moss);
+        c.Rect(7, 2, 4, 2, s); // broken top
+        return c.ToSprite(7, 32);
+    });
+
+    /// A huge ancient tree towering over the island.
+    public static Sprite GiantTree() => Get("giant_tree", () =>
+    {
+        var c = new Canvas(64, 80);
+        c.Ellipse(32, 76, 22, 4, Shadow);
+        Color b = Hex("#6b4226"), bD = Hex("#4a2c1a");
+        for (int y = 36; y <= 76; y++) { int hw = 6 + (y > 66 ? (y - 66) : 0); c.Rect(32 - hw, y, hw * 2, 1, b); c.Rect(32 + hw - 3, y, 3, 1, bD); }
+        c.Line(26, 74, 16, 78, b); c.Line(38, 74, 48, 78, b); // roots
+        Color d = Hex("#1f4d26"), m = Hex("#2f6e33"), l = Hex("#5aa848");
+        c.Ball(32, 30, 28, 18, d, d, m); c.Ball(18, 22, 14, 12, d, m, l); c.Ball(46, 20, 14, 12, d, m, l); c.Ball(32, 12, 16, 11, d, m, l);
+        for (int i = 0; i < 9; i++) c.Set(10 + i * 5, 14 + (i * 7) % 20, Hex("#c8f08a")); // light through the leaves
+        return c.ToSprite(32, 76);
+    });
+
+    /// A small stone shrine with a glowing offering bowl.
+    public static Sprite Shrine() => Get("shrine", () =>
+    {
+        var c = new Canvas(28, 34);
+        c.Ellipse(14, 31, 12, 2.5f, Shadow);
+        Color s = Hex("#a8a098"), sD = Hex("#888078"), roof = Hex("#8a3020");
+        c.Rect(4, 26, 20, 5, s); c.Rect(4, 26, 20, 1, Hex("#c8c0b8"));
+        c.Rect(7, 12, 3, 14, sD); c.Rect(18, 12, 3, 14, sD);
+        for (int y = 5; y <= 12; y++) { int hw = 14 - (12 - y); c.Rect(14 - hw, y, hw * 2, 1, y % 2 == 0 ? roof : Hex("#b5452c")); }
+        c.Ball(14, 22, 4, 2.5f, Hex("#8a6a2a"), Hex("#c8a040"), Hex("#f0d890"));
+        c.Ball(14, 19, 2, 2, Hex("#f2c43a"), Hex("#fff0a0"), Color.white); // the glow
+        return c.ToSprite(14, 31);
+    });
+
+    /// The red bundle someone lost in the woods.
+    public static Sprite LostBundle() => Get("lost_bundle", () =>
+    {
+        var c = new Canvas(14, 12);
+        c.Ellipse(7, 10.5f, 5, 1.2f, Shadow);
+        c.Ball(7, 7, 5, 3.5f, Hex("#8a1a20"), Hex("#d9534f"), Hex("#ff9a8a"));
+        c.Rect(6, 2, 3, 3, Hex("#d9534f")); c.Rect(4, 2, 2, 1, Hex("#f2c43a")); c.Rect(9, 2, 2, 1, Hex("#f2c43a")); // knot
+        return c.ToSprite(7, 10);
+    });
 
     // ------------------------------------------------------------------ Ice island
     /// Snowy pine.

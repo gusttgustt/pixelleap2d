@@ -75,7 +75,7 @@ public partial class IslandGame
             Vector2 at = homes.Count > 0 ? homes[i % homes.Count].grid + (Center - homes[i % homes.Count].grid).normalized * 1.3f : Center;
             var v = new GameObject("Townsfolk").AddComponent<Villager>();
             v.transform.SetParent(world);
-            v.Init(VillagerRole.Villager, names[r.Next(names.Length)], 9 + i % 3, WalkableNear(at));
+            v.Init(i == 0 ? VillagerRole.Local : VillagerRole.Villager, names[r.Next(names.Length)], 9 + i % 3, WalkableNear(at)); // the first one has a job for you
             villagers.Add(v);
         }
         if (p >= 2)

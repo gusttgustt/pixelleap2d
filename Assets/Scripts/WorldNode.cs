@@ -26,7 +26,8 @@ public class WorldNode : MonoBehaviour
     public bool Blocking => kind is NodeKind.Tree or NodeKind.FruitTree or NodeKind.Bush or NodeKind.Stump
                                  or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Hut or NodeKind.Totem or NodeKind.GlowTree
                                  or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue
-                                 or NodeKind.ClockRuin or NodeKind.ClockTower;
+                                 or NodeKind.ClockRuin or NodeKind.ClockTower
+                                 or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine;
 
     public float BlockRadius => kind switch
     {
@@ -44,13 +45,20 @@ public class WorldNode : MonoBehaviour
         NodeKind.Lamp => 0.18f,
         NodeKind.Statue => 0.35f,
         NodeKind.ClockTower => 1.0f,
+        NodeKind.Wreck => 1.2f,
+        NodeKind.GiantTree => 0.9f,
+        NodeKind.Pillar => 0.3f,
+        NodeKind.Shrine => 0.5f,
+        NodeKind.Chest => 0.35f,
         NodeKind.ClockRuin => 0.45f,
         _ => 0.32f,
     };
 
     public bool CanTarget => kind switch
     {
-        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower => false,
+        NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower
+            or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree => false,
+        NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
         _ => available,
@@ -66,6 +74,7 @@ public class WorldNode : MonoBehaviour
         NodeKind.Well or NodeKind.Fountain => 0.9f,
         NodeKind.Farm => 0.5f,
         NodeKind.Kelp => 1.2f,
+        NodeKind.Shrine => 1.0f,
         NodeKind.AirVent => 0.6f,
         _ => 0.45f,
     };
@@ -158,6 +167,12 @@ public class WorldNode : MonoBehaviour
             NodeKind.ClockRuin => PixelArt.ClockRuin(),
             NodeKind.ClockTower => PixelArt.ClockTower(),
             NodeKind.IceCrystal => PixelArt.IceCrystal(available),
+            NodeKind.Wreck => PixelArt.Wreck(),
+            NodeKind.Chest => PixelArt.Chest(available),
+            NodeKind.Pillar => PixelArt.Pillar(),
+            NodeKind.GiantTree => PixelArt.GiantTree(),
+            NodeKind.Shrine => PixelArt.Shrine(),
+            NodeKind.LostBundle => PixelArt.LostBundle(),
             NodeKind.HotSpring => PixelArt.HotSpring(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),

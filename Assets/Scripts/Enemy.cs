@@ -39,7 +39,37 @@ public class Enemy : MonoBehaviour
     public bool puppet;
     Vector2 netTarget;
 
-    public string DisplayName => kind switch
+    public string DisplayName => (alpha ? "จ่าฝูง" : "") + BaseName + (variant switch
+    {
+        IslandGame.Variant.Giant => "ยักษ์", IslandGame.Variant.Fiery => "เพลิง", IslandGame.Variant.Armored => "เกราะ", _ => "",
+    });
+    /// This island's tougher breed (see IslandGame.Traits.cs), and the pack leader.
+    public IslandGame.Variant variant;
+    public bool alpha;
+    Color baseColor = Color.white;
+
+    public void SetVariant(IslandGame.Variant v)
+    {
+        variant = v;
+        switch (v)
+        {
+            case IslandGame.Variant.Giant: maxHp *= 2; damage *= 1.3f; xp *= 2; transform.localScale = Vector3.one * 1.35f; break;
+            case IslandGame.Variant.Fiery: damage *= 1.5f; xp = Mathf.RoundToInt(xp * 1.5f); baseColor = new Color(1f, 0.6f, 0.45f); break;
+            case IslandGame.Variant.Armored: maxHp = Mathf.RoundToInt(maxHp * 1.6f); xp *= 2; baseColor = new Color(0.72f, 0.78f, 0.9f); break;
+        }
+        hp = maxHp;
+    }
+
+    public void MakeAlpha()
+    {
+        alpha = true;
+        maxHp *= 7; damage *= 1.6f; xp *= 5;
+        hp = maxHp;
+        transform.localScale = Vector3.one * 1.8f;
+        baseColor = new Color(1f, 0.92f, 0.7f);
+    }
+
+    string BaseName => kind switch
     {
         EnemyKind.Crab => "ปู", EnemyKind.Snake => "งู", EnemyKind.Boar => "หมูป่า",
         EnemyKind.Mimic => "เห็ดหลอก", EnemyKind.SporeSpider => "แมงมุมสปอร์", EnemyKind.ShroomKing => "ราชาเห็ด",
@@ -237,7 +267,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -314,7 +344,7 @@ public class Enemy : MonoBehaviour
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         sr.sprite = PixelArt.Enemy(kind, Disguised ? 2 : kind == EnemyKind.HermitCrab && shellHp <= 0 ? frame + 2 : frame);
-        sr.color = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : Color.white;
+        sr.color = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : baseColor;
     }
 
     /// Returns true if the enemy died.
@@ -336,6 +366,7 @@ public class Enemy : MonoBehaviour
             }
             return false;
         }
+        if (variant == IslandGame.Variant.Armored) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * 0.6f)); // armour soaks blows
         hp -= dmg;
         Vector2 knock = (grid - from).normalized * (kind == EnemyKind.ShroomKing ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
