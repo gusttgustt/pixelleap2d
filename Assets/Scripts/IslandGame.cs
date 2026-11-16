@@ -748,6 +748,9 @@ public partial class IslandGame : MonoBehaviour
         Spawn(NodeKind.Grass, center + new Vector2(-2.6f, 1.2f));
         Spawn(NodeKind.Grass, center + new Vector2(0.3f, -2.7f));
         Spawn(NodeKind.Bush, center + new Vector2(-1.6f, -2.7f));
+        // The very first island: a campfire already burning, for cooking and keeping crabs away the first night.
+        // (Fixed flip: no random number used, so the rest of the island comes out as before.)
+        if (island == 1 && !atHome) Spawn(NodeKind.Campfire, center + new Vector2(1.6f, -1.8f), false);
 
         // Respawn keeps the island at roughly its starting amount of these materials.
         foreach (var n in nodes)
@@ -848,11 +851,22 @@ public partial class IslandGame : MonoBehaviour
 
         var chosen = new List<Vector2Int>();
         var near = candidates.FindAll(c => Vector2.Distance(c, center) < 9f);
+        if (near.Count == 0) near = SmallPondSpots(center); // a hilly island: settle for a smaller flat spot
         if (near.Count > 0) chosen.Add(near[rnd.Next(near.Count)]);
         for (int tries = 0; tries < 40 && chosen.Count < 3 && candidates.Count > 0; tries++)
         {
             var c = candidates[rnd.Next(candidates.Count)];
             if (chosen.TrueForAll(o => Vector2.Distance(o, c) > 7f)) chosen.Add(c);
+        }
+
+        if (chosen.Count == 0) // nowhere flat enough: dig one anyway just past the landing spot
+        {
+            var c = new Vector2Int(Mathf.RoundToInt(center.x) + 5, Mathf.RoundToInt(center.y)); // clear of the starter kit
+            for (int dx = -2; dx <= 2; dx++)
+                for (int dy = -2; dy <= 2; dy++)
+                    if (InMap(c.x + dx, c.y + dy) && tiles[c.x + dx, c.y + dy] != 0) { tiles[c.x + dx, c.y + dy] = 2; heights[c.x + dx, c.y + dy] = 0; }
+            FlattenAround(c);
+            chosen.Add(c);
         }
 
         foreach (var c in chosen)
@@ -862,6 +876,38 @@ public partial class IslandGame : MonoBehaviour
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     if (d <= 1.1f || (d <= 1.6f && rnd.NextDouble() < 0.6)) tiles[c.x + dx, c.y + dy] = 3;
                 }
+    }
+
+    /// Pond centres for hilly islands: only the pond itself (3 x 3) needs to be flat grass,
+    /// with no sea right next to it, 3.6 to 9 tiles from the landing spot.
+    List<Vector2Int> SmallPondSpots(Vector2 center)
+    {
+        var list = new List<Vector2Int>();
+        for (int x = 2; x < Size - 2; x++)
+            for (int y = 2; y < Size - 2; y++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), center);
+                if (d < 3.6f || d > 9f) continue;
+                bool ok = true;
+                for (int dx = -2; dx <= 2 && ok; dx++)
+                    for (int dy = -2; dy <= 2; dy++)
+                    {
+                        bool inner = Mathf.Abs(dx) <= 1 && Mathf.Abs(dy) <= 1;
+                        if (inner ? tiles[x + dx, y + dy] != 2 || heights[x + dx, y + dy] != 0 : tiles[x + dx, y + dy] == 0) { ok = false; break; }
+                    }
+                if (ok) list.Add(new Vector2Int(x, y));
+            }
+        return list;
+    }
+
+    /// After forcing a flat 5 x 5 patch: the ring around it may be at most one level up,
+    /// so it can still be walked onto.
+    void FlattenAround(Vector2Int c)
+    {
+        for (int dx = -3; dx <= 3; dx++)
+            for (int dy = -3; dy <= 3; dy++)
+                if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) == 3 && InMap(c.x + dx, c.y + dy))
+                    heights[c.x + dx, c.y + dy] = Mathf.Min(heights[c.x + dx, c.y + dy], 1);
     }
 
     public WorldNode Spawn(NodeKind k, Vector2 g, bool? flip = null, int? id = null)
