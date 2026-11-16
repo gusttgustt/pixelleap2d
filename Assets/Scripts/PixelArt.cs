@@ -39,7 +39,8 @@ public static class PixelArt
         {
             tex.filterMode = FilterMode.Point;
             var pivot = new Vector2(s.pivot.x / s.rect.width, s.pivot.y / s.rect.height);
-            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, PPU, 0, SpriteMeshType.FullRect);
+            float ppu = PPU * tex.width / (s.rect.width / Detail); // works for 1x and Detail-x drawings
+            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, ppu, 0, SpriteMeshType.FullRect);
             s.name = key;
         }
         cache[key] = s;
@@ -85,17 +86,38 @@ public static class PixelArt
     }
 
     // ------------------------------------------------------------------ canvas
+    /// Art pixels per world pixel. Every sprite is drawn on a grid this many times finer than
+    /// the 32 px-per-tile world grid (64 px per tile at 2), so curves, shading and textures get
+    /// finer while everything stays the same size in the world (sprites use PPU * Detail).
+    public const int Detail = 2;
+
+    /// Small repeatable "random" number in [0, 1) for a pixel, for textures.
+    static float Hash(int x, int y, int seed)
+    {
+        unchecked
+        {
+            uint h = (uint)(x * 374761393 + y * 668265263) + (uint)seed * 2246822519u;
+            h = (h ^ (h >> 13)) * 1274126177u;
+            return ((h ^ (h >> 16)) & 0xffffff) / 16777216f;
+        }
+    }
+
     /// Simple drawing surface. Coordinates are top-left origin, y grows downward.
+    /// Drawing calls use world pixels (as the art was designed) and are rasterised on the
+    /// finer Detail grid; the *Fine calls address the fine grid directly.
     class Canvas
     {
-        public readonly int W, H;
+        public readonly int W, H;   // size in world pixels
+        public readonly int FW, FH; // size in fine (art) pixels
         readonly Color[] px;
-        public Canvas(int w, int h) { W = w; H = h; px = new Color[w * h]; }
+        /// Darken the silhouette edge when turned into a sprite (off for ground tiles and glows).
+        public bool Rim = true;
+        public Canvas(int w, int h) { W = w; H = h; FW = w * Detail; FH = h * Detail; px = new Color[FW * FH]; }
 
-        public void Set(int x, int y, Color c)
+        public void SetFine(int x, int y, Color c)
         {
-            if (x < 0 || y < 0 || x >= W || y >= H || c.a <= 0f) return;
-            int i = (H - 1 - y) * W + x;
+            if (x < 0 || y < 0 || x >= FW || y >= FH || c.a <= 0f) return;
+            int i = (FH - 1 - y) * FW + x;
             Color d = px[i];
             if (c.a >= 1f || d.a <= 0f) { px[i] = c; return; }
             Color o = Color.Lerp(d, c, c.a);
@@ -103,52 +125,158 @@ public static class PixelArt
             px[i] = o;
         }
 
-        public Color GetPixel(int x, int y) => x < 0 || y < 0 || x >= W || y >= H ? Color.clear : px[(H - 1 - y) * W + x];
+        public Color GetFine(int x, int y) => x < 0 || y < 0 || x >= FW || y >= FH ? Color.clear : px[(FH - 1 - y) * FW + x];
 
-        public void Rect(int x, int y, int w, int h, Color c)
+        /// One world pixel (a Detail x Detail block).
+        public void Set(int x, int y, Color c)
         {
-            for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) Set(x + i, y + j, c);
+            for (int j = 0; j < Detail; j++) for (int i = 0; i < Detail; i++) SetFine(x * Detail + i, y * Detail + j, c);
         }
 
-        public void Ellipse(float cx, float cy, float rx, float ry, Color c)
+        public Color GetPixel(int x, int y) => GetFine(x * Detail, y * Detail);
+
+        /// Copy another canvas onto this one, its top-left at world pixel (ox, oy).
+        public void Paste(Canvas src, int ox, int oy)
         {
-            for (int y = Mathf.FloorToInt(cy - ry); y <= Mathf.CeilToInt(cy + ry); y++)
-                for (int x = Mathf.FloorToInt(cx - rx); x <= Mathf.CeilToInt(cx + rx); x++)
+            for (int y = 0; y < src.FH; y++)
+                for (int x = 0; x < src.FW; x++)
                 {
-                    float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
-                    if (dx * dx + dy * dy <= 1f) Set(x, y, c);
+                    var col = src.GetFine(x, y);
+                    if (col.a > 0f) SetFine(x + ox * Detail, y + oy * Detail, col);
                 }
         }
 
-        /// Shaded blob lit from the top-left.
+        public void Rect(int x, int y, int w, int h, Color c)
+        {
+            for (int j = 0; j < h * Detail; j++) for (int i = 0; i < w * Detail; i++) SetFine(x * Detail + i, y * Detail + j, c);
+        }
+
+        // centre of a fine pixel, in world pixels
+        static float C(int f) => (f + 0.5f) / Detail;
+
+        public void Ellipse(float cx, float cy, float rx, float ry, Color c)
+        {
+            for (int y = Mathf.FloorToInt((cy - ry) * Detail); y <= Mathf.CeilToInt((cy + ry) * Detail); y++)
+                for (int x = Mathf.FloorToInt((cx - rx) * Detail); x <= Mathf.CeilToInt((cx + rx) * Detail); x++)
+                {
+                    float dx = (C(x) - cx) / rx, dy = (C(y) - cy) / ry;
+                    if (dx * dx + dy * dy <= 1f) SetFine(x, y, c);
+                }
+        }
+
+        /// Shaded blob lit from the top-left, with dithered steps between the shades
+        /// and a speckled surface (leaves, stone) on bigger blobs.
         public void Ball(float cx, float cy, float rx, float ry, Color dark, Color mid, Color light)
         {
-            for (int y = Mathf.FloorToInt(cy - ry); y <= Mathf.CeilToInt(cy + ry); y++)
-                for (int x = Mathf.FloorToInt(cx - rx); x <= Mathf.CeilToInt(cx + rx); x++)
+            bool big = rx >= 4f && ry >= 3f;
+            int seed = Mathf.RoundToInt(cx * 7f + cy * 13f);
+            Color speckD = Color.Lerp(mid, dark, 0.7f), speckL = Color.Lerp(mid, light, 0.6f);
+            for (int y = Mathf.FloorToInt((cy - ry) * Detail); y <= Mathf.CeilToInt((cy + ry) * Detail); y++)
+                for (int x = Mathf.FloorToInt((cx - rx) * Detail); x <= Mathf.CeilToInt((cx + rx) * Detail); x++)
                 {
-                    float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry, d2 = dx * dx + dy * dy;
+                    float dx = (C(x) - cx) / rx, dy = (C(y) - cy) / ry, d2 = dx * dx + dy * dy;
                     if (d2 > 1f) continue;
                     float s = dx + dy;
-                    Set(x, y, s > 0.55f ? dark : (s < -0.55f && d2 > 0.15f) ? light : mid);
+                    bool chk = ((x + y) & 1) == 0;
+                    Color col;
+                    if (s > 0.62f) col = dark;
+                    else if (s > 0.48f) col = chk ? dark : mid;                       // dithered dark edge
+                    else if (s < -0.62f && d2 > 0.15f) col = light;
+                    else if (s < -0.48f && d2 > 0.15f) col = chk ? light : mid;        // dithered highlight edge
+                    else
+                    {
+                        col = mid;
+                        if (big)
+                        {
+                            float h = Hash(x, y, seed);
+                            if (h < 0.07f) col = speckD;
+                            else if (h > 0.95f && s < 0.1f) col = speckL;
+                        }
+                    }
+                    SetFine(x, y, col);
+                }
+            // tiny shine on small round things (berries, fruit)
+            if (!big && rx >= 1.5f && ry >= 1.5f)
+                SetFine(Mathf.FloorToInt((cx - rx * 0.4f) * Detail), Mathf.FloorToInt((cy - ry * 0.45f) * Detail), Color.Lerp(light, Color.white, 0.6f));
+        }
+
+        /// A leafy crown made of rounded leaf clumps: each clump is lit on its top-left and
+        /// shaded on its bottom-right, the whole crown is lit from the top-left, and clumps on
+        /// the edge poke out for a bumpy outline.
+        public void Leaves(float cx, float cy, float rx, float ry, Color dark, Color mid, Color light)
+        {
+            const float sp = 3.4f; // clump size in world pixels
+            int seed = Mathf.RoundToInt(cx * 31f + cy * 17f + rx * 5f);
+            Color deep = Color.Lerp(dark, Color.black, 0.28f);
+            Vector2 Cell(int i, int j) => new Vector2((i + 0.2f + 0.6f * Hash(i, j, seed)) * sp, (j + 0.2f + 0.6f * Hash(j, i, seed + 7)) * sp);
+            float pad = sp * 0.8f;
+            for (int y = Mathf.FloorToInt((cy - ry - pad) * Detail); y <= Mathf.CeilToInt((cy + ry + pad) * Detail); y++)
+                for (int x = Mathf.FloorToInt((cx - rx - pad) * Detail); x <= Mathf.CeilToInt((cx + rx + pad) * Detail); x++)
+                {
+                    float wx = C(x) - cx, wy = C(y) - cy; // world offset from the crown centre
+                    int ci = Mathf.FloorToInt(wx / sp), cj = Mathf.FloorToInt(wy / sp);
+                    float best = 1e9f, second = 1e9f; Vector2 bp = default;
+                    for (int j = cj - 1; j <= cj + 1; j++)
+                        for (int i = ci - 1; i <= ci + 1; i++)
+                        {
+                            var p = Cell(i, j);
+                            float d = (p.x - wx) * (p.x - wx) + (p.y - wy) * (p.y - wy);
+                            if (d < best) { second = best; best = d; bp = p; } else if (d < second) second = d;
+                        }
+                    float cellIn = (bp.x / rx) * (bp.x / rx) + (bp.y / ry) * (bp.y / ry);
+                    float pixIn = (wx / rx) * (wx / rx) + (wy / ry) * (wy / ry);
+                    float dn = Mathf.Sqrt(best);
+                    // inside: the crown ellipse, plus round clumps whose centre is inside it
+                    if (!(pixIn <= 0.8f || (cellIn <= 1f && dn <= sp * 0.62f))) continue;
+                    float glob = (wx / rx + wy / ry) * 0.55f;          // crown lit from the top-left
+                    float loc = ((wx - bp.x) + (wy - bp.y)) / sp;       // clump lit from the top-left
+                    float shade = glob + loc * 0.9f;
+                    bool gap = Mathf.Sqrt(second) - dn < 0.3f && loc > 0.05f; // dark creases between clumps
+                    bool chk = ((x + y) & 1) == 0;
+                    Color col;
+                    if (gap) col = shade > 0.2f ? deep : dark;
+                    else if (shade < -0.75f) col = light;
+                    else if (shade < -0.6f) col = chk ? light : mid;
+                    else if (shade < 0.25f) col = mid;
+                    else if (shade < 0.4f) col = chk ? mid : dark;
+                    else if (shade < 0.95f) col = dark;
+                    else col = deep;
+                    SetFine(x, y, col);
+                }
+        }
+
+        /// Bark: vertical grain lines and knots over a rectangle.
+        public void BarkRect(int x, int y, int w, int h, Color baseCol, Color dark)
+        {
+            Rect(x, y, w, h, baseCol);
+            for (int fy = y * Detail; fy < (y + h) * Detail; fy++)
+                for (int fx = x * Detail; fx < (x + w) * Detail; fx++)
+                {
+                    float g = Hash(fx, fy / 4, 5);
+                    if (g < 0.22f || fx == (x + w) * Detail - 1) SetFine(fx, fy, dark);
+                    else if (fx == x * Detail && g > 0.5f) SetFine(fx, fy, Color.Lerp(baseCol, Color.white, 0.15f));
                 }
         }
 
         public void Ring(float cx, float cy, float r, float thick, Color c)
         {
-            for (int y = Mathf.FloorToInt(cy - r); y <= Mathf.CeilToInt(cy + r); y++)
-                for (int x = Mathf.FloorToInt(cx - r); x <= Mathf.CeilToInt(cx + r); x++)
+            for (int y = Mathf.FloorToInt((cy - r) * Detail); y <= Mathf.CeilToInt((cy + r) * Detail); y++)
+                for (int x = Mathf.FloorToInt((cx - r) * Detail); x <= Mathf.CeilToInt((cx + r) * Detail); x++)
                 {
-                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(cx, cy));
-                    if (d <= r && d >= r - thick) Set(x, y, c);
+                    float d = Vector2.Distance(new Vector2(C(x), C(y)), new Vector2(cx, cy));
+                    if (d <= r && d >= r - thick) SetFine(x, y, c);
                 }
         }
 
-        public void Line(int x0, int y0, int x1, int y1, Color c)
+        /// One world pixel wide line from pixel (x0, y0) to (x1, y1), drawn on the fine grid.
+        public void Line(int x0, int y0, int x1, int y1, Color c) => LineFine(x0 * Detail, y0 * Detail, x1 * Detail, y1 * Detail, c, Detail);
+
+        public void LineFine(int x0, int y0, int x1, int y1, Color c, int brush = 1)
         {
             int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1, err = dx + dy;
             while (true)
             {
-                Set(x0, y0, c);
+                for (int j = 0; j < brush; j++) for (int i = 0; i < brush; i++) SetFine(x0 + i, y0 + j, c);
                 if (x0 == x1 && y0 == y1) break;
                 int e2 = 2 * err;
                 if (e2 >= dy) { err += dy; x0 += sx; }
@@ -156,23 +284,49 @@ public static class PixelArt
             }
         }
 
-        /// 32x16 isometric diamond whose top row starts at y = top.
-        public void Diamond(int top, Func<int, int, Color> col)
+        /// 32x16 isometric diamond whose top row starts at world y = top; col gets world (x, row).
+        public void Diamond(int top, Func<int, int, Color> col) =>
+            DiamondFine(top * Detail, (x, r) => col(x / Detail, r / Detail));
+
+        /// The same diamond on the fine grid (64x32 at Detail 2); col gets fine (x, row).
+        public void DiamondFine(int top, Func<int, int, Color> col)
         {
-            for (int r = 0; r < 16; r++)
+            int n = 16 * Detail, half = n / 2, w = 32 * Detail;
+            for (int r = 0; r < n; r++)
             {
-                int hw = r < 8 ? 2 * (r + 1) : 2 * (16 - r);
-                for (int x = 16 - hw; x < 16 + hw; x++) Set(x, top + r, col(x, r));
+                int hw = r < half ? 2 * (r + 1) : 2 * (n - r);
+                for (int x = w / 2 - hw; x < w / 2 + hw; x++) SetFine(x, top + r, col(x, r));
             }
         }
 
-        /// pivot given in pixels from the top-left.
+        /// pivot given in world pixels from the top-left.
         public Sprite ToSprite(float pivotX, float pivotY)
         {
-            var t = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            if (Rim) AddRim();
+            var t = new Texture2D(FW, FH, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             t.SetPixels(px);
             t.Apply();
-            return Sprite.Create(t, new Rect(0, 0, W, H), new Vector2(pivotX / W, 1f - pivotY / H), PPU, 0, SpriteMeshType.FullRect);
+            return Sprite.Create(t, new Rect(0, 0, FW, FH), new Vector2(pivotX / W, 1f - pivotY / H), PPU * Detail, 0, SpriteMeshType.FullRect);
+        }
+
+        /// Darken solid pixels on the outside edge (strongest on the shaded bottom-right side),
+        /// so every object reads with a crisp outline like the hand-drawn characters.
+        void AddRim()
+        {
+            var src = (Color[])px.Clone();
+            bool Solid(int x, int y) => x >= 0 && y >= 0 && x < FW && y < FH && src[(FH - 1 - y) * FW + x].a >= 0.9f;
+            for (int y = 0; y < FH; y++)
+                for (int x = 0; x < FW; x++)
+                {
+                    if (!Solid(x, y)) continue;
+                    bool up = !Solid(x, y - 1), left = !Solid(x - 1, y), down = !Solid(x, y + 1), right = !Solid(x + 1, y);
+                    if (!(up || left || down || right)) continue;
+                    int i = (FH - 1 - y) * FW + x;
+                    float k = down || right ? 0.42f : 0.22f;
+                    Color o = Color.Lerp(src[i], new Color(0.08f, 0.05f, 0.1f), k);
+                    o.a = src[i].a;
+                    px[i] = o;
+                }
         }
     }
 
@@ -185,17 +339,36 @@ public static class PixelArt
     static Color RopeC => Hex("#c8a36a");
 
     // ------------------------------------------------------------------ ground
+    /// Is fine pixel (x, row) inside the tile diamond? edge &lt; 1 keeps a margin from the border.
+    static bool InDiamondFine(int x, int r, float edge = 1f)
+    {
+        float half = 16f * Detail, dx = Mathf.Abs(x + 0.5f - half) / half, dy = Mathf.Abs(r + 0.5f - half / 2f) / (half / 2f);
+        return dx + dy <= edge;
+    }
+
+    /// Sea or fresh water. The ripple lines repeat every tile, so they run on unbroken
+    /// across the whole sea; frame 1 shifts them for a gentle swell.
     public static Sprite Water(int frame, bool fresh = false) => Get($"water_{(fresh ? "fresh" : "sea")}_{frame}", () =>
     {
-        var c = new Canvas(32, 16);
-        Color hi = fresh ? Hex("#bdf0f5") : Hex("#7cc4f0");
+        var c = new Canvas(32, 16) { Rim = false };
         Color baseCol = fresh ? FreshWaterColor : WaterColor;
-        c.Diamond(0, (x, r) => baseCol);
-        var rnd = new System.Random(11 + frame * 7);
-        for (int k = 0; k < 3; k++)
+        Color deep = Color.Lerp(baseCol, Color.black, 0.12f), shine = Color.Lerp(baseCol, Color.white, 0.22f);
+        Color hi = fresh ? Hex("#bdf0f5") : Hex("#9ad4f6");
+        int period = 8 * Detail; // a tile is 16*Detail rows: two ripple lines per tile
+        c.DiamondFine(0, (x, r) =>
         {
-            int x = rnd.Next(6, 24), y = rnd.Next(3, 13);
-            for (int i = 0; i < 3; i++) if (InDiamond(x + i, y)) c.Set(x + i, y, hi);
+            float w = r + frame * period / 2f + 1.6f * Detail * Mathf.Sin(x * Mathf.PI * 2f / (16f * Detail));
+            int band = Mathf.FloorToInt(Mathf.Repeat(w, period));
+            if (band == 0) return deep;
+            if (band == 1 && Hash(x, r, frame) < 0.5f) return shine;
+            return baseCol;
+        });
+        // sparkles
+        var rnd = new System.Random(11 + frame * 7 + (fresh ? 3 : 0));
+        for (int k = 0; k < 4; k++)
+        {
+            int x = rnd.Next(10, 54), y = rnd.Next(6, 26), len = rnd.Next(2, 5);
+            for (int i = 0; i < len; i++) if (InDiamondFine(x + i, y, 0.9f)) c.SetFine(x + i, y, hi);
         }
         return c.ToSprite(16, 8);
     });
@@ -207,7 +380,7 @@ public static class PixelArt
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
     {
         int depth = 6 + height * HeightPx;
-        var c = new Canvas(32, 16 + depth);
+        var c = new Canvas(32, 16 + depth) { Rim = false };
         string[] p = (biome, grass) switch
         {
             //                       top        dark       lite       left       right      lip
@@ -243,35 +416,109 @@ public static class PixelArt
             _ => new[] { "#e8d29a", "#d6bb7e", "#f5e6bb", "#c9a86a", "#a8884f", "#d6bb7e" },
         };
         Color top = Hex(p[0]), dark = Hex(p[1]), lite = Hex(p[2]), left = Hex(p[3]), right = Hex(p[4]), lip = Hex(p[5]);
-        grass &= biome != Biome.Volcanic; // ash has no grass blades
-        Color strataL = Color.Lerp(left, Color.black, 0.18f), strataR = Color.Lerp(right, Color.black, 0.18f);
+        bool blades = grass && biome is not (Biome.Volcanic or Biome.Ice or Biome.Crystal); // ash, snow and crystal turf have no blades
+        bool sparkly = biome is Biome.Ice or Biome.Crystal;
+        int seed = variant * 131 + (grass ? 7 : 3) + height * 17 + (int)biome * 1009;
+        Color Dk(Color col, float k) => Color.Lerp(col, Color.black, k);
 
-        for (int s = depth; s >= 1; s--)
+        // --- cliff sides, drawn as stacked diamonds on the fine grid (the lowest first)
+        int D = Detail, depthF = depth * D, strataStep = HeightPx * D, mid = 16 * D;
+        for (int s = depthF; s >= 1; s--)
         {
             int ss = s;
-            bool strata = ss > 1 && ss % HeightPx == 0;
-            c.Diamond(ss, (x, r) => ss == 1 ? lip : x < 16 ? (strata ? strataL : left) : (strata ? strataR : right));
+            c.DiamondFine(ss, (x, r) =>
+            {
+                if (ss <= D) return lip;                         // the grass/sand lip under the top
+                if (ss == D + 1) return Dk(x < mid ? left : right, 0.3f); // its shadow
+                Color face = x < mid ? left : right;
+                if (x == mid - 1) face = Color.Lerp(face, Color.white, 0.12f); // lit front corner
+                if (ss > D + 1 && ss % strataStep == 0) return Dk(face, 0.22f); // rock layers
+                int y = ss + r;
+                face = Dk(face, 0.14f * ss / depthF); // a little darker lower down
+                float h = Hash(x, y / 3, seed);        // short vertical streaks
+                if (h < 0.10f) return Dk(face, 0.12f);
+                if (h > 0.94f) return Color.Lerp(face, Color.white, 0.08f);
+                return face;
+            });
         }
-        var rnd = new System.Random(variant * 131 + (grass ? 7 : 3) + height * 17);
-        c.Diamond(0, (x, r) => { int v = rnd.Next(100); return v < 9 ? dark : v < 14 ? lite : top; });
-        if (grass)
+
+        // --- top: fine speckled surface with soft patches
+        c.DiamondFine(0, (x, r) =>
+        {
+            float patch = Mathf.PerlinNoise((x + seed % 97) * 0.11f, (r * 2 + seed % 53) * 0.11f);
+            Color col = patch < 0.38f ? Color.Lerp(top, dark, 0.45f) : patch > 0.66f ? Color.Lerp(top, lite, 0.35f) : top;
+            float h = Hash(x, r, seed);
+            if (h < (grass ? 0.09f : 0.12f)) return dark;
+            if (h > (grass ? 0.95f : 0.92f)) return lite;
+            return col;
+        });
+
+        var rnd = new System.Random(seed);
+        if (blades)
+        {
+            // little tufts: a few blades fanning out, dark at the root, light at the tip
+            for (int k = 0; k < 9; k++)
+            {
+                int x = rnd.Next(8, 56), y = rnd.Next(6, 28);
+                if (!InDiamondFine(x, y, 0.8f)) continue;
+                int hgt = rnd.Next(2, 4);
+                for (int b = -1; b <= 1; b++)
+                    for (int i = 0; i < hgt + (b == 0 ? 1 : 0); i++)
+                        c.SetFine(x + b * (i + 1) / 2 + b, y - i, i == 0 ? dark : i >= hgt - 1 ? lite : top);
+            }
+            // a few flowers on the gentler islands
+            if (biome is Biome.Tropical or Biome.Sky or Biome.Insect or Biome.Tribal or Biome.Jungle && rnd.Next(3) == 0)
+            {
+                Color[] fl = { Hex("#fff4f0"), Hex("#ffd84a"), Hex("#ff9ac0"), Hex("#b8a8ff") };
+                for (int k = rnd.Next(1, 3); k > 0; k--)
+                {
+                    int x = rnd.Next(14, 50), y = rnd.Next(8, 24);
+                    if (!InDiamondFine(x, y, 0.75f)) continue;
+                    Color f = fl[rnd.Next(fl.Length)];
+                    c.SetFine(x, y - 1, f); c.SetFine(x - 1, y, f); c.SetFine(x + 1, y, f); c.SetFine(x, y + 1, f);
+                    c.SetFine(x, y, Hex("#ffe070"));
+                }
+            }
+        }
+        else if (sparkly)
+        {
             for (int k = 0; k < 5; k++)
             {
-                int x = rnd.Next(6, 26), y = rnd.Next(3, 12);
-                if (InDiamond(x, y) && InDiamond(x, y - 1)) { c.Set(x, y, dark); c.Set(x, y - 1, lite); }
+                int x = rnd.Next(8, 56), y = rnd.Next(5, 27);
+                if (!InDiamondFine(x, y, 0.85f)) continue;
+                c.SetFine(x, y, Color.white);
+                if (k % 2 == 0) { c.SetFine(x - 1, y, lite); c.SetFine(x + 1, y, lite); c.SetFine(x, y - 1, lite); c.SetFine(x, y + 1, lite); }
             }
+        }
+        else if (!grass)
+        {
+            // pebbles (and now and then a shell on beach sand)
+            for (int k = rnd.Next(1, 4); k > 0; k--)
+            {
+                int x = rnd.Next(10, 54), y = rnd.Next(6, 26);
+                if (!InDiamondFine(x, y, 0.8f)) continue;
+                c.SetFine(x, y, lite); c.SetFine(x + 1, y, lite); c.SetFine(x, y + 1, dark); c.SetFine(x + 1, y + 1, Dk(dark, 0.15f));
+            }
+            if (biome is Biome.Tropical or Biome.Pirate or Biome.Tribal or Biome.Jungle or Biome.Turtle && rnd.Next(4) == 0)
+            {
+                int x = rnd.Next(16, 48), y = rnd.Next(9, 22);
+                Color sh = Hex("#ffd8d0"), shd = Hex("#e09a90");
+                c.SetFine(x, y, sh); c.SetFine(x + 1, y, sh); c.SetFine(x + 2, y, shd);
+                c.SetFine(x, y + 1, shd); c.SetFine(x + 1, y + 1, sh); c.SetFine(x + 2, y + 1, shd);
+            }
+        }
         return c.ToSprite(16, 8);
     });
 
     public static Sprite Cursor() => Get("cursor", () =>
     {
-        var c = new Canvas(32, 16);
+        var c = new Canvas(32, 16) { Rim = false };
         var col = new Color(1f, 0.92f, 0.35f, 0.9f);
-        for (int r = 0; r < 16; r++)
+        int n = 16 * Detail, half = n / 2, w = 32 * Detail;
+        for (int r = 0; r < n; r++)
         {
-            int hw = r < 8 ? 2 * (r + 1) : 2 * (16 - r);
-            c.Set(16 - hw, r, col); c.Set(17 - hw, r, col);
-            c.Set(15 + hw, r, col); c.Set(14 + hw, r, col);
+            int hw = r < half ? 2 * (r + 1) : 2 * (n - r);
+            for (int i = 0; i < 3; i++) { c.SetFine(w / 2 - hw + i, r, col); c.SetFine(w / 2 + hw - 1 - i, r, col); }
         }
         return c.ToSprite(16, 8);
     });
@@ -279,7 +526,7 @@ public static class PixelArt
     /// One game pixel, used by particles.
     public static Sprite Dot() => Get("dot", () =>
     {
-        var c = new Canvas(1, 1);
+        var c = new Canvas(1, 1) { Rim = false };
         c.Set(0, 0, Color.white);
         return c.ToSprite(0.5f, 0.5f);
     });
@@ -288,7 +535,7 @@ public static class PixelArt
     static void Trunk(Canvas c)
     {
         c.Ellipse(16, 42.5f, 10, 3, Shadow);
-        c.Rect(14, 24, 4, 19, Bark); c.Rect(17, 24, 1, 19, BarkD);
+        c.BarkRect(14, 24, 4, 19, Bark, BarkD);
         c.Rect(12, 41, 8, 2, Bark); c.Rect(18, 41, 2, 2, BarkD);
     }
 
@@ -314,10 +561,10 @@ public static class PixelArt
         var c = new Canvas(32, 46);
         Trunk(c);
         Color d = Hex(dark), m = Hex(mid), l = Hex(light);
-        c.Ball(16, 21, 12, 8, d, d, m);
-        c.Ball(10, 16, 8, 7, d, m, l);
-        c.Ball(22, 15, 8, 7, d, m, l);
-        c.Ball(16, 9, 9, 8, d, m, l);
+        c.Leaves(16, 21, 12, 8, d, d, m);
+        c.Leaves(10, 16, 8, 7, d, m, l);
+        c.Leaves(22, 15, 8, 7, d, m, l);
+        c.Leaves(16, 9, 9, 8, d, m, l);
         return c.ToSprite(16, 42);
     });
 
@@ -366,8 +613,8 @@ public static class PixelArt
         var c = new Canvas(32, 46);
         Trunk(c);
         Color d = Hex("#2f5e2a"), m = Hex("#4c8f37"), l = Hex("#86c35a");
-        c.Ball(16, 18, 14, 11, d, m, l);
-        c.Ball(12, 12, 6, 5, m, m, l);
+        c.Leaves(16, 18, 14, 11, d, m, l);
+        c.Leaves(12, 12, 6, 5, m, m, l);
         if (fruit)
         {
             int[,] pos = { { 9, 16 }, { 15, 10 }, { 21, 13 }, { 19, 21 }, { 11, 23 }, { 24, 20 }, { 14, 17 } };
@@ -393,9 +640,9 @@ public static class PixelArt
         var c = new Canvas(24, 18);
         c.Ellipse(12, 15.5f, 10, 2.5f, Shadow);
         Color d = Hex("#2c6431"), m = Hex("#3e8a3e"), l = Hex("#5fae4a");
-        c.Ball(7, 11, 6, 5, d, m, l);
-        c.Ball(17, 11, 6, 5, d, m, l);
-        c.Ball(12, 8, 7, 6, d, m, l);
+        c.Leaves(7, 11, 6, 5, d, m, l);
+        c.Leaves(17, 11, 6, 5, d, m, l);
+        c.Leaves(12, 8, 7, 6, d, m, l);
         if (berries)
         {
             int[,] pos = { { 6, 10 }, { 11, 6 }, { 16, 9 }, { 9, 13 }, { 15, 13 }, { 19, 11 } };
@@ -914,7 +1161,7 @@ public static class PixelArt
     /// A shockwave ring lying on the ground (64x32, centred): bright rim, faint inside.
     public static Sprite ShockRing() => Get("shock_ring", () =>
     {
-        var c = new Canvas(64, 32);
+        var c = new Canvas(64, 32) { Rim = false };
         c.Ellipse(32, 16, 31, 15.5f, new Color(1f, 1f, 1f, 0.12f));
         for (int i = 0; i < 160; i++)
         {
@@ -928,14 +1175,14 @@ public static class PixelArt
     /// A soft round glow on the ground (32x16, centred), brightest in the middle.
     public static Sprite GroundGlow() => Get("ground_glow", () =>
     {
-        var c = new Canvas(32, 16);
+        var c = new Canvas(32, 16) { Rim = false };
         for (int k = 0; k < 6; k++) c.Ellipse(16, 8, 15.5f - k * 2.5f, 7.75f - k * 1.25f, new Color(1f, 1f, 1f, 0.16f));
         return c.ToSprite(16, 8);
     });
 
     public static Sprite StrikeMark() => Get("strike_mark", () =>
     {
-        var c = new Canvas(32, 16);
+        var c = new Canvas(32, 16) { Rim = false };
         c.Ellipse(16, 8, 15, 7.5f, new Color(1f, 1f, 1f, 0.25f));
         for (int i = 0; i < 48; i++)
         {
@@ -1453,11 +1700,12 @@ public static class PixelArt
     /// Deep water around the dome: dark blue with drifting light specks.
     public static Sprite DeepWater(int v) => Get("deep_water_" + v, () =>
     {
-        var c = new Canvas(32, 16);
-        Color baseCol = Hex("#0f3358"), ray = Hex("#174a78");
-        c.Diamond(0, (x, r) => (x + r * 2 + v * 5) % 13 < 2 ? ray : baseCol);
+        var c = new Canvas(32, 16) { Rim = false };
+        Color baseCol = Hex("#0f3358"), ray = Hex("#174a78"), rayD = Hex("#12406a");
+        int per = 13 * Detail;
+        c.DiamondFine(0, (x, r) => { int k = (x + r * 2 + v * 5 * Detail) % per; return k < Detail ? ray : k < Detail + 1 ? rayD : baseCol; });
         var rnd = new System.Random(71 + v * 13);
-        for (int k = 0; k < 3; k++) { int x = rnd.Next(6, 26), y = rnd.Next(3, 13); if (InDiamond(x, y)) c.Set(x, y, new Color(0.6f, 0.85f, 1f, 0.7f)); }
+        for (int k = 0; k < 5; k++) { int x = rnd.Next(12, 52), y = rnd.Next(6, 26); if (InDiamondFine(x, y, 0.9f)) c.SetFine(x, y, new Color(0.6f, 0.85f, 1f, k < 2 ? 0.9f : 0.5f)); }
         return c.ToSprite(16, 8);
     });
 
@@ -1643,7 +1891,7 @@ public static class PixelArt
         var inner = new Canvas(14, 24);
         Color s = Hex("#b8c0b0"), sd = Hex("#909888");
         Person(inner, 0, 0, s, sd, sd, s, sd, s, sd, false, false, 2);
-        for (int y = 0; y < 24; y++) for (int x = 0; x < 14; x++) { var col = inner.GetPixel(x, y); if (col.a > 0f) c.Set(x + 3, y + 4, col); }
+        c.Paste(inner, 3, 4);
         c.Line(16, 6, 18, 2, sd); // raised arm with a spyglass
         return c.ToSprite(10, 37);
     });
@@ -1652,16 +1900,20 @@ public static class PixelArt
     /// A tile of the cloud sea around the floating island.
     public static Sprite CloudTile(int v) => Get("cloud_tile_" + v, () =>
     {
-        var c = new Canvas(32, 16);
-        Color baseCol = new Color(0.86f, 0.92f, 1f), shade = new Color(0.74f, 0.82f, 0.95f);
-        c.Diamond(0, (x, r) => r > 11 ? shade : baseCol);
+        var c = new Canvas(32, 16) { Rim = false };
+        Color baseCol = new Color(0.86f, 0.92f, 1f), shade = new Color(0.74f, 0.82f, 0.95f), shade2 = new Color(0.80f, 0.87f, 0.98f);
+        c.DiamondFine(0, (x, r) => r > 12 * Detail ? shade : r > 11 * Detail - 1 && ((x + r) & 1) == 0 ? shade2 : baseCol);
         var rnd = new System.Random(31 + v * 17);
         for (int k = 0; k < 3; k++)
         {
-            float cx = rnd.Next(8, 24), cy = rnd.Next(4, 11);
-            for (int y = 0; y < 16; y++)
-                for (int x = 0; x < 32; x++)
-                    if (InDiamond(x, y) && (x - cx) * (x - cx) / 16f + (y - cy) * (y - cy) / 5f < 1f) c.Set(x, y, Color.white);
+            float cx = rnd.Next(8, 24) * Detail, cy = rnd.Next(4, 11) * Detail;
+            for (int y = 0; y < 16 * Detail; y++)
+                for (int x = 0; x < 32 * Detail; x++)
+                {
+                    if (!InDiamondFine(x, y)) continue;
+                    float e = (x - cx) * (x - cx) / (16f * Detail * Detail) + (y - cy) * (y - cy) / (5f * Detail * Detail);
+                    if (e < 1f) c.SetFine(x, y, e > 0.7f && y > cy ? shade2 : Color.white);
+                }
         }
         return c.ToSprite(16, 8);
     });
@@ -1800,10 +2052,10 @@ public static class PixelArt
         var c = new Canvas(32, 46);
         c.Ellipse(16, 42.5f, 10, 3, Shadow);
         Color tr = Hex("#e8e4d8"), trD = Hex("#b0a890");
-        c.Rect(14, 24, 4, 19, tr); c.Rect(17, 24, 1, 19, trD);
+        c.BarkRect(14, 24, 4, 19, tr, trD);
         c.Rect(12, 41, 8, 2, tr);
-        c.Ball(16, 18, 14, 11, Hex("#8a6a1a"), Hex("#d8b040"), Hex("#fff0a0"));
-        c.Ball(11, 12, 6, 5, Hex("#d8b040"), Hex("#f2d06a"), Hex("#fff6c8"));
+        c.Leaves(16, 18, 14, 11, Hex("#8a6a1a"), Hex("#d8b040"), Hex("#fff0a0"));
+        c.Leaves(11, 12, 6, 5, Hex("#d8b040"), Hex("#f2d06a"), Hex("#fff6c8"));
         var sparkle = new Color(1f, 1f, 1f, 0.9f);
         c.Set(5, 8, sparkle); c.Set(27, 6, sparkle); c.Set(24, 26, sparkle); c.Set(3, 20, sparkle);
         if (fruit)
@@ -2325,12 +2577,7 @@ public static class PixelArt
                 break;
         }
         // copy into a slightly wider canvas so the elder's staff fits
-        for (int y = 0; y < 24; y++)
-            for (int x = 0; x < 14; x++)
-            {
-                var col = inner.GetPixel(x, y);
-                if (col.a > 0f) c.Set(x, y + 2, col);
-            }
+        c.Paste(inner, 0, 2);
         if (look == 1) { c.Rect(14, 6, 1, 19, Hex("#8a5a36")); c.Rect(13, 5, 3, 2, Hex("#c79a64")); }
         return c.ToSprite(7, 24);
     });

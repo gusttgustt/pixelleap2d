@@ -43,3 +43,6 @@ Server/cloudflared.exe
 
 # Claude Code local settings
 .claude/
+
+# art sheet output (Island > Export Art Sheet)
+/Art/
