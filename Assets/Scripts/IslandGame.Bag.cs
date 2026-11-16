@@ -24,7 +24,7 @@ public partial class IslandGame
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
         : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
-            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic or Item.GoldCoin or Item.CrystalShard ? BagTab.Special
+            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic or Item.GoldCoin or Item.CrystalShard or Item.Copper ? BagTab.Special
         : BagTab.Materials;
 
     static string TabName(BagTab t) => t switch
@@ -40,6 +40,7 @@ public partial class IslandGame
         Item.Trident => (9, 0.15f, 0f, 0f, 0f),
         Item.StrawHat => (0, 0f, 0f, 0f, 0.15f),
         Item.TribalHeadband => (1, 0.15f, 0f, 0f, 0f),
+        Item.StormHood => (1, 0.20f, 0f, 0f, 0f),
         Item.LeafTunic => (0, 0.10f, 15f, 0f, 0f),
         Item.HideVest => (0, 0f, 0f, 0.20f, 0f),
         Item.CrystalArmor => (0, 0f, 20f, 0.35f, 0f),

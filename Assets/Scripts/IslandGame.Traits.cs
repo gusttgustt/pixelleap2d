@@ -53,7 +53,7 @@ public partial class IslandGame
 
         T.shape = (Shape)r.Next(System.Enum.GetValues(typeof(Shape)).Length);
         bool dryBiome = biome is Biome.Sky or Biome.Bubble or Biome.Hourglass or Biome.Ice;
-        T.weather = dryBiome ? (r.Next(3) == 0 ? Weather.Fireflies : Weather.Clear) : (Weather)r.Next(System.Enum.GetValues(typeof(Weather)).Length);
+        T.weather = biome == Biome.Storm ? Weather.Rain : dryBiome ? (r.Next(3) == 0 ? Weather.Fireflies : Weather.Clear) : (Weather)r.Next(System.Enum.GetValues(typeof(Weather)).Length);
         Color[] tints =
         {
             Color.white, new Color(1f, 0.93f, 0.85f), new Color(0.86f, 0.93f, 1f), new Color(1f, 0.88f, 0.95f),

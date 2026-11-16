@@ -9,7 +9,7 @@ using UnityEngine;
 /// pirate compass: it points to the nearest treasure, relic, shrine or pack leader on any island.
 public partial class IslandGame
 {
-    class Strike { public Vector2 grid; public float t, radius, damage; public string why; public SpriteRenderer mark; }
+    class Strike { public Vector2 grid; public float t, radius, damage; public string why; public SpriteRenderer mark; public Color col; }
     readonly List<Strike> strikes = new List<Strike>();
     SpriteRenderer warship;
     Vector3 warshipPos;
@@ -19,9 +19,9 @@ public partial class IslandGame
     bool GunsSilent => Flag("captain" + island);
 
     /// Something about to land at `g` (cannonball, coconut): a red mark, then a bang.
-    public void SpawnStrike(Vector2 g, float delay, float radius, float damage, string why)
+    public void SpawnStrike(Vector2 g, float delay, float radius, float damage, string why, Color? col = null)
     {
-        var s = new Strike { grid = g, t = delay, radius = radius, damage = damage, why = why };
+        var s = new Strike { grid = g, t = delay, radius = radius, damage = damage, why = why, col = col ?? new Color(1f, 0.25f, 0.2f) };
         s.mark = new GameObject("StrikeMark").AddComponent<SpriteRenderer>();
         s.mark.transform.SetParent(world);
         s.mark.sprite = PixelArt.StrikeMark();
@@ -39,13 +39,18 @@ public partial class IslandGame
             var s = strikes[i];
             if (s.mark == null) { strikes.RemoveAt(i); continue; } // the island changed
             s.t -= dt;
-            s.mark.color = new Color(1f, 0.25f, 0.2f, 0.45f + 0.4f * Mathf.Sin(Time.time * 18f));
+            s.mark.color = new Color(s.col.r, s.col.g, s.col.b, 0.45f + 0.4f * Mathf.Sin(Time.time * 18f));
             if (s.t > 0f) continue;
             Vector3 at = s.mark.transform.position;
             Fx.Burst(at + Vector3.up * 0.2f, new Color(1f, 0.6f, 0.2f), 18, 1.2f * s.radius, 2f, 0.7f, 2f);
             Fx.Burst(at + Vector3.up * 0.2f, new Color(0.3f, 0.3f, 0.3f), 10, 1f * s.radius, 1f, 1.2f, -1f);
             Sfx.Play("hit", 0.6f);
-            if (player != null && (player.grid - s.grid).magnitude <= s.radius) DamagePlayer(s.damage, s.why);
+            if (s.why == "ฟ้าผ่า!")
+            {
+                LightningFlash();
+                for (int k = 0; k < 10; k++) Fx.Burst(at + Vector3.up * k * 0.5f + (Vector3)(Random.insideUnitCircle * 0.2f), new Color(1f, 0.97f, 0.6f), 2, 0.1f, 0.4f); // the bolt
+            }
+            if (player != null && (player.grid - s.grid).magnitude <= s.radius && !(s.why == "ฟ้าผ่า!" && hat == Item.StormHood)) DamagePlayer(s.damage, s.why);
             Destroy(s.mark.gameObject);
             strikes.RemoveAt(i);
         }

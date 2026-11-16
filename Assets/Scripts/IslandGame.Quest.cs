@@ -84,6 +84,7 @@ public partial class IslandGame
         EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", EnemyKind.Kraken => "อสูรหมึกยักษ์",
         EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", EnemyKind.Captain => "กัปตันกระดูกดำ",
         EnemyKind.CrystalGolem => "โกเลมผลึก", EnemyKind.MirrorWisp => "ภูตกระจก",
+        EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", EnemyKind.Thunderbird => "นกอัสนี",
         _ => k.ToString(),
     };
 
@@ -105,6 +106,11 @@ public partial class IslandGame
             case Biome.Mushroom:
                 q.bring = new[] { (Item.GlowSpore, 6 + L), (Item.Wood, 6), (Item.Rope, 4) };
                 q.help = new[] { ($"child{island}", "พาน้องปุยกลับไปหาหมอโมรา"), ($"king{island}", "ปราบราชาเห็ดที่ขวางทางน้ำ") };
+                break;
+            case Biome.Storm:
+                q.bring = new[] { (Item.Copper, 4 + L), (Item.Wood, 6), (Item.Rope, 4) };
+                q.kill = new[] { (EnemyKind.ThunderToad, 3 + t) };
+                q.help = new[] { ($"rods{island}", "ซ่อมสายล่อฟ้าให้ครบ ฟ้าจะได้ไม่ผ่าอู่เรือ") };
                 break;
             case Biome.Crystal:
                 q.bring = new[] { (Item.CrystalShard, 6 + L), (Item.Wood, 6), (Item.Rope, 4) };
@@ -168,6 +174,7 @@ public partial class IslandGame
     string ShipwrightTalk() => biome switch
     {
         Biome.Mushroom => "เรือแบบเจ้าแล่นไม่ผ่านคลองเห็ดหรอก ราชาเห็ดนอนขวางทางน้ำอยู่ แถมหมอโมราก็ร้อนใจเรื่องลูกหาย ช่วยเกาะนี้ก่อน แล้วข้าจะเสริมเรือให้ด้วยสปอร์เรืองแสง",
+        Biome.Storm => "ฟ้าผ่าอู่เรือข้าไปสามรอบแล้ว! ซ่อมสายล่อฟ้าให้ครบก่อน แล้วเอาทองแดงมาทำหมุดเรือ คางคกฟ้าร้องชอบกระโดดมาทับเครื่องมือข้า ไล่มันไปด้วย",
         Biome.Crystal => "ผลึกที่นี่ทำกระดูกงูเรือได้แข็งที่สุดที่ข้าเคยเห็น แต่โกเลมผลึกชอบมาเหยียบอู่เรือข้าพัง จัดการมันด้วย แล้วเปิดห้องนิรภัย ผลึกที่ผ่านแสงเท่านั้นถึงจะใช้ได้",
         Biome.Pirate => "ไม้ดีๆ ข้ามีครบ แต่ค่าแรงต้องจ่ายเป็นเหรียญทอง! ขุดสมบัติเอาสิ แล้วไล่ลูกเรือโครงกระดูกที่มาขโมยไม้ข้าด้วย ถ้าปืนใหญ่ยังยิงอยู่ ข้าซ่อมเรือไม่ได้หรอก",
         Biome.Sunken => "จะพาเรือขึ้นจากก้นทะเลได้ ต้องหุ้มด้วยมุกกับปะการังให้ทนแรงดัน ปูยักษ์ทะเลลึกชอบหนีบเชือกเรือขาด จัดการมันด้วย และอสูรหมึกยักษ์ต้องไม่อยู่ขวางทางขึ้น",
@@ -245,6 +252,9 @@ public partial class IslandGame
             case VillagerRole.Artisan:
                 var gq = ArtisanQuest();
                 return Done(gq) ? null : gq;
+            case VillagerRole.Inventor:
+                var iq = InventorQuest();
+                return Done(iq) ? null : iq;
             default: return null;
         }
     }
@@ -282,6 +292,7 @@ public partial class IslandGame
             case VillagerRole.Archaeologist:
             case VillagerRole.OldPirate:
             case VillagerRole.Artisan:
+            case VillagerRole.Inventor:
                 break;
             case VillagerRole.Merchant:
                 MerchantDialog(v, d, text);
@@ -296,6 +307,7 @@ public partial class IslandGame
             d.text = text ?? (v.role == VillagerRole.Shipwright
                 ? (raftLevel == 0 ? "ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น"
                                   : $"{BoatName(raftLevel)} Lv {raftLevel} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ")
+                : v.role == VillagerRole.Inventor ? "ฟ้าสงบลงแล้ว น่าเสียดายนิดๆ นะ! ผ้าคลุมพายุจะทำให้เจ้าเร็วดั่งสายฟ้า"
                 : v.role == VillagerRole.Artisan ? "ชุดเกราะผลึกจะสะท้อนคมดาบทุกเล่ม สวมมันให้ภูมิใจนะ"
                 : v.role == VillagerRole.OldPirate ? "ฮ่าฮ่า! อ่าวนี้เป็นของพวกเราอีกครั้ง เข็มทิศนั่นจะพาเจ้าไปหาสมบัติได้ทุกเกาะ"
                 : v.role == VillagerRole.Archaeologist ? "ตรีศูลของกษัตริย์บาดาลกลับมาโลดแล่นอีกครั้ง! ใช้มันให้สมเกียรตินะ"
@@ -319,6 +331,7 @@ public partial class IslandGame
                      : v.role == VillagerRole.Archaeologist ? ArchaeologistIntro
                      : v.role == VillagerRole.OldPirate ? OldPirateIntro
                      : v.role == VillagerRole.Artisan ? ArtisanIntro
+                     : v.role == VillagerRole.Inventor ? InventorIntro
                      : q.id.StartsWith("lost") ? "ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้"
                      : "แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน";
         if (!Accepted(q))
@@ -405,6 +418,8 @@ public partial class IslandGame
         }
         if (biome == Biome.Crystal)
             AddVillager(VillagerRole.Artisan, "เพชรา", 18, WalkableNear(Center + new Vector2(1.6f, -1.2f)));
+        if (biome == Biome.Storm)
+            AddVillager(VillagerRole.Inventor, "อัสนี", 19, WalkableNear(Center + new Vector2(1.6f, -1.2f)));
     }
 
     /// A couple of steps inland from the west shore, where the boat lands.

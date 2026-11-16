@@ -27,7 +27,7 @@ public partial class IslandGame
         UpdateLantern();
         TickPower(dt);
         TickHourglass(dt);
-        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); UpdateWeather(dt); UpdateSunken(dt); UpdatePirate(dt); UpdateCrystal(dt); }
+        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); UpdateWeather(dt); UpdateSunken(dt); UpdatePirate(dt); UpdateCrystal(dt); UpdateStorm(dt); }
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -292,6 +292,13 @@ public partial class IslandGame
             case NodeKind.Shrine: PrayAtShrine(n); break;
             case NodeKind.DigSpot: if (n.available) DigTreasure(n); break;
             case NodeKind.Mirror: TurnMirror(n); break;
+            case NodeKind.LightningRod: RepairRod(n); break;
+            case NodeKind.CopperOre:
+                Give(Item.Copper, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.3f, new Color(0.9f, 0.55f, 0.3f), 8, 0.7f, 1.2f);
+                Sfx.Play("chop", 0.5f);
+                DepleteShared(n, 120f);
+                break;
             case NodeKind.CrystalVault: OpenVault(n); break;
             case NodeKind.CrystalCluster:
                 Give(Item.CrystalShard, rnd.Next(1, 3) + Bonus(), n);
@@ -517,9 +524,13 @@ public partial class IslandGame
             EnemyKind.Captain => (Item.GoldCoin, 30),
             EnemyKind.CrystalGolem => (Item.CrystalShard, 3),
             EnemyKind.MirrorWisp => (Item.CrystalShard, 1),
+            EnemyKind.ThunderToad => (Item.Copper, 1),
+            EnemyKind.StormHawk => (Item.Feather, 2),
+            EnemyKind.Thunderbird => (Item.Feather, 6),
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
+        if (kind == EnemyKind.Thunderbird) { flags.Add("thunderbird" + island); Hint("นกอัสนีร่วงลงแล้ว! พายุเบาลง", 6f); }
         if (kind == EnemyKind.Captain) { flags.Add("captain" + island); Hint("กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว", 6f); }
         if (kind == EnemyKind.Kraken) { flags.Add("kraken" + island); Hint("อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร", 6f); }
         if (kind == EnemyKind.Snowman) SplitSnowman(WorldDeltaToGrid(at)); // bursts into snowlings
@@ -645,6 +656,8 @@ public partial class IslandGame
         EnemyKind.PirateMonkey => 2 + tier,
         EnemyKind.CrystalGolem => (IsNight ? 3 : 2) + tier,
         EnemyKind.MirrorWisp => (IsNight ? 4 : 2) + tier,
+        EnemyKind.ThunderToad => 3 + tier,
+        EnemyKind.StormHawk => (IsNight ? 3 : 2) + tier,
         _ => 0,
     };
 
@@ -662,6 +675,7 @@ public partial class IslandGame
         (Biome.Sunken, _) => new[] { EnemyKind.Eel, EnemyKind.DeepCrab },
         (Biome.Pirate, _) => new[] { EnemyKind.Crab, EnemyKind.SkeletonPirate, EnemyKind.PirateMonkey },
         (Biome.Crystal, _) => new[] { EnemyKind.CrystalGolem, EnemyKind.MirrorWisp },
+        (Biome.Storm, _) => new[] { EnemyKind.ThunderToad, EnemyKind.StormHawk },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -715,7 +729,8 @@ public partial class IslandGame
                 : r.output == Item.SpikedBoots ? "ต้องเรียนจากพรานธารา (เกาะน้ำแข็ง)"
                 : r.output == Item.Trident ? "ต้องเรียนจาก ดร.สมุทร (นครบาดาล)"
                 : r.output == Item.Compass ? "ต้องเรียนจากลุงตาเดียว (อ่าวโจรสลัด)"
-                : r.output == Item.CrystalArmor ? "ต้องเรียนจากช่างแก้วเพชรา (เกาะผลึก)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+                : r.output == Item.CrystalArmor ? "ต้องเรียนจากช่างแก้วเพชรา (เกาะผลึก)"
+                : r.output == Item.StormHood ? "ต้องเรียนจากนักประดิษฐ์อัสนี (เกาะพายุ)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }

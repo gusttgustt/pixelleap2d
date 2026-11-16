@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -27,6 +27,9 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   Captain        - Pirate Cove boss: calls cannon fire around you, and gets back up once too.
 ///   CrystalGolem   - Crystal island: slow and heavy; its crystal body takes only half of every blow.
 ///   MirrorWisp     - Crystal island: quick; every hit on it throws glass splinters back at you.
+///   ThunderToad    - Storm island: leaps at you and lands with a shockwave.
+///   StormHawk      - Storm island: hovers, crackles, then dives straight at you.
+///   Thunderbird    - Storm island boss: calls lightning down all around you.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -88,7 +91,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", EnemyKind.FrostBat => "ค้างคาวน้ำแข็ง",
         EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", EnemyKind.Kraken => "อสูรหมึกยักษ์",
         EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", EnemyKind.Captain => "กัปตันกระดูกดำ",
-        EnemyKind.CrystalGolem => "โกเลมผลึก", _ => "ภูตกระจก",
+        EnemyKind.CrystalGolem => "โกเลมผลึก", EnemyKind.MirrorWisp => "ภูตกระจก",
+        EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", _ => "นกอัสนี",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -147,6 +151,9 @@ public class Enemy : MonoBehaviour
             EnemyKind.Captain => (80, 16f, 1.0f, 8f, 220),
             EnemyKind.CrystalGolem => (14, 14f, 0.8f, 6f, 36),
             EnemyKind.MirrorWisp => (4, 6f, 2.0f, 8f, 22),
+            EnemyKind.ThunderToad => (7, 11f, 0.9f, 7f, 30),
+            EnemyKind.StormHawk => (5, 10f, 1.6f, 8f, 28),
+            EnemyKind.Thunderbird => (90, 18f, 1.2f, 9f, 240),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -228,7 +235,7 @@ public class Enemy : MonoBehaviour
                 }
             }
         }
-        if (kind == EnemyKind.StormCloud) // crackle, then charge
+        if (kind is EnemyKind.StormCloud or EnemyKind.StormHawk) // crackle, then charge
         {
             chargeCd -= dt;
             if (dashT > 0f)
@@ -268,6 +275,31 @@ public class Enemy : MonoBehaviour
             if (fleeT <= 0f && stolenCount > 0) fleeT = 3f; // keeps running while it holds your stuff
             Apply();
             return;
+        }
+        if (kind == EnemyKind.ThunderToad)
+        {
+            chargeCd -= dt;
+            if (chargeCd <= 0f && dist < 6f && dist > 1f)
+            {
+                chargeCd = 2.4f;
+                Vector2 land = grid + toPlayer / dist * Mathf.Min(2.5f, dist);
+                if (CanGo(land))
+                {
+                    grid = land; // big leap... and THUD
+                    Fx.Burst(IslandGame.GridToWorld(grid) + Vector3.up * 0.1f, new Color(1f, 0.95f, 0.5f), 14, 1.2f, 1.2f, 0.6f, 0f);
+                    Sfx.Play("hit", 0.4f);
+                    if (targetWho == 0 && (targetGrid - grid).magnitude < 1.3f) game.DamagePlayer(damage, "คลื่นกระแทก!");
+                }
+            }
+        }
+        if (kind == EnemyKind.Thunderbird && targetWho == 0)
+        {
+            sporeT -= dt;
+            if (sporeT <= 0f && dist < 9f)
+            {
+                sporeT = 6f; // a ring of lightning around you
+                for (int i = 0; i < 5; i++) game.SpawnStrike(targetGrid + Random.insideUnitCircle * 2.5f, 1.2f + i * 0.2f, 0.9f, damage * 0.8f, "ฟ้าผ่า!", new Color(1f, 0.95f, 0.3f));
+            }
         }
         if (kind == EnemyKind.PirateMonkey && targetWho == 0)
         {
@@ -320,7 +352,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -424,7 +456,7 @@ public class Enemy : MonoBehaviour
             dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem ? 0.5f : 0.6f))); // armour soaks blows
         if (kind == EnemyKind.MirrorWisp) IslandGame.I.DamagePlayer(2f, "เศษแก้วสะท้อน!"); // splinters fly back
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain or EnemyKind.Thunderbird ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
         if (hp <= 0 && kind is EnemyKind.SkeletonPirate or EnemyKind.Captain && !revived) // rattle back up once

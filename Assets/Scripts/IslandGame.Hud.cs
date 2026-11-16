@@ -107,6 +107,8 @@ public partial class IslandGame
         NodeKind.DigSpot => "ขุดสมบัติ",
         NodeKind.CrystalCluster => "เก็บเศษผลึก",
         NodeKind.Mirror => "หมุนกระจก",
+        NodeKind.LightningRod => n.hits > 0 ? "สายล่อฟ้า (ใช้งานได้)" : "ซ่อมสายล่อฟ้า (ทองแดง 2)",
+        NodeKind.CopperOre => "ขุดแร่ทองแดง",
         NodeKind.CrystalVault => "เปิดห้องนิรภัยผลึก",
         NodeKind.Relic => "อ่านแผ่นจารึก",
         NodeKind.GiantClam => "หายใจจากหอยยักษ์",
@@ -225,6 +227,7 @@ public partial class IslandGame
         infoY = DrawSunkenHud(infoY);
         infoY = DrawPirateHud(infoY);
         infoY = DrawCrystalHud(infoY);
+        infoY = DrawStormHud(infoY);
         infoY = DrawCompassHud(infoY);
         if (poisonT > 0f)
         {
@@ -278,6 +281,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
         DrawWeatherOverlay(W, H);
+        DrawStormOverlay(W, H);
         DrawInk(W, H);
         if (sleepT > 0f)
         {
@@ -463,6 +467,7 @@ public partial class IslandGame
         Item.LeafTunic => "พลังชีวิตสูงสุด +15",
         Item.HideVest => "รับดาเมจ -20%",
         Item.CrystalArmor => "รับดาเมจ -35%, พลังชีวิต +20",
+        Item.StormHood => "โจมตีเร็ว +20%, ดาเมจ +1",
         _ => "",
     };
 
