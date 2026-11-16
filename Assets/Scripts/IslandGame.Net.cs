@@ -142,6 +142,7 @@ public partial class IslandGame
         link = null;
         myId = 0;
         inRoom = false;
+        serverHomes = false;
         ClearRemotes();
         VisitDisconnected(); // visiting a friend: back home
         foreach (var e in enemies) if (e != null && e.puppet) Destroy(e.gameObject);
@@ -154,6 +155,7 @@ public partial class IslandGame
         ClearRemotes();
         inRoom = false;
         hostId = 0;
+        if (atHome && !serverHomes) { if (Online) Send(new NetMsg { t = "leave" }); return; } // an older server has no rooms for private islands: you're alone at home
         if (Online) Send(new NetMsg { t = "join", island = RoomKey }); // a private island has a room of its own (IslandGame.Visit.cs)
     }
 
@@ -200,6 +202,8 @@ public partial class IslandGame
             case "welcome":
                 myId = m.id;
                 worldSeed = m.worldSeed;
+                serverHomes = false;
+                Send(new NetMsg { t = "homes" }); // does this server know private islands? (an older one stays quiet)
                 break;
 
             case "room":
@@ -233,7 +237,7 @@ public partial class IslandGame
                 break;
 
             // visiting private islands (IslandGame.Visit.cs)
-            case "homes": ShowHomes(m.players); break;
+            case "homes": OnHomes(m.players); break;
             case "visit": OnVisitData(m); break;
             case "knock": OnKnock(m); break;
 

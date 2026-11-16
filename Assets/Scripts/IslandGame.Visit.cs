@@ -28,6 +28,9 @@ public partial class IslandGame
     readonly List<(int code, string name)> visitPets = new List<(int, string)>();
     float homeSendT = 5f;
     bool homesAsked;
+    /// The server answered "homes": it knows private islands (rooms, visits). An older server
+    /// doesn't, and then none of this is used (the game works as before, alone at home).
+    bool serverHomes;
 
     int RoomKey => atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : island;
 
@@ -46,7 +49,7 @@ public partial class IslandGame
 
     void PublishHome()
     {
-        if (!Online || visiting || !homeMade) return;
+        if (!Online || !serverHomes || visiting || !homeMade) return;
         List<NodeSave> outside, room;
         if (atHome && !inHouse) { outside = new List<NodeSave>(); foreach (var n in nodes) if (n != null) outside.Add(ToSave(n)); }
         else outside = homeNodes;
@@ -107,10 +110,21 @@ public partial class IslandGame
     void AskHomes()
     {
         if (!Online) { Hint("การเยี่ยมบ้านเพื่อนต้องเล่นออนไลน์", 2.5f); return; }
+        if (!serverHomes) { Hint("เซิร์ฟเวอร์ตอนนี้ยังเป็นเวอร์ชันเก่า ยังเยี่ยมบ้านไม่ได้ (เจ้าของเซิร์ฟเวอร์ต้องเปิดเซิร์ฟเวอร์ใหม่)", 4f); return; }
         if (title || dead || player == null || voyage != null || Busy || homeT > 0f) return;
         homesAsked = true;
         Send(new NetMsg { t = "homes" });
         Hint("กำลังดูว่าใครเปิดบ้านให้เยี่ยมบ้าง...", 1.5f);
+    }
+
+    void OnHomes(NetPeer[] list)
+    {
+        if (!serverHomes)
+        {
+            serverHomes = true;
+            if (atHome && player != null && !inRoom) { JoinRoom(); homeSendT = Mathf.Min(homeSendT, 2f); } // got home before the answer came
+        }
+        ShowHomes(list);
     }
 
     void ShowHomes(NetPeer[] list)

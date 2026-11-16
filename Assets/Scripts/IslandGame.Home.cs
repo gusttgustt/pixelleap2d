@@ -367,8 +367,8 @@ public partial class IslandGame
         }
         if (buildOpen) return;
         var pst = new GUIStyle(st); pst.normal.textColor = new Color(1f, 0.72f, 0.82f);
-        if (Online && GUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
-        if (Online) y += 26f;
+        if (Online && serverHomes && GUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
+        if (Online && serverHomes) y += 26f;
         if (GUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
     }
 
