@@ -52,8 +52,8 @@ public partial class IslandGame
         title = true;
         playerName = PlayerPrefs.GetString("playerName", "");
         if (string.IsNullOrEmpty(playerName)) playerName = "ชาวเกาะ" + Random.Range(100, 1000);
-        if (!CharacterLook.CanChoose) look = CharacterLook.Default; // one character for everyone (for now)
-        else look = PlayerPrefs.HasKey("look") ? CharacterLook.FromCode(PlayerPrefs.GetInt("look")) : CharacterLook.Random();
+        look = PlayerPrefs.HasKey("look") ? CharacterLook.FromCode(PlayerPrefs.GetInt("look")) : CharacterLook.CanChoose ? CharacterLook.Random() : CharacterLook.Default;
+        if (!CharacterLook.CanChoose && look.preset == 0) look = CharacterLook.Default; // ready-made characters only (for now)
         lookCode = look.Code;
     }
 

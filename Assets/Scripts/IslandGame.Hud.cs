@@ -399,10 +399,12 @@ public partial class IslandGame
         y += 60;
         if (!CharacterLook.CanChoose)
         {
-            ShadowLabel(new Rect(x, y, w, 20), "ตัวละคร", label);
-            ShadowLabel(new Rect(x, y + 22, w, 24), CharacterLook.Presets[look.preset], label, new Color(1f, 0.8f, 0.9f));
+            // ready-made characters only: < > steps through Presets[1..]
+            int n = CharacterLook.Presets.Length - 1;
+            int pick = Chooser(x, y, w, "ตัวละคร", Mathf.Max(0, look.preset - 1), n, null, CharacterLook.Presets[Mathf.Max(1, look.preset)]);
+            if (pick + 1 != look.preset) look = new CharacterLook { preset = pick + 1, gender = 1, style = 1 };
             var note = new GUIStyle(small) { wordWrap = true };
-            ShadowLabel(new Rect(x, y + 52, w, 40), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม (ตัวละครอื่นจะเพิ่มในอนาคต)", note, new Color(1f, 1f, 1f, 0.75f));
+            ShadowLabel(new Rect(x, y + 34, w, 40), $"กด < > เพื่อเลือกตัวละคร ({look.preset}/{n})  ·  หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม", note, new Color(1f, 1f, 1f, 0.75f));
             DrawAccount(x, box.y + 176, w); // log in to play the same character anywhere (IslandGame.Account.cs)
         }
         else
