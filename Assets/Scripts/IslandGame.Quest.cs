@@ -80,6 +80,7 @@ public partial class IslandGame
         EnemyKind.StormCloud => "ก้อนเมฆสายฟ้า", EnemyKind.ChimeBird => "นกกระดิ่งลม",
         EnemyKind.LanternFish => "ปลาตะเกียง", EnemyKind.StoneSquid => "หมึกหิน",
         EnemyKind.WindupDoll => "ตุ๊กตาไขลาน", EnemyKind.TimeBeetle => "ด้วงทรายเวลา",
+        EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", EnemyKind.FrostBat => "ค้างคาวน้ำแข็ง",
         _ => k.ToString(),
     };
 
@@ -101,6 +102,11 @@ public partial class IslandGame
             case Biome.Mushroom:
                 q.bring = new[] { (Item.GlowSpore, 6 + L), (Item.Wood, 6), (Item.Rope, 4) };
                 q.help = new[] { ($"child{island}", "พาน้องปุยกลับไปหาหมอโมรา"), ($"king{island}", "ปราบราชาเห็ดที่ขวางทางน้ำ") };
+                break;
+            case Biome.Ice:
+                q.bring = new[] { (Item.IceShard, 6 + L), (Item.Fur, 3 + L), (Item.Wood, 6), (Item.Rope, 4) };
+                q.kill = new[] { (EnemyKind.FrostBat, 3 + t) };
+                q.help = new[] { ($"warm{island}", "ช่วยพรานธาราจุดไฟให้หมู่บ้าน") };
                 break;
             case Biome.Hourglass:
                 q.bring = new[] { (Item.Gear, 4 + L), (Item.TimeSand, 6 + L), (Item.Wood, 4), (Item.Rope, 4) };
@@ -144,6 +150,7 @@ public partial class IslandGame
     string ShipwrightTalk() => biome switch
     {
         Biome.Mushroom => "เรือแบบเจ้าแล่นไม่ผ่านคลองเห็ดหรอก ราชาเห็ดนอนขวางทางน้ำอยู่ แถมหมอโมราก็ร้อนใจเรื่องลูกหาย ช่วยเกาะนี้ก่อน แล้วข้าจะเสริมเรือให้ด้วยสปอร์เรืองแสง",
+        Biome.Ice => "ทะเลรอบเกาะอุ่น แต่ท้องเรือต้องหุ้มเกล็ดน้ำแข็งกันความร้อนเวลาผ่านกระแสน้ำเดือด แปลกดีไหมล่ะ ค้างคาวน้ำแข็งชอบมาเกาะเสากระโดงแล้วแช่แข็งเชือก ไล่มันไป แล้วช่วยพรานธาราด้วย",
         Biome.Hourglass => "เวลาที่นี่เดี๋ยวเร็วเดี๋ยวช้า ไม้ที่ข้าตอกเมื่อเช้าผุไปแล้วตอนบ่าย! ต้องใช้เฟืองทองเหลืองกับทรายเวลายึดเรือให้ทนกาลเวลา ด้วงทรายชอบมาแทะเฟือง ช่วยไล่หน่อย แล้วช่วยลุงฟันเฟืองซ่อมหอนาฬิกาด้วย",
         Biome.Bubble => "จะพาเรือขึ้นจากใต้ทะเล ต้องหุ้มท้องเรือด้วยปะการังกับมุกให้ทนแรงดัน ปลาตะเกียงชอบล่อคนงานข้าหลงทาง ไล่พวกมันไป แล้วช่วยแม่มุกซ่อมโดมด้วย",
         Biome.Sky => "เรือที่จะออกจากเกาะลอยฟ้าต้องเบาดั่งปุยเมฆ เอาปุยเมฆกับขนนกมา แล้วจัดการก้อนเมฆสายฟ้าที่ชอบผ่าเรือข้า และช่วยปู่ลมพัดให้ลมสงบก่อนด้วย",
@@ -202,6 +209,9 @@ public partial class IslandGame
             case VillagerRole.Clockmaker:
                 var cq = ClockQuest();
                 return Done(cq) ? null : cq;
+            case VillagerRole.Hunter:
+                var hq = HunterQuest();
+                return Done(hq) ? null : hq;
             default: return null;
         }
     }
@@ -234,6 +244,7 @@ public partial class IslandGame
             case VillagerRole.Sage:
             case VillagerRole.Diver:
             case VillagerRole.Clockmaker:
+            case VillagerRole.Hunter:
                 break;
             default:
                 return false;
@@ -245,6 +256,7 @@ public partial class IslandGame
             d.text = text ?? (v.role == VillagerRole.Shipwright
                 ? (raftLevel == 0 ? "ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น"
                                   : $"{BoatName(raftLevel)} Lv {raftLevel} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ")
+                : v.role == VillagerRole.Hunter ? "กองไฟใหญ่ลุกโชนแล้ว ทั้งหมู่บ้านอุ่นสบาย รองเท้าหนามคู่นั้นจะพาเจ้าเดินบนน้ำแข็งได้มั่นคง"
                 : v.role == VillagerRole.Clockmaker ? "ติ๊กต่อก... ได้ยินไหม หอนาฬิกาเดินแล้ว! นาฬิกาแดดของเจ้าใช้หยุดเวลาได้เมื่อจวนตัว"
                 : v.role == VillagerRole.Diver ? "โดมแน่นหนาแล้ว หายใจได้เต็มปอดเลย ระฆังดำน้ำจะพาเจ้าเก็บมุกในทะเลได้อีกมาก"
                 : v.role == VillagerRole.Sage ? "ได้ยินไหม เสียงกระดิ่งกลับมาแล้ว ลมสงบลงเยอะเลย บอลลูนจะพาเรือเจ้าลอยพ้นปากฉลาม"
@@ -258,6 +270,7 @@ public partial class IslandGame
                      : v.role == VillagerRole.Sage ? SageIntro
                      : v.role == VillagerRole.Diver ? DiverIntro
                      : v.role == VillagerRole.Clockmaker ? ClockIntro
+                     : v.role == VillagerRole.Hunter ? HunterIntro
                      : q.id.StartsWith("lost") ? "ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้"
                      : "แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน";
         if (!Accepted(q))
@@ -322,6 +335,12 @@ public partial class IslandGame
             var tower = nodes.Find(n => n != null && n.kind == NodeKind.ClockTower);
             Vector2 home = tower != null ? tower.grid + (Center - tower.grid).normalized * 1.6f : Center + new Vector2(1f, 1f);
             AddVillager(VillagerRole.Clockmaker, "ลุงฟันเฟือง", 13, WalkableNear(home));
+        }
+        if (biome == Biome.Ice)
+        {
+            var hut = nodes.Find(n => n != null && n.kind == NodeKind.Hut);
+            Vector2 home = hut != null ? hut.grid + (Center - hut.grid).normalized * 1.4f : Center + new Vector2(1f, 1f);
+            AddVillager(VillagerRole.Hunter, "พรานธารา", 14, WalkableNear(home));
         }
     }
 

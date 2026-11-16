@@ -51,7 +51,7 @@ public class WorldNode : MonoBehaviour
     public bool CanTarget => kind switch
     {
         NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower => false,
-        NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent => true,
+        NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
         _ => available,
     };
@@ -157,6 +157,8 @@ public class WorldNode : MonoBehaviour
             NodeKind.SandCrystal => PixelArt.SandCrystal(available),
             NodeKind.ClockRuin => PixelArt.ClockRuin(),
             NodeKind.ClockTower => PixelArt.ClockTower(),
+            NodeKind.IceCrystal => PixelArt.IceCrystal(available),
+            NodeKind.HotSpring => PixelArt.HotSpring(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
             _ => PixelArt.Campfire(fireFrame),
@@ -218,6 +220,8 @@ public class WorldNode : MonoBehaviour
         transform.position = p;
 
         if (kind == NodeKind.Lamp && fireLight != null) fireLight.intensity = (1f - game.Daylight) * 1.2f;
+        if (kind == NodeKind.HotSpring && Random.value < Time.deltaTime * 6f) // steam
+            Fx.Burst(basePos + Vector3.up * 0.2f + (Vector3)(Random.insideUnitCircle * 0.3f), new Color(1f, 1f, 1f, 0.7f), 1, 0.2f, 0.4f, 1.5f, -0.8f);
         if (kind == NodeKind.AirVent && Random.value < Time.deltaTime * 5f) // bubbles rising
             Fx.Burst(basePos + Vector3.up * 0.2f, new Color(0.8f, 0.95f, 1f, 0.9f), 1, 0.15f, 0.6f, 1.2f, -1.2f);
 

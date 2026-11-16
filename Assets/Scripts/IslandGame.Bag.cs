@@ -24,7 +24,7 @@ public partial class IslandGame
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
         : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
-            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand ? BagTab.Special
+            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur ? BagTab.Special
         : BagTab.Materials;
 
     static string TabName(BagTab t) => t switch

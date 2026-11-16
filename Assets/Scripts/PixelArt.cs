@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", Biome.Ice => "ice_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Ice, true) => new[] { "#eef4fa", "#d8e4f0", "#ffffff", "#a8b8c8", "#8898a8", "#c8d8e8" },   // snow
+            (Biome.Ice, false) => new[] { "#a8d8f0", "#8ac4e4", "#d8f0ff", "#7aa8c8", "#5a88a8", "#8ac4e4" }, // sheet ice
             (Biome.Hourglass, true) => new[] { "#a8a050", "#928a42", "#c8c070", "#9a7a48", "#7a5e36", "#868038" },   // sun-dried grass
             (Biome.Hourglass, false) => new[] { "#ecd08a", "#dcbc72", "#f8e4ac", "#c8a060", "#a8844a", "#dcbc72" }, // golden dune sand
             (Biome.Bubble, true) => new[] { "#2f7a7a", "#266868", "#4fa0a0", "#5a4a5a", "#463a48", "#226060" },     // seagrass
@@ -285,6 +287,7 @@ public static class PixelArt
         Biome.Volcanic => DeadTree(),
         Biome.Mushroom => GiantMushroom(),
         Biome.Bubble => Kelp(true),
+        Biome.Ice => SnowPine(),
         Biome.Hourglass => LeafyTree("tree_hourglass", "#8a5a1a", "#c8862a", "#f2c45a"), // amber autumn trees
         Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
         Biome.Jungle => LeafyTree("tree_jungle", "#1f4d26", "#2f6e33", "#4f9a45"),
@@ -316,7 +319,7 @@ public static class PixelArt
     });
 
     public static Sprite FruitTree(bool fruit, Biome biome = Biome.Tropical) =>
-        biome == Biome.Jungle ? Palm(fruit) : biome == Biome.Mushroom ? GiantMushroom() : biome == Biome.Bubble ? Kelp(true) : RoundFruitTree(fruit);
+        biome == Biome.Jungle ? Palm(fruit) : biome == Biome.Mushroom ? GiantMushroom() : biome == Biome.Bubble ? Kelp(true) : biome == Biome.Ice ? SnowPine() : RoundFruitTree(fruit);
 
     static Sprite Palm(bool fruit) => Get(fruit ? "palm" : "palm_empty", () =>
     {
@@ -584,8 +587,95 @@ public static class PixelArt
         EnemyKind.StoneSquid => StoneSquid(frame),
         EnemyKind.WindupDoll => WindupDoll(frame),
         EnemyKind.TimeBeetle => TimeBeetle(frame),
+        EnemyKind.Snowman => Snowman(frame),
+        EnemyKind.Snowling => Snowling(frame),
+        EnemyKind.FrostBat => FrostBat(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Ice island
+    /// Snowy pine.
+    static Sprite SnowPine() => Get("tree_pine_snow", () =>
+    {
+        var c = new Canvas(32, 46);
+        c.Ellipse(16, 42.5f, 8, 2.5f, Shadow);
+        c.Rect(15, 34, 3, 9, Bark); c.Rect(17, 34, 1, 9, BarkD);
+        Color d = Hex("#1f4a3a"), m = Hex("#2f6a4f"), snow = Hex("#f4f8ff"), snowD = Hex("#c8d8e8");
+        for (int tier = 0; tier < 4; tier++)
+        {
+            int top = 4 + tier * 8, bottom = top + 12, hw0 = 4 + tier * 3;
+            for (int y = top; y <= bottom; y++)
+            {
+                int hw = (y - top) * hw0 / 12 + 1;
+                for (int x = 16 - hw; x <= 16 + hw; x++) c.Set(x, y, x > 16 ? d : m);
+                if (y == top + (y - top) % 3 && y < top + 4) c.Rect(16 - hw, y, hw * 2 + 1, 1, snow);
+            }
+            c.Rect(16 - hw0, bottom, hw0 * 2 + 1, 1, snowD); c.Rect(16 - hw0 + 1, bottom - 1, hw0 * 2 - 1, 1, snow); // snow on each branch layer
+        }
+        c.Rect(15, 2, 3, 3, snow);
+        return c.ToSprite(16, 42);
+    });
+
+    public static Sprite IceCrystal(bool full) => Get(full ? "ice_crystal" : "ice_crystal_empty", () =>
+    {
+        var c = new Canvas(16, 18);
+        c.Ellipse(8, 16, 5, 1.5f, Shadow);
+        Color d = Hex("#6aa8d8"), m = Hex("#a8d8f8"), l = Color.white;
+        if (!full) { c.Rect(6, 14, 4, 2, d); return c.ToSprite(8, 16); }
+        for (int y = 3; y <= 16; y++) { int hw = Mathf.Min(3, (y - 3) / 2 + 1); c.Rect(6 - hw / 2, y, hw, 1, m); c.Set(6 + hw / 2, y, d); }
+        for (int y = 7; y <= 16; y++) { int hw = Mathf.Min(2, (y - 7) / 2 + 1); c.Rect(11 - hw / 2, y, hw, 1, m); c.Set(11 + hw / 2, y, d); }
+        c.Set(5, 5, l); c.Set(10, 9, l);
+        return c.ToSprite(8, 16);
+    });
+
+    public static Sprite HotSpring() => Get("hot_spring", () =>
+    {
+        var c = new Canvas(32, 18);
+        c.Ellipse(16, 10, 14, 6, Hex("#8a8a96"));
+        c.Ellipse(16, 9.5f, 11.5f, 4.5f, Hex("#4ab8c8"));
+        c.Ellipse(14, 8.5f, 6, 2, Hex("#8ae0e8"));
+        for (int i = 0; i < 7; i++) c.Ball(4 + i * 4, 13 + (i % 2), 1.8f, 1.4f, Hex("#5a5a66"), Hex("#8a8a96"), Hex("#b8b8c4"));
+        return c.ToSprite(16, 10);
+    });
+
+    /// Melting snowman: three snowballs, coal eyes, a carrot nose and drips.
+    static Sprite Snowman(int frame) => Get("snowman_" + frame, () =>
+    {
+        var c = new Canvas(20, 28);
+        c.Ellipse(10, 26, 7, 1.5f, new Color(0.6f, 0.8f, 1f, 0.5f)); // meltwater puddle
+        Color d = Hex("#b8c8d8"), m = Hex("#e8f0f8"), l = Color.white;
+        int b = frame;
+        c.Ball(10, 20, 7, 6, d, m, l); c.Ball(10, 11 - b, 5, 4.5f, d, m, l); c.Ball(10, 5 - b, 3.6f, 3.4f, d, m, l);
+        c.Set(9, 4 - b, Color.black); c.Set(11, 4 - b, Color.black); c.Rect(11, 5 - b, 3, 1, Hex("#f08a24"));
+        c.Line(5, 11 - b, 1, 8 - b + frame * 2, Bark); c.Line(15, 11 - b, 19, 8 - b + (1 - frame) * 2, Bark); // stick arms
+        c.Set(10, 10 - b, Color.black); c.Set(10, 13 - b, Color.black);
+        c.Set(6, 23, Hex("#8ac0e8")); c.Set(14, 22, Hex("#8ac0e8")); c.Set(13, 15 - b, Hex("#8ac0e8")); // drips
+        return c.ToSprite(10, 26);
+    });
+
+    static Sprite Snowling(int frame) => Get("snowling_" + frame, () =>
+    {
+        var c = new Canvas(12, 12);
+        c.Ellipse(6, 10.5f, 4, 1, Shadow);
+        int hop = frame == 1 ? 1 : 0;
+        c.Ball(6, 7 - hop, 4.2f, 3.8f, Hex("#b8c8d8"), Hex("#e8f0f8"), Color.white);
+        c.Set(5, 6 - hop, Color.black); c.Set(7, 6 - hop, Color.black); c.Set(8, 7 - hop, Hex("#f08a24"));
+        return c.ToSprite(6, 10);
+    });
+
+    static Sprite FrostBat(int frame) => Get("frost_bat_" + frame, () =>
+    {
+        var c = new Canvas(22, 16);
+        c.Ellipse(11, 15, 4, 1, Shadow);
+        Color d = Hex("#2a4a6a"), m = Hex("#4a7aa8"), l = Hex("#a8d8f8");
+        c.Ball(11, 7, 3.4f, 3f, d, m, l);
+        int up = frame == 0 ? -3 : 2;
+        c.Line(8, 7, 2, 4 + up, d); c.Line(2, 4 + up, 5, 9, d); c.Line(8, 8, 4, 9, m);
+        c.Line(14, 7, 20, 4 + up, d); c.Line(20, 4 + up, 17, 9, d); c.Line(14, 8, 18, 9, m);
+        c.Set(10, 6, Hex("#a8f0ff")); c.Set(12, 6, Hex("#a8f0ff")); c.Set(11, 9, Color.white); // icy eyes, fang
+        c.Set(9, 4, d); c.Set(13, 4, d); // ears
+        return c.ToSprite(11, 14);
+    });
 
     // ------------------------------------------------------------------ Hourglass island
     static void Cog(Canvas c, float cx, float cy, float r, Color d, Color m)
@@ -1448,6 +1538,11 @@ public static class PixelArt
                 inner.Rect(3, 4, 8, 1, Hex("#b8862a")); inner.Rect(4, 3, 2, 2, Hex("#f2c43a")); inner.Rect(8, 3, 2, 2, Hex("#f2c43a"));
                 inner.Rect(5, 8, 4, 1, Color.white);
                 break;
+            case 14: // snow hunter: thick fur parka with a white-trimmed hood
+                Person(inner, 0, frame, Hex("#e0ac69"), Hex("#c08a50"), Hex("#4a2c1a"), Hex("#8a5a36"), Hex("#6b4226"), Hex("#4a3a2a"), Hex("#3a2a1a"), false, false);
+                inner.Rect(2, 1, 10, 3, Hex("#f4f4f4")); inner.Rect(2, 3, 2, 6, Hex("#f4f4f4")); inner.Rect(10, 3, 2, 6, Hex("#f4f4f4"));
+                inner.Rect(3, 16, 8, 1, Hex("#f4f4f4"));
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1519,6 +1614,18 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.IceShard:
+                c.Line(4, 14, 8, 2, Hex("#a8d8f8")); c.Line(5, 14, 9, 2, Hex("#6aa8d8")); c.Line(9, 14, 12, 6, Hex("#a8d8f8")); c.Line(10, 14, 13, 6, Hex("#6aa8d8"));
+                c.Set(7, 5, Color.white); c.Set(11, 8, Color.white);
+                break;
+            case Item.Fur:
+                c.Ball(8, 9, 6.5f, 4.5f, Hex("#4a6a8a"), Hex("#8aa8c8"), Hex("#d8e8f8"));
+                for (int x = 3; x <= 13; x += 2) c.Set(x, 13, Hex("#4a6a8a"));
+                break;
+            case Item.SpikedBoots:
+                c.Rect(3, 4, 5, 8, Hex("#6b4226")); c.Rect(3, 10, 9, 3, Hex("#6b4226")); c.Rect(3, 4, 5, 1, Hex("#f4f4f4"));
+                for (int x = 3; x <= 11; x += 2) c.Set(x, 13, Hex("#c8c8d0"));
+                break;
             case Item.Gear:
                 Cog(c, 8, 8, 6, Hex("#6a4a20"), Hex("#c8962a"));
                 break;

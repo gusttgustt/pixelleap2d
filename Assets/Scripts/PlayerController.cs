@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     float animT, height, hurtT;
     int dir;
     float dashT;
+    Vector2 iceVel; // momentum while sliding on ice (grid units / second)
     Vector2 dashVel;
 
     /// Dash power: zip forward along `facing`.
@@ -55,6 +56,12 @@ public class PlayerController : MonoBehaviour
                 // Move in screen space; vertical is halved so speed feels equal in every iso direction.
                 Vector2 world = new Vector2(input.x, input.y * 0.5f) * Speed * game.SpeedMultiplier * Time.deltaTime;
                 Vector2 d = IslandGame.WorldDeltaToGrid(world);
+                if (game.Slippery) // on ice you build up speed slowly and keep sliding
+                {
+                    iceVel = Vector2.Lerp(iceVel, d / Mathf.Max(Time.deltaTime, 0.0001f), Time.deltaTime * 1.6f);
+                    d = iceVel * Time.deltaTime;
+                }
+                else iceVel = d / Mathf.Max(Time.deltaTime, 0.0001f);
 
                 if (CanStand(grid + d)) grid += d;
                 else if (CanStand(grid + new Vector2(d.x, 0f))) grid.x += d.x; // slide along obstacles
@@ -66,7 +73,17 @@ public class PlayerController : MonoBehaviour
                 animT += Time.deltaTime * 8f;
                 frame = 1 + ((int)animT & 1);
             }
-            else animT = 0f;
+            else
+            {
+                animT = 0f;
+                if (game.Slippery && iceVel.sqrMagnitude > 0.01f) // no input: still gliding
+                {
+                    iceVel = Vector2.Lerp(iceVel, Vector2.zero, Time.deltaTime * 1.2f);
+                    Vector2 d = iceVel * Time.deltaTime;
+                    if (CanStand(grid + d)) grid += d; else iceVel = Vector2.zero;
+                }
+                else iceVel = Vector2.zero;
+            }
         }
         Apply(frame);
     }

@@ -100,6 +100,8 @@ public partial class IslandGame
         NodeKind.Oyster => "งัดหอยมุก",
         NodeKind.AirVent => "หายใจที่ช่องอากาศ",
         NodeKind.SandCrystal => "เก็บทรายเวลา",
+        NodeKind.IceCrystal => "เก็บเกล็ดน้ำแข็ง",
+        NodeKind.HotSpring => "แช่บ่อน้ำร้อน",
         NodeKind.Shelter => IsNight ? "นอน" : "นอน (กลางคืนเท่านั้น)",
         NodeKind.Raft => $"เปิดแผนที่ทะเล ({BoatName(raftLevel)} Lv {raftLevel})",
         _ => "",
@@ -206,6 +208,7 @@ public partial class IslandGame
         infoY = DrawSkyHud(infoY);
         infoY = DrawBubbleHud(infoY);
         infoY = DrawHourglassHud(infoY);
+        infoY = DrawIceHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,
