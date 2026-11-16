@@ -72,7 +72,7 @@ public class PlayerController : MonoBehaviour
                 if (Mathf.Abs(input.y) > 0.2f) dir = input.y > 0 ? 1 : 0;
                 if (Mathf.Abs(input.x) > 0.2f) sr.flipX = input.x < 0;
                 animT += Time.deltaTime * 8f;
-                frame = 1 + ((int)animT & 1);
+                frame = 1 + (int)animT % PixelArt.WalkFrames(IslandGame.I.lookCode);
             }
             else
             {

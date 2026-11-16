@@ -2175,6 +2175,14 @@ public static class PixelArt
         });
     }
 
+    /// How many walk frames the player's look has: frames 1..N, 0 is standing.
+    /// Ready-made characters have 4, the build-your-own look 2.
+    public static int WalkFrames(int look)
+    {
+        string preset = CharacterLook.FromCode(look).PresetId;
+        return preset != null && PresetPlayer(preset, 0, 4) != null ? 4 : 2;
+    }
+
     /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back>_<frame>.png).
     /// The art has its feet 2 px above the bottom edge, like the generated player.
     /// Worn hats and outfits are not drawn on it.

@@ -350,7 +350,7 @@ public partial class IslandGame
         Fill(stage, new Color(0.25f, 0.45f, 0.25f, 1f));
         Fill(new Rect(stage.x, stage.yMax - 60, stage.width, 60), new Color(0.2f, 0.38f, 0.2f, 1f));
         int[] walk = { 0, 1, 0, 2 };
-        int frame = walk[(int)(Time.time * 4f) % 4];
+        int frame = PixelArt.WalkFrames(look.Code) == 4 ? 1 + (int)(Time.time * 8f) % 4 : walk[(int)(Time.time * 4f) % 4];
         var sprite = PixelArt.Player(previewDir, frame, null, null, look.Code);
         Icon(new Rect(stage.x + 15, stage.y + 15, 140, 230), sprite);
         if (GUI.Button(new Rect(stage.x, stage.yMax + 8, stage.width, 26), previewDir == 0 ? "หันหลัง" : "หันหน้า"))
