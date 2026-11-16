@@ -358,6 +358,7 @@ public partial class IslandGame
         st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
         st.hover.textColor = Color.white;
         if (GUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
+        if (craftOpen || skillsOpen || bagOpen || dialog != null) return; // a panel covers this corner: its buttons must get the clicks
         float y = 76f;
         if (atHome && !buildOpen && !visiting)
         {
