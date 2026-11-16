@@ -29,7 +29,8 @@ public class WorldNode : MonoBehaviour
                                  or NodeKind.ClockRuin or NodeKind.ClockTower
                                  or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine
                                  or NodeKind.SunkenTemple or NodeKind.GiantClam or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon
-                                 or NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod;
+                                 or NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod
+                                 or NodeKind.GiantGrass or NodeKind.GiantFlower or NodeKind.Beehive or NodeKind.Anthill;
 
     public float BlockRadius => kind switch
     {
@@ -59,6 +60,10 @@ public class WorldNode : MonoBehaviour
         NodeKind.Mirror => 0.35f,
         NodeKind.CrystalVault => 1.1f,
         NodeKind.LightningRod => 0.3f,
+        NodeKind.GiantGrass => 0.45f,
+        NodeKind.GiantFlower => 0.35f,
+        NodeKind.Beehive => 0.4f,
+        NodeKind.Anthill => 1.3f,
         NodeKind.GiantClam => 0.5f,
         NodeKind.ClockRuin => 0.45f,
         _ => 0.32f,
@@ -70,7 +75,8 @@ public class WorldNode : MonoBehaviour
             or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.SunkenTemple
             or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon => false,
         NodeKind.GiantClam => true,
-        NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod => true,
+        NodeKind.Mirror or NodeKind.CrystalVault or NodeKind.LightningRod or NodeKind.GiantGrass => true,
+        NodeKind.Anthill => false,
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
@@ -91,6 +97,9 @@ public class WorldNode : MonoBehaviour
         NodeKind.Mirror => 1.0f,
         NodeKind.CrystalVault => 1.8f,
         NodeKind.LightningRod => 2.0f,
+        NodeKind.GiantGrass => 1.6f,
+        NodeKind.GiantFlower => 1.8f,
+        NodeKind.Beehive => 1.6f,
         NodeKind.AirVent => 0.6f,
         _ => 0.45f,
     };
@@ -199,6 +208,10 @@ public class WorldNode : MonoBehaviour
             NodeKind.CrystalCluster => PixelArt.CrystalCluster(available),
             NodeKind.LightningRod => PixelArt.LightningRod(hits > 0),
             NodeKind.CopperOre => PixelArt.CopperOre(available),
+            NodeKind.GiantGrass => PixelArt.GiantGrass(flip),
+            NodeKind.GiantFlower => PixelArt.GiantFlower(available),
+            NodeKind.Beehive => PixelArt.Beehive(available),
+            NodeKind.Anthill => PixelArt.Anthill(),
             NodeKind.Mirror => PixelArt.Mirror(hits % 4),
             NodeKind.CrystalVault => PixelArt.CrystalVault(IslandGame.I.Flag("vault" + IslandGame.I.island)),
             NodeKind.HotSpring => PixelArt.HotSpring(),

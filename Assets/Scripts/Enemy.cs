@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird, WorkerAnt, SoldierAnt, GiantBee, AntQueen }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -30,6 +30,10 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   ThunderToad    - Storm island: leaps at you and lands with a shockwave.
 ///   StormHawk      - Storm island: hovers, crackles, then dives straight at you.
 ///   Thunderbird    - Storm island boss: calls lightning down all around you.
+///   WorkerAnt      - Insect island: peaceful until you hit one; then every ant nearby comes for you.
+///   SoldierAnt     - Insect island: big jaws, always angry.
+///   GiantBee       - Insect island: swarms out of the hive when you take its honey; the sting slows you.
+///   AntQueen       - Insect island boss: huge and slow, keeps sending out soldier ants.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -92,7 +96,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", EnemyKind.Kraken => "อสูรหมึกยักษ์",
         EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", EnemyKind.Captain => "กัปตันกระดูกดำ",
         EnemyKind.CrystalGolem => "โกเลมผลึก", EnemyKind.MirrorWisp => "ภูตกระจก",
-        EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", _ => "นกอัสนี",
+        EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", EnemyKind.Thunderbird => "นกอัสนี",
+        EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์", _ => "ราชินีมด",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -100,6 +105,9 @@ public class Enemy : MonoBehaviour
     float stunT;
     /// Skeletons: knocked down once, they lie in a heap for a moment, then get back up.
     bool revived;
+    /// Worker ants leave you alone until one is hit.
+    bool provoked;
+    public void Provoke() => provoked = true;
     float collapseT;
 
     /// Rooted in place (thorns): can't move or bite.
@@ -154,6 +162,10 @@ public class Enemy : MonoBehaviour
             EnemyKind.ThunderToad => (7, 11f, 0.9f, 7f, 30),
             EnemyKind.StormHawk => (5, 10f, 1.6f, 8f, 28),
             EnemyKind.Thunderbird => (90, 18f, 1.2f, 9f, 240),
+            EnemyKind.WorkerAnt => (5, 7f, 1.3f, 7f, 14),
+            EnemyKind.SoldierAnt => (9, 12f, 1.5f, 7f, 30),
+            EnemyKind.GiantBee => (3, 7f, 2.3f, 10f, 14),
+            EnemyKind.AntQueen => (85, 16f, 0.5f, 7f, 230),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -276,6 +288,12 @@ public class Enemy : MonoBehaviour
             Apply();
             return;
         }
+        if (kind == EnemyKind.WorkerAnt && !provoked) dist = 999f; // just busy carrying leaves around
+        if (kind == EnemyKind.AntQueen)
+        {
+            sporeT -= dt;
+            if (sporeT <= 0f && dist < 10f) { sporeT = 9f; game.QueenSpawnsSoldier(grid); Fx.Burst(transform.position + Vector3.up * 0.4f, new Color(0.6f, 0.3f, 0.2f), 10, 1f, 1f); }
+        }
         if (kind == EnemyKind.ThunderToad)
         {
             chargeCd -= dt;
@@ -352,7 +370,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && kind != EnemyKind.AntQueen && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -393,6 +411,7 @@ public class Enemy : MonoBehaviour
                     if (kind == EnemyKind.StoneSquid) game.Ink(3f);
                     if (kind == EnemyKind.FrostBat) game.Chill(15f);
                     if (kind == EnemyKind.Eel) game.Slow(2f);
+                    if (kind == EnemyKind.GiantBee) game.Slow(1.5f);
                     if (kind == EnemyKind.ChimeBird && stolenCount == 0)
                     {
                         (stolenItem, stolenCount) = game.StealItem();
@@ -455,8 +474,9 @@ public class Enemy : MonoBehaviour
         if (variant == IslandGame.Variant.Armored || kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem)
             dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem ? 0.5f : 0.6f))); // armour soaks blows
         if (kind == EnemyKind.MirrorWisp) IslandGame.I.DamagePlayer(2f, "เศษแก้วสะท้อน!"); // splinters fly back
+        if (kind == EnemyKind.WorkerAnt) IslandGame.I.ProvokeAnts(grid); // the whole colony is angry now
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain or EnemyKind.Thunderbird ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain or EnemyKind.Thunderbird or EnemyKind.AntQueen ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
         if (hp <= 0 && kind is EnemyKind.SkeletonPirate or EnemyKind.Captain && !revived) // rattle back up once

@@ -18,13 +18,13 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ item kinds and gear stats
     public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear or Item.Trident;
-    static bool IsUsable(Item it) => FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial;
+    static bool IsUsable(Item it) => it == Item.Honey || FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial;
 
     static BagTab TabOf(Item it) =>
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
         : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
-            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic or Item.GoldCoin or Item.CrystalShard or Item.Copper ? BagTab.Special
+            or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic or Item.GoldCoin or Item.CrystalShard or Item.Copper or Item.Chitin or Item.Nectar ? BagTab.Special
         : BagTab.Materials;
 
     static string TabName(BagTab t) => t switch
