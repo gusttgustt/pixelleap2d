@@ -2,11 +2,11 @@ using UnityEngine;
 
 /// Special fruits: a rare glowing tree on some islands bears one kind of fruit per island type.
 /// Eating one gives you its power (one power at a time). Using a power trains it: Lv 1 -> 5.
-///   Dash   (ผลฟ้าแลบ)   - Tropical : dash forward; from Lv 3 it hurts what you pass through
-///   Shadow (ผลเงาจันทร์) - Mushroom : turn invisible, creatures lose track of you
-///   Vine   (ผลเถาวัลย์)  - Jungle   : pull the nearest creature in (and hit it), or grab the nearest pickup
-///   Magnet (ผลแม่เหล็ก)  - Tribe    : gather every pickup around you at once
-///   Bubble (ผลฟองสบู่)   - Volcano  : a bubble that blocks the next hits and poison
+///   Dash   (ผลฟ้าแลบ)   - Tropical, Sky, Storm            : dash forward; from Lv 3 it hurts what you pass through
+///   Shadow (ผลเงาจันทร์) - Mushroom, Hourglass, Crystal    : turn invisible, creatures lose track of you
+///   Vine   (ผลเถาวัลย์)  - Jungle, Insect                 : pull the nearest creature in (and hit it), or grab the nearest pickup
+///   Magnet (ผลแม่เหล็ก)  - Tribe, Ice, Pirate             : gather every pickup around you at once
+///   Bubble (ผลฟองสบู่)   - Volcano, Turtle, Bubble, Sunken : a bubble that blocks the next hits and poison
 public enum Power { None, Dash, Shadow, Vine, Magnet, Bubble }
 
 public partial class IslandGame
@@ -20,11 +20,20 @@ public partial class IslandGame
     public bool Bubbled => bubbleT > 0f && bubbleHits > 0;
     static readonly int[] PowerXpNeed = { 0, 5, 12, 22, 35 }; // uses needed to reach Lv 2..5
 
+    /// Which fruit an island type's glowing tree bears - spread so every power turns up
+    /// all through the 15-island cycle, each picked to suit its island.
     public static Item FruitFor(Biome b) => b switch
     {
-        Biome.Mushroom => Item.FruitShadow, Biome.Jungle => Item.FruitVine, Biome.Tribal => Item.FruitMagnet,
-        Biome.Volcanic => Item.FruitBubble, _ => Item.FruitDash,
+        Biome.Mushroom or Biome.Hourglass or Biome.Crystal => Item.FruitShadow,       // dim caps, frozen time, light & shade
+        Biome.Jungle or Biome.Insect => Item.FruitVine,                              // tangled green
+        Biome.Tribal or Biome.Ice or Biome.Pirate => Item.FruitMagnet,               // iron, frozen loot, gold
+        Biome.Volcanic or Biome.Turtle or Biome.Bubble or Biome.Sunken => Item.FruitBubble, // sea & bubbles
+        _ => Item.FruitDash,                                                         // Tropical, Sky, Storm
     };
+
+    static readonly Item[] AllPowerFruits = { Item.FruitDash, Item.FruitShadow, Item.FruitVine, Item.FruitMagnet, Item.FruitBubble };
+    /// Any of the five fruits (treasure, vaults).
+    public static Item RandomPowerFruit(System.Random r) => AllPowerFruits[r.Next(AllPowerFruits.Length)];
     public static bool IsPowerFruit(Item it) => it is Item.FruitDash or Item.FruitShadow or Item.FruitVine or Item.FruitMagnet or Item.FruitBubble;
     static Power PowerOf(Item it) => it switch
     {
@@ -121,6 +130,14 @@ public partial class IslandGame
             powerLv++;
             Popup($"พลัง{PowerName(power)} Lv {powerLv}!", PlayerPos + Vector3.up * 1.3f, new Color(1f, 0.9f, 0.4f));
             Sfx.Play("levelup", 0.6f);
+            if (player != null) // a power level-up is a moment: a ring of its colour and a fountain of sparks
+            {
+                var c = PowerColor(power);
+                Shockwave(player.grid, 1.5f + 0.4f * powerLv, c, 0.7f);
+                Fx.Rise(PlayerPos, Color.Lerp(c, Color.white, 0.3f), 20 + powerLv * 6, 0.5f, 2.2f, 0.9f, 2f, 0.8f);
+                if (powerLv >= 5) { Shockwave(player.grid, 3.5f, Color.white, 0.8f, 0.15f); ScreenFlash(new Color(c.r, c.g, c.b, 0.3f), 0.5f); Shake(0.08f, 0.35f); }
+            }
+            if (powerLv == 5 && power == Power.Dash) Hint("ฟ้าแลบ Lv 5! สายฟ้าฟาด (T) ผ่าลงรอบตัวคุณด้วยแล้ว", 5f);
         }
     }
 
@@ -131,6 +148,7 @@ public partial class IslandGame
         powerAtkCd -= dt;
         if (invisibleT > 0f) invisibleT -= dt;
         if (bubbleT > 0f) { bubbleT -= dt; if (bubbleT <= 0f) bubbleHits = 0; }
+        PowerAura(dt);
     }
 
     void UsePower()
@@ -154,9 +172,10 @@ public partial class IslandGame
     bool DoDash()
     {
         float dist = 2.2f + 0.45f * powerLv;
+        Vector2 start = player.grid;
         player.Dash(dist);
         Sfx.Play("splash", 0.4f);
-        Fx.Burst(PlayerPos + Vector3.up * 0.3f, new Color(1f, 0.95f, 0.5f), 12, 1.2f, 1.2f);
+        DashFx(start, dist);
         if (powerLv >= 3) // lightning: everything along the path gets zapped
         {
             Vector2 from = player.grid, to = player.grid + player.facing * dist;
@@ -173,7 +192,7 @@ public partial class IslandGame
     bool DoShadow()
     {
         invisibleT = 3f + powerLv;
-        Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.5f, 0.4f, 0.9f), 18, 1.2f, 1.4f, 1f, 1f);
+        ShadowFx();
         Popup("ล่องหน!", PlayerPos + Vector3.up * 1f, new Color(0.75f, 0.7f, 1f));
         return true;
     }
@@ -211,11 +230,12 @@ public partial class IslandGame
         foreach (var n in nodes.ToArray())
         {
             if (n == null || !IsPickup(n) || (n.grid - player.grid).magnitude > range) continue;
+            MagnetPullFx(n.transform.position);
             Interact(n);
             if (++got >= 4 + powerLv * 2) break;
         }
-        Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.9f, 0.4f, 0.4f), 16, range * 0.6f, 1f, 1f, 0f);
         if (got == 0) { Hint("ไม่มีของรอบตัวให้ดูด", 1.5f); return false; }
+        MagnetFx(range);
         Popup($"ดูดของ {got} ชิ้น!", PlayerPos + Vector3.up * 1.1f, new Color(1f, 0.6f, 0.6f));
         return true;
     }
@@ -226,7 +246,7 @@ public partial class IslandGame
         bubbleHits = 1 + powerLv / 2;
         poisonT = 0f;
         Popup("โล่ฟองสบู่!", PlayerPos + Vector3.up * 1f, new Color(0.6f, 0.9f, 1f));
-        Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.7f, 0.95f, 1f), 18, 1f, 1.4f, 1f, 1f);
+        BubbleFx();
         return true;
     }
 
@@ -272,12 +292,6 @@ public partial class IslandGame
         return best;
     }
 
-    void VineFx(Vector3 to)
-    {
-        Vector3 from = PlayerPos + Vector3.up * 0.3f;
-        for (int i = 0; i <= 8; i++)
-            Fx.Burst(Vector3.Lerp(from, to + Vector3.up * 0.3f, i / 8f), new Color(0.4f, 0.8f, 0.3f), 2, 0.2f, 0.6f);
-    }
 
     static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
     {

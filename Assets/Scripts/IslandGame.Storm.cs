@@ -7,7 +7,7 @@ using UnityEngine;
 /// Thunderbird calls lightning down around itself. The inventor teaches you the storm hood.
 public partial class IslandGame
 {
-    float boltT = 8f, flashT;
+    float boltT = 8f;
 
     bool StormIsland => biome == Biome.Storm && voyage == null;
     bool RodsFixed => Flag("rods" + island);
@@ -53,7 +53,6 @@ public partial class IslandGame
 
     void UpdateStorm(float dt)
     {
-        if (flashT > 0f) flashT -= dt;
         if (!StormIsland || player == null) return;
         if (Random.value < dt * 50f) // heavy rain
             Fx.Burst(cam.transform.position + new Vector3(Random.Range(-7f, 7f), 4f, 0f), new Color(0.6f, 0.7f, 0.9f, 0.7f), 1, 0.05f, 0.2f, 1f, 8f);
@@ -72,20 +71,19 @@ public partial class IslandGame
 
     void RodCatches(WorldNode rod)
     {
-        flashT = 0.15f;
+        LightningFlash();
         Vector3 top = rod.transform.position + Vector3.up * 1.6f;
         for (int i = 0; i < 8; i++) Fx.Burst(top + Vector3.up * i * 0.4f + (Vector3)(Random.insideUnitCircle * 0.15f), new Color(1f, 0.95f, 0.5f), 2, 0.1f, 0.4f);
         Sfx.Play("hit", 0.5f);
     }
 
     /// Called when any lightning bolt lands: the whole screen flashes.
-    public void LightningFlash() => flashT = 0.15f;
+    public void LightningFlash() => ScreenFlash(new Color(1f, 1f, 0.95f, 0.4f), 0.15f);
 
     void DrawStormOverlay(float W, float H)
     {
         if (!StormIsland) return;
         Fill(new Rect(0, 0, W, H), new Color(0.05f, 0.06f, 0.12f, 0.25f)); // dark storm light
-        if (flashT > 0f) Fill(new Rect(0, 0, W, H), new Color(1f, 1f, 0.95f, flashT * 2.5f));
     }
 
     float DrawStormHud(float y)

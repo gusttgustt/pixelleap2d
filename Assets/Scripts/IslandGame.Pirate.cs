@@ -131,7 +131,7 @@ public partial class IslandGame
         var r = new System.Random(seed + n.id * 17);
         Give(Item.GoldCoin, 8 + r.Next(8), n);
         Give(new[] { Item.Rope, Item.CookedMeat, Item.Pearl }[r.Next(3)], 2 + r.Next(3), n);
-        if (r.Next(5) == 0) Give(FruitFor(Biome.Tropical + r.Next(4)), 1, n);
+        if (r.Next(5) == 0) Give(RandomPowerFruit(r), 1, n);
         Fx.Burst(n.transform.position, new Color(0.85f, 0.7f, 0.4f), 16, 1f, 1.6f, 0.8f, 3f);
         Sfx.Play("chop", 0.6f);
         DepleteShared(n, 1e9f); // dug up for friends too: no second helping from the same hole

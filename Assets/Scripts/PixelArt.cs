@@ -911,6 +911,28 @@ public static class PixelArt
 
     // ------------------------------------------------------------------ Pirate Cove
     /// Where a cannonball / coconut is about to land (scaled by the blast radius).
+    /// A shockwave ring lying on the ground (64x32, centred): bright rim, faint inside.
+    public static Sprite ShockRing() => Get("shock_ring", () =>
+    {
+        var c = new Canvas(64, 32);
+        c.Ellipse(32, 16, 31, 15.5f, new Color(1f, 1f, 1f, 0.12f));
+        for (int i = 0; i < 160; i++)
+        {
+            float a = i * Mathf.PI * 2f / 160f;
+            for (float r = 0f; r < 2.5f; r += 0.5f)
+                c.Set(Mathf.RoundToInt(32 + Mathf.Cos(a) * (30.5f - r)), Mathf.RoundToInt(16 + Mathf.Sin(a) * (15f - r * 0.5f)), new Color(1f, 1f, 1f, r < 1.4f ? 1f : 0.5f));
+        }
+        return c.ToSprite(32, 16);
+    });
+
+    /// A soft round glow on the ground (32x16, centred), brightest in the middle.
+    public static Sprite GroundGlow() => Get("ground_glow", () =>
+    {
+        var c = new Canvas(32, 16);
+        for (int k = 0; k < 6; k++) c.Ellipse(16, 8, 15.5f - k * 2.5f, 7.75f - k * 1.25f, new Color(1f, 1f, 1f, 0.16f));
+        return c.ToSprite(16, 8);
+    });
+
     public static Sprite StrikeMark() => Get("strike_mark", () =>
     {
         var c = new Canvas(32, 16);

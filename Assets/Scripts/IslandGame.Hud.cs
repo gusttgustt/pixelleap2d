@@ -35,7 +35,8 @@ public partial class IslandGame
         else return;
         camPos = Vector3.Lerp(camPos, goal, 1f - Mathf.Exp(-6f * Time.deltaTime));
         float u = 1f / (PixelArt.PPU * zoom); // snap to screen pixels
-        cam.transform.position = new Vector3(Mathf.Round(camPos.x / u) * u, Mathf.Round(camPos.y / u) * u, -10f);
+        Vector3 shake = ShakeOffset(Time.deltaTime);
+        cam.transform.position = new Vector3(Mathf.Round((camPos.x + shake.x) / u) * u, Mathf.Round((camPos.y + shake.y) / u) * u, -10f);
     }
 
     void UpdateWater(float dt)
@@ -286,6 +287,7 @@ public partial class IslandGame
 
         DrawWeatherOverlay(W, H);
         DrawStormOverlay(W, H);
+        DrawScreenFlash(W, H);
         DrawInk(W, H);
         if (sleepT > 0f)
         {

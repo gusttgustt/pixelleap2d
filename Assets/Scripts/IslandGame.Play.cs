@@ -32,6 +32,7 @@ public partial class IslandGame
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
+        DevKeys(kb);
 
         if (dead)
         {

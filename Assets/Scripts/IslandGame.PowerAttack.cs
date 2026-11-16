@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// Every special fruit also gives an attack (T key / touch "ท่าพิเศษ"), with its own look.
 /// The higher the power's level, the wider it reaches and the harder it hits.
-///   Dash   -> สายฟ้าฟาด    chain lightning jumping from creature to creature
+///   Dash   -> สายฟ้าฟาด    chain lightning jumping from creature to creature (Lv 5: plus a ring of bolts around you)
 ///   Shadow -> จันทร์ทมิฬ    a ring of shadow that bursts out around you
 ///   Vine   -> หนามพันธนาการ thorns burst from the ground and root creatures in place
 ///   Magnet -> คลื่นแม่เหล็ก  a pulse that flings creatures away
@@ -65,11 +65,25 @@ public partial class IslandGame
                     if (next == null) break;
                     done.Add(next);
                     Vector3 to = next.transform.position + Vector3.up * 0.3f;
-                    for (int i = 0; i <= 10; i++) // zig-zag bolt
-                        Fx.Burst(Vector3.Lerp(from, to, i / 10f) + (Vector3)(Random.insideUnitCircle * 0.12f), col, 2, 0.15f, 0.5f);
+                    ChainBoltFx(from, to, col);
                     from = to; at = next.grid;
                     HitWithPower(next, dmg);
                     hits++;
+                }
+                if (powerLv >= 5) // mastered: a ring of lightning around you too (each creature is hit once)
+                {
+                    float ring = 1.6f + 0.45f * powerLv;
+                    foreach (var e in enemies.ToArray())
+                    {
+                        if (e == null || e.Disguised || done.Contains(e) || (e.grid - me).magnitude > ring) continue;
+                        SkyBoltFx(e, col); // a bolt straight down onto it
+                        HitWithPower(e, dmg);
+                        hits++;
+                    }
+                    Ring(ring, col, 26);
+                    Shockwave(me, ring, col, 0.5f);
+                    Shockwave(me, ring * 0.7f, Color.white, 0.45f, 0.1f, 0.6f);
+                    LightningFlash();
                 }
                 if (hits == 0) Fx.Burst(PlayerPos + Vector3.up * 1.2f, col, 14, 0.6f, 1.6f);
                 Sfx.Play("hit", 0.7f);
@@ -81,6 +95,7 @@ public partial class IslandGame
                     if (e == null || e.Disguised || (e.grid - me).magnitude > radius) continue;
                     e.Stun(1.4f + 0.35f * powerLv);
                     Fx.Burst(e.transform.position, col, 8, 0.4f, 1.6f, 0.8f, 1f); // thorns shooting up
+                    Fx.Rise(e.transform.position, new Color(0.3f, 0.55f, 0.18f), 6 + powerLv * 2, 0.15f, 2f + 0.3f * powerLv, 0.35f, powerLv >= 3 ? 2f : 1f, 0f);
                     HitWithPower(e, dmg);
                     hits++;
                 }
@@ -124,6 +139,7 @@ public partial class IslandGame
                 Sfx.Play("hurt", 0.4f);
                 break;
         }
+        AttackBurstFx(power, me, radius);
         powerAtkCd = PowerAttackCooldown;
         AddPowerXp(1);
         Popup(PowerAttackName(power) + (hits > 0 ? $"! x{hits}" : "!"), PlayerPos + Vector3.up * 1.2f, col);

@@ -33,6 +33,7 @@ public class PlayerController : MonoBehaviour
     public int Dir => dir;
     public int Frame { get; private set; }
     public bool Flip => sr != null && sr.flipX;
+    public SpriteRenderer Renderer => sr;
 
     void Update()
     {

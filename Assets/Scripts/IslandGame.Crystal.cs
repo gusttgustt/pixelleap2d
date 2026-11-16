@@ -76,7 +76,7 @@ public partial class IslandGame
         Give(Item.CrystalShard, 8, v);
         Give(Item.GoldCoin, 25, v);
         Give(Item.Pearl, 3, v);
-        Give(FruitFor((Biome)new System.Random(seed).Next(4)), 1, v);
+        Give(RandomPowerFruit(new System.Random(seed)), 1, v);
         AddXp(80 + island * 4, v.transform.position);
         Sfx.Play("levelup", 0.7f);
     }
