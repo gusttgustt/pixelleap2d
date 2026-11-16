@@ -163,12 +163,17 @@ public partial class IslandGame
         }
 
         // attacks: one per AttackInterval whether you tap or hold (max 3 a second)
-        if (enemyTarget != null) { if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; Attack(enemyTarget); } }
+        if (enemyTarget != null) { if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; player.PlayAction(PixelArt.AttackAnim, 16f); Attack(enemyTarget); } }
         else if (villagerTarget != null) { if (pressed && since > 0.15f) OpenDialog(villagerTarget); }
         else if (target != null)
         {
             bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft;
-            if (once ? (pressed && since > 0.15f) : Trigger(0.3f)) { lastInteract = Time.time; Interact(target); }
+            if (once ? (pressed && since > 0.15f) : Trigger(0.3f))
+            {
+                lastInteract = Time.time;
+                if (!once) player.PlayAction(PixelArt.AttackAnim, 16f); // chop / mine / pick: same swing
+                Interact(target);
+            }
         }
         else if (pond != null) { if (Trigger(0.5f)) Drink(); }
         else if (seaSpot != null)

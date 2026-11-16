@@ -27,7 +27,46 @@ public class PlayerController : MonoBehaviour
         Apply(0);
     }
 
-    public void Flash() => hurtT = 0.2f;
+    public void Flash() { hurtT = 0.2f; PlayAction(PixelArt.HurtAnim, 14f); }
+
+    // Action poses (ready-made characters only; the build-your-own look has none and skips them).
+    int action = -1, actionFrames;
+    float actionT, actionFps, idleT, deadT;
+
+    /// Play a one-shot pose such as PixelArt.AttackAnim, then go back to standing / walking.
+    public void PlayAction(int anim, float fps)
+    {
+        int n = PixelArt.ActionFrames(IslandGame.I.lookCode, anim);
+        if (n == 0) return;
+        action = anim; actionFrames = n; actionFps = fps; actionT = 0f;
+    }
+
+    /// The frame to show: death, then a playing action, then idle breathing, over walk/stand.
+    int Pose(int frame)
+    {
+        var game = IslandGame.I;
+        float dt = Time.deltaTime;
+        if (game.dead)
+        {
+            deadT += dt;
+            int n = PixelArt.ActionFrames(game.lookCode, PixelArt.DeathAnim);
+            return n > 0 ? PixelArt.DeathAnim + Mathf.Min(n - 1, (int)(deadT * 8f)) : frame; // stays down on the last frame
+        }
+        deadT = 0f;
+        if (action >= 0)
+        {
+            actionT += dt;
+            int i = (int)(actionT * actionFps);
+            if (i < actionFrames) return action + i;
+            action = -1;
+        }
+        if (frame != 0) { idleT = 0f; return frame; }
+        idleT += dt;
+        int idle = PixelArt.ActionFrames(game.lookCode, PixelArt.IdleAnim);
+        if (idle <= 1) return idle > 0 ? PixelArt.IdleAnim : 0;
+        int k = (int)(idleT * 5f) % (2 * idle - 2); // back and forth: 0 1 2 3 4 3 2 1 ...
+        return PixelArt.IdleAnim + (k < idle ? k : 2 * idle - 2 - k);
+    }
 
     // What other players need to draw this player (sent over the network).
     public int Dir => dir;
@@ -86,7 +125,7 @@ public class PlayerController : MonoBehaviour
                 else iceVel = Vector2.zero;
             }
         }
-        Apply(frame);
+        Apply(Pose(frame));
     }
 
     public static Vector2 ReadInput()

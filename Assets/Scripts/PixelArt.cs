@@ -2111,9 +2111,11 @@ public static class PixelArt
         string preset = pl.PresetId;
         if (preset != null)
         {
-            var ps = PresetPlayer(preset, pl.PresetScale, dir, frame);
+            var ps = PresetPlayer(preset, pl.PresetScale, dir, frame)
+                  ?? PresetPlayer(preset, pl.PresetScale, dir, 0); // a pose it lacks: just stand
             if (ps != null) return ps; // missing art falls back to the build-your-own look
         }
+        if (frame > 2) frame = 0; // action poses exist only for ready-made characters
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
         if (hat != null) key += "_" + hat.Value.ToString().ToLowerInvariant();
         if (outfit != null) key += "_" + outfit.Value.ToString().ToLowerInvariant();
@@ -2182,6 +2184,20 @@ public static class PixelArt
     {
         var pl = CharacterLook.FromCode(look);
         return pl.PresetId != null && PresetPlayer(pl.PresetId, pl.PresetScale, 0, 4) != null ? 4 : 2;
+    }
+
+    // Action poses of ready-made characters, as player frame numbers (sent over the
+    // network like walk frames): IdleAnim+0.., AttackAnim+0.., and so on.
+    public const int IdleAnim = 10, AttackAnim = 20, HurtAnim = 30, DeathAnim = 40;
+
+    /// How many frames an action pose has for this look (0 = it has none, e.g. build-your-own).
+    public static int ActionFrames(int look, int anim)
+    {
+        var pl = CharacterLook.FromCode(look);
+        if (pl.PresetId == null) return 0;
+        int n = 0;
+        while (n < 10 && PresetPlayer(pl.PresetId, pl.PresetScale, 0, anim + n) != null) n++;
+        return n;
     }
 
     /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back>_<frame>.png).
