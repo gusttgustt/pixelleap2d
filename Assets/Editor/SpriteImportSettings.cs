@@ -6,7 +6,18 @@ public class SpriteImportSettings : AssetPostprocessor
 {
     void OnPreprocessTexture()
     {
-        if (!assetPath.Replace('\\', '/').StartsWith("Assets/Resources/Sprites/")) return;
+        string p = assetPath.Replace('\\', '/');
+        if (p.StartsWith("Assets/Resources/Emoji/")) // chat stickers: smooth art shown small, so smooth + mipmapped
+        {
+            var ei = (TextureImporter)assetImporter;
+            ei.filterMode = UnityEngine.FilterMode.Trilinear;
+            ei.textureCompression = TextureImporterCompression.Uncompressed;
+            ei.mipmapEnabled = true;
+            ei.alphaIsTransparency = true;
+            ei.wrapMode = UnityEngine.TextureWrapMode.Clamp;
+            return;
+        }
+        if (!p.StartsWith("Assets/Resources/Sprites/")) return;
         var ti = (TextureImporter)assetImporter;
         ti.filterMode = UnityEngine.FilterMode.Point;
         ti.textureCompression = TextureImporterCompression.Uncompressed;

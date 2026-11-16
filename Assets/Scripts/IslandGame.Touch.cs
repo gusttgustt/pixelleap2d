@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Multi-touch comes from the Input System's Touchscreen, so you can walk and act at once.
 public partial class IslandGame
 {
-    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat }
+    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker }
 
     /// Joystick direction (length 0..1), read by PlayerController.ReadInput.
     public static Vector2 TouchMove;
@@ -35,17 +35,24 @@ public partial class IslandGame
         // menus on the left, above the stick: the crafting panel opens on the right
         TouchBtn.Craft => new Vector2(56f, GuiH - 240f),
         TouchBtn.Chat => new Vector2(56f, GuiH - 306f), // online only (IslandGame.ChatMobile.cs)
+        TouchBtn.Sticker => new Vector2(56f, GuiH - 366f), // online only (IslandGame.Sticker.cs)
         _ => new Vector2(124f, GuiH - 252f), // Skills
     };
 
     TouchBtn HitTest(Vector2 p)
     {
-        if (dead) return downed && Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f ? TouchBtn.Chat : TouchBtn.None; // the death screen has its own button; knocked out you can still call for help
+        if (dead)
+        {
+            if (downed && Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
+            if (downed && Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
+            return TouchBtn.None;
+        }
         if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
         if ((p - ActionCenter).magnitude < ActionR * 1.15f) return TouchBtn.Action;
         foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills, TouchBtn.Power, TouchBtn.PowerAtk, TouchBtn.Bag })
             if ((p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
         if (Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
+        if (Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
         return TouchBtn.None;
     }
 
@@ -97,6 +104,7 @@ public partial class IslandGame
         touchActionHeld = actionNow;
 
         PollMobileChat(); // the phone's chat box was sent / cancelled (IslandGame.ChatMobile.cs)
+        if (touchTapped.Contains(TouchBtn.Sticker) && !title) ToggleStickers(); // also while typing or knocked out (IslandGame.Sticker.cs)
         if (chatOpen || title) return;
         if (touchTapped.Contains(TouchBtn.Chat)) { OpenMobileChat(); return; } // works while knocked out too
         if (dead || Busy) return;
@@ -124,7 +132,13 @@ public partial class IslandGame
     {
         if (!ShowTouch) return;
         if (Shared && (!dead || downed) && sailT <= 0f) // chat with friends on the island (IslandGame.ChatMobile.cs)
+        {
             TouchCircle(SmallCenter(TouchBtn.Chat), SmallR, "แชต", new Color(0.7f, 0.9f, 1f), chatOpen, 12);
+            TouchCircle(SmallCenter(TouchBtn.Sticker), SmallR, null, new Color(1f, 0.75f, 0.85f), stickerOpen, 0);
+            var face = StickerTex("aka_laugh");
+            var c0 = SmallCenter(TouchBtn.Sticker);
+            if (face != null) GUI.DrawTexture(new Rect(c0.x - SmallR + 5f, c0.y - SmallR + 5f, SmallR * 2f - 10f, SmallR * 2f - 10f), face, ScaleMode.ScaleToFit);
+        }
         if (dead || sailT > 0f || sleepT > 0f) return;
 
         // joystick

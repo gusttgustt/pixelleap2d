@@ -353,6 +353,7 @@ public partial class IslandGame
             string btnText = downed ? "ยอมแพ้ เริ่มการผจญภัยใหม่ (R)" : "เริ่มการผจญภัยใหม่ (R)";
             if (GUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
         }
+        DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
         DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
         DrawTouchControls();
     }
@@ -505,6 +506,17 @@ public partial class IslandGame
     void ChatBubble(Vector2 gp, string text)
     {
         if (bubbleTex == null) MakeBubbleTextures();
+        var sticker = StickerOf(text); // a sticker: the picture in the bubble instead of words (IslandGame.Sticker.cs)
+        if (sticker != null)
+        {
+            const float s = 74f;
+            var sr = new Rect(Mathf.Round(gp.x - s / 2f), Mathf.Round(gp.y - 27f - s), s, s);
+            GUI.Box(new Rect(sr.x + 2f, sr.y + 3f, sr.width, sr.height), GUIContent.none, bubbleShadow);
+            GUI.Box(sr, GUIContent.none, bubbleBox);
+            GUI.DrawTexture(new Rect(Mathf.Round(gp.x) - 6f, sr.yMax - 2f, 12f, 9f), bubbleTailTex);
+            GUI.DrawTexture(new Rect(sr.x + 4f, sr.y + 4f, s - 8f, s - 8f), sticker, ScaleMode.ScaleToFit);
+            return;
+        }
         var content = new GUIContent(text);
         var st = new GUIStyle(small) { wordWrap = true, alignment = TextAnchor.MiddleCenter, fontSize = 12, richText = false };
         st.normal.textColor = new Color32(45, 30, 20, 255);

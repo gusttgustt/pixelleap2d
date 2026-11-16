@@ -58,7 +58,7 @@ public partial class IslandGame
 
         // the lines to show, oldest first: all of them while typing, otherwise the fresh ones
         int max = open ? 8 : touch ? 4 : 6;
-        var lines = new List<(string text, float a, float h)>();
+        var lines = new List<(string text, float a, float h, Texture2D sticker)>();
         float total = 0f, top = 0f;
         for (int i = chatLog.Count - 1; i >= 0 && lines.Count < max; i--)
         {
@@ -66,9 +66,12 @@ public partial class IslandGame
             float age = Time.time - c.t;
             if (!open && age > 15f) continue;
             float a = open ? 1f : Mathf.Clamp01((15f - age) / 3f);
-            string line = string.IsNullOrEmpty(c.who) ? $"<i>{c.text}</i>" : $"<b><color=#a8dcff>{c.who}:</color></b> {c.text}";
-            float h = st.CalcHeight(new GUIContent(line), w - 14f);
-            lines.Insert(0, (line, a, h));
+            var sticker = StickerOf(c.text); // a sticker: the name, then a small picture (IslandGame.Sticker.cs)
+            string line = string.IsNullOrEmpty(c.who) ? $"<i>{c.text}</i>"
+                        : sticker != null ? $"<b><color=#a8dcff>{c.who}:</color></b>"
+                        : $"<b><color=#a8dcff>{c.who}:</color></b> {c.text}";
+            float h = sticker != null ? 34f : st.CalcHeight(new GUIContent(line), w - 14f);
+            lines.Insert(0, (line, a, h, sticker));
             total += h;
             top = Mathf.Max(top, a);
         }
@@ -97,7 +100,15 @@ public partial class IslandGame
             float y = logRect.y + 4f;
             foreach (var l in lines)
             {
-                ShadowLabel(new Rect(logRect.x + 7f, y, w - 14f, l.h), l.text, st, new Color(1f, 1f, 1f, l.a));
+                if (l.sticker != null)
+                {
+                    float nameW = st.CalcSize(new GUIContent(l.text)).x;
+                    ShadowLabel(new Rect(logRect.x + 7f, y + 8f, nameW + 4f, 18f), l.text, st, new Color(1f, 1f, 1f, l.a));
+                    GUI.color = new Color(1f, 1f, 1f, l.a);
+                    GUI.DrawTexture(new Rect(logRect.x + 11f + nameW, y + 1f, 32f, 32f), l.sticker, ScaleMode.ScaleToFit);
+                    GUI.color = Color.white;
+                }
+                else ShadowLabel(new Rect(logRect.x + 7f, y, w - 14f, l.h), l.text, st, new Color(1f, 1f, 1f, l.a));
                 y += l.h;
             }
         }
@@ -115,10 +126,11 @@ public partial class IslandGame
             Fill(new Rect(rowRect.x, rowRect.y, rowRect.width, 2f), new Color(0.9f, 0.75f, 0.3f, 0.9f));
             var field = new GUIStyle(GUI.skin.textField) { fontSize = 14, alignment = TextAnchor.MiddleLeft };
             GUI.SetNextControlName("chat");
-            chatText = GUI.TextField(new Rect(rowRect.x + 4f, rowRect.y + 4f, w - 70f, rowH - 6f), chatText ?? "", 80, field);
-            GUI.FocusControl("chat");
+            chatText = GUI.TextField(new Rect(rowRect.x + 4f, rowRect.y + 4f, w - 106f, rowH - 6f), chatText ?? "", 80, field);
+            if (!stickerOpen) GUI.FocusControl("chat");
             if (string.IsNullOrEmpty(chatText))
-                ShadowLabel(new Rect(rowRect.x + 10f, rowRect.y + 5f, w - 80f, rowH - 8f), "พิมพ์แล้วกด Enter ส่ง, Esc ยกเลิก", small, new Color(1f, 1f, 1f, 0.4f));
+                ShadowLabel(new Rect(rowRect.x + 10f, rowRect.y + 5f, w - 116f, rowH - 8f), "พิมพ์แล้วกด Enter ส่ง, Esc ยกเลิก", small, new Color(1f, 1f, 1f, 0.4f));
+            StickerButton(new Rect(rowRect.xMax - 98f, rowRect.y + 3f, 32f, rowH - 5f)); // IslandGame.Sticker.cs
             var send = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
             send.normal.textColor = new Color(1f, 0.85f, 0.3f);
             if (GUI.Button(new Rect(rowRect.xMax - 62f, rowRect.y + 3f, 58f, rowH - 5f), "ส่ง", send)) SubmitChat();
@@ -128,6 +140,7 @@ public partial class IslandGame
             var b = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
             b.normal.textColor = new Color(0.7f, 0.9f, 1f);
             if (GUI.Button(new Rect(rowRect.x, rowRect.y + 2f, 110f, rowH - 4f), "แชต (Enter)", b)) OpenChat();
+            StickerButton(new Rect(rowRect.x + 114f, rowRect.y + 2f, 32f, rowH - 4f));
         }
     }
 
