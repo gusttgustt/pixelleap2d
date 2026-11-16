@@ -748,9 +748,6 @@ public partial class IslandGame : MonoBehaviour
         Spawn(NodeKind.Grass, center + new Vector2(-2.6f, 1.2f));
         Spawn(NodeKind.Grass, center + new Vector2(0.3f, -2.7f));
         Spawn(NodeKind.Bush, center + new Vector2(-1.6f, -2.7f));
-        // The very first island: a campfire already burning, for cooking and keeping crabs away the first night.
-        // (Fixed flip: no random number used, so the rest of the island comes out as before.)
-        if (island == 1 && !atHome) Spawn(NodeKind.Campfire, center + new Vector2(1.6f, -1.8f), false);
 
         // Respawn keeps the island at roughly its starting amount of these materials.
         foreach (var n in nodes)
