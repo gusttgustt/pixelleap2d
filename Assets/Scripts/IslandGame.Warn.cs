@@ -26,6 +26,7 @@ public partial class IslandGame
         if (thirst < LowNeed && !warnedThirst) { warnedThirst = beep = true; }
         else if (thirst > LowNeed + 10f) warnedThirst = false;
         if (beep) Sfx.Play("warn", 0.55f);
+        AutoEat(dt);
 
         // heartbeat: faster the closer you are to dying
         if (!CriticalHealth) { heartT = 0f; return; }
@@ -33,6 +34,25 @@ public partial class IslandGame
         if (heartT > 0f) return;
         heartT = Mathf.Lerp(0.55f, 1.1f, health / (MaxHealth * CriticalHealthFrac));
         Sfx.Play("heartbeat", 0.7f);
+    }
+
+    const float AutoEatAt = 5f; // hunger this low: about to starve
+    float autoEatT;
+
+    /// About to starve with food in the bag: eat something by itself (best food first).
+    void AutoEat(float dt)
+    {
+        autoEatT -= dt;
+        if (hunger >= AutoEatAt || autoEatT > 0f || Busy) return;
+        autoEatT = 1.5f;
+        foreach (var it in new[] { Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.Honey,
+                                   Item.Fruit, Item.Berry, Item.RawFish, Item.CrabMeat, Item.RawMeat })
+            if (Count(it) > 0 && FoodValue(it) > 0)
+            {
+                Eat(it);
+                Hint($"หิวจนจะไม่ไหวแล้ว! กิน{Name(it)}อัตโนมัติ", 3f);
+                return;
+            }
     }
 
     void DrawWarnings(float W, float H)
@@ -57,8 +77,8 @@ public partial class IslandGame
                                                 : "! เลือดน้อย !  ถอยออกมา กินอาหารปิ้งหรือน้ำผึ้ง (F) หรือนอนพัก",
                 new Color(1f, 0.35f, 0.35f), pulse);
         if (hunger < LowNeed)
-            y = WarnBanner(W, y, hunger <= 0f ? "! อดอาหาร - เลือดกำลังลด !  กด F กินอาหาร"
-                                              : "! หิวมาก !  กด F กินอาหาร หรือไปเก็บเบอร์รี่ ผลไม้",
+            y = WarnBanner(W, y, hunger <= 0f ? "! อดอาหาร - เลือดกำลังลด !  ไม่มีอาหารในตัว ไปเก็บเบอร์รี่ ผลไม้ หรือจับปลา"
+                                              : "! หิวมาก !  กด F กินอาหาร (ถ้าหิวจนจะไม่ไหว จะกินให้เอง)",
                 new Color(1f, 0.65f, 0.25f), pulse);
         if (thirst < LowNeed)
             WarnBanner(W, y, thirst <= 0f ? "! ขาดน้ำ - เลือดกำลังลด !  ไปดื่มน้ำ" + (Count(Item.WaterFlask) > 0 && flaskWater > 0 ? " (Q)" : "")
