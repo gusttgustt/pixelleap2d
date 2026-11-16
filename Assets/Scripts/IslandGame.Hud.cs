@@ -104,6 +104,7 @@ public partial class IslandGame
         NodeKind.AirVent => "หายใจที่ช่องอากาศ",
         NodeKind.SandCrystal => "เก็บทรายเวลา",
         NodeKind.Chest => "เปิดหีบสมบัติ",
+        NodeKind.DigSpot => "ขุดสมบัติ",
         NodeKind.Relic => "อ่านแผ่นจารึก",
         NodeKind.GiantClam => "หายใจจากหอยยักษ์",
         NodeKind.Shrine => "ไหว้ศาลเจ้าโบราณ",
@@ -219,6 +220,8 @@ public partial class IslandGame
         infoY = DrawHourglassHud(infoY);
         infoY = DrawIceHud(infoY);
         infoY = DrawSunkenHud(infoY);
+        infoY = DrawPirateHud(infoY);
+        infoY = DrawCompassHud(infoY);
         if (poisonT > 0f)
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,

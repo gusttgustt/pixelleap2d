@@ -28,7 +28,7 @@ public class WorldNode : MonoBehaviour
                                  or NodeKind.House or NodeKind.Lamp or NodeKind.Well or NodeKind.Stall or NodeKind.Fountain or NodeKind.Statue
                                  or NodeKind.ClockRuin or NodeKind.ClockTower
                                  or NodeKind.Wreck or NodeKind.Chest or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.Shrine
-                                 or NodeKind.SunkenTemple or NodeKind.GiantClam;
+                                 or NodeKind.SunkenTemple or NodeKind.GiantClam or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon;
 
     public float BlockRadius => kind switch
     {
@@ -52,6 +52,9 @@ public class WorldNode : MonoBehaviour
         NodeKind.Shrine => 0.5f,
         NodeKind.Chest => 0.35f,
         NodeKind.SunkenTemple => 1.4f,
+        NodeKind.PirateShip => 1.5f,
+        NodeKind.Tent => 0.7f,
+        NodeKind.Cannon => 0.4f,
         NodeKind.GiantClam => 0.5f,
         NodeKind.ClockRuin => 0.45f,
         _ => 0.32f,
@@ -60,7 +63,8 @@ public class WorldNode : MonoBehaviour
     public bool CanTarget => kind switch
     {
         NodeKind.Stump or NodeKind.Hut or NodeKind.Totem or NodeKind.House or NodeKind.Lamp or NodeKind.Stall or NodeKind.Statue or NodeKind.ClockRuin or NodeKind.ClockTower
-            or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.SunkenTemple => false,
+            or NodeKind.Wreck or NodeKind.Pillar or NodeKind.GiantTree or NodeKind.SunkenTemple
+            or NodeKind.PirateShip or NodeKind.Tent or NodeKind.Cannon => false,
         NodeKind.GiantClam => true,
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
@@ -180,6 +184,10 @@ public class WorldNode : MonoBehaviour
             NodeKind.SunkenTemple => PixelArt.SunkenTemple(),
             NodeKind.Relic => PixelArt.Relic(available),
             NodeKind.GiantClam => PixelArt.GiantClam(),
+            NodeKind.DigSpot => PixelArt.DigSpot(available),
+            NodeKind.PirateShip => PixelArt.PirateShip(),
+            NodeKind.Tent => PixelArt.Tent(),
+            NodeKind.Cannon => PixelArt.Cannon(),
             NodeKind.HotSpring => PixelArt.HotSpring(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),

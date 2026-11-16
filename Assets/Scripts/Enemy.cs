@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -22,6 +22,9 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   Eel         - Sunken City: its shock leaves you stiff and slow.
 ///   DeepCrab    - Sunken City: a heavy armoured crab, blows only half get through.
 ///   Kraken      - Sunken City boss: lashes everything near it and clouds the water with ink.
+///   SkeletonPirate - Pirate Cove: knocked down once, it rattles back up at half strength.
+///   PirateMonkey   - Pirate Cove: lobs coconuts at you from a distance (a red mark shows where).
+///   Captain        - Pirate Cove boss: calls cannon fire around you, and gets back up once too.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -81,12 +84,16 @@ public class Enemy : MonoBehaviour
         EnemyKind.LanternFish => "ปลาตะเกียง", EnemyKind.StoneSquid => "หมึกหิน",
         EnemyKind.WindupDoll => "ตุ๊กตาไขลาน", EnemyKind.TimeBeetle => "ด้วงทรายเวลา",
         EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", EnemyKind.FrostBat => "ค้างคาวน้ำแข็ง",
-        EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", _ => "อสูรหมึกยักษ์",
+        EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", EnemyKind.Kraken => "อสูรหมึกยักษ์",
+        EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", _ => "กัปตันกระดูกดำ",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
     float sporeT = 3f;
     float stunT;
+    /// Skeletons: knocked down once, they lie in a heap for a moment, then get back up.
+    bool revived;
+    float collapseT;
 
     /// Rooted in place (thorns): can't move or bite.
     public void Stun(float seconds) => stunT = Mathf.Max(stunT, seconds);
@@ -132,6 +139,9 @@ public class Enemy : MonoBehaviour
             EnemyKind.Eel => (6, 9f, 1.7f, 6f, 28),
             EnemyKind.DeepCrab => (12, 12f, 0.9f, 6f, 34),
             EnemyKind.Kraken => (70, 18f, 0.7f, 8f, 200),
+            EnemyKind.SkeletonPirate => (6, 10f, 1.4f, 7f, 26),
+            EnemyKind.PirateMonkey => (4, 8f, 1.8f, 7f, 20),
+            EnemyKind.Captain => (80, 16f, 1.0f, 8f, 220),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -176,6 +186,13 @@ public class Enemy : MonoBehaviour
         attackCd -= dt;
         hurtT -= dt;
         if (stunT > 0f) { stunT -= dt; Apply(); return; }
+        if (collapseT > 0f)
+        {
+            collapseT -= dt; frame = 2; // a heap of bones
+            if (collapseT <= 0f) { frame = 0; Fx.Burst(transform.position + Vector3.up * 0.3f, new Color(0.95f, 0.92f, 0.85f), 10, 1f, 1.2f); }
+            Apply();
+            return;
+        }
 
         var (targetGrid, targetWho) = game.NearestPlayer(grid); // chase whichever player is closest
         Vector2 toPlayer = targetGrid - grid;
@@ -247,6 +264,20 @@ public class Enemy : MonoBehaviour
             Apply();
             return;
         }
+        if (kind == EnemyKind.PirateMonkey && targetWho == 0)
+        {
+            chargeCd -= dt;
+            if (chargeCd <= 0f && dist < 5.5f && dist > 1.8f) { chargeCd = 2.8f; game.SpawnStrike(targetGrid, 0.9f, 0.6f, damage, "มะพร้าว!"); }
+        }
+        if (kind == EnemyKind.Captain && targetWho == 0)
+        {
+            sporeT -= dt;
+            if (sporeT <= 0f && dist < 8f)
+            {
+                sporeT = 7f; // "FIRE!" - cannonballs all around you
+                for (int i = 0; i < 4; i++) game.SpawnStrike(targetGrid + Random.insideUnitCircle * 2.2f, 1.3f + i * 0.25f, 1f, damage * 0.8f, "ปืนใหญ่!");
+            }
+        }
         if (kind == EnemyKind.Kraken)
         {
             sporeT -= dt;
@@ -284,7 +315,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -386,9 +417,17 @@ public class Enemy : MonoBehaviour
         }
         if (variant == IslandGame.Variant.Armored || kind == EnemyKind.DeepCrab) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind == EnemyKind.DeepCrab ? 0.5f : 0.6f))); // armour soaks blows
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
+        if (hp <= 0 && kind is EnemyKind.SkeletonPirate or EnemyKind.Captain && !revived) // rattle back up once
+        {
+            revived = true;
+            hp = Mathf.Max(1, maxHp / 2);
+            collapseT = 2.5f;
+            Fx.Burst(transform.position + Vector3.up * 0.3f, new Color(0.95f, 0.92f, 0.85f), 14, 1.2f, 1.4f);
+            return false;
+        }
         if (hp > 0) return false;
         Destroy(gameObject);
         return true;

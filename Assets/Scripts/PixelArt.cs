@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", Biome.Ice => "ice_", Biome.Sunken => "sunken_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", Biome.Ice => "ice_", Biome.Sunken => "sunken_", Biome.Pirate => "pirate_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Pirate, true) => new[] { "#8aa84a", "#76923e", "#a8c46a", "#8a6a3a", "#6e522a", "#6e8a38" },     // dry cove grass
+            (Biome.Pirate, false) => new[] { "#f4e2a8", "#e4cc8a", "#fff2c8", "#d4b47a", "#b8985e", "#e4cc8a" }, // bright white-gold sand
             (Biome.Sunken, true) => new[] { "#2f5a6a", "#244a58", "#4a7a8a", "#4a5a6a", "#3a4858", "#204452" },   // sea-floor weed
             (Biome.Sunken, false) => new[] { "#8a9ab0", "#7a8aa0", "#a8b8c8", "#6a7a90", "#566478", "#7a8aa0" }, // grey-blue silt
             (Biome.Ice, true) => new[] { "#eef4fa", "#d8e4f0", "#ffffff", "#a8b8c8", "#8898a8", "#c8d8e8" },   // snow
@@ -290,6 +292,7 @@ public static class PixelArt
         Biome.Mushroom => GiantMushroom(),
         Biome.Bubble => LeafyTree("tree_bubble", "#1f5a5a", "#2f8a7a", "#6ac8b0"), // sea-green trees: wood for fires down here
         Biome.Ice => SnowPine(),
+        Biome.Pirate => Palm(true),
         Biome.Sunken => LeafyTree("tree_sunken", "#143a40", "#1f5a5a", "#4a9a8a"),
         Biome.Hourglass => LeafyTree("tree_hourglass", "#8a5a1a", "#c8862a", "#f2c45a"), // amber autumn trees
         Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
@@ -322,7 +325,7 @@ public static class PixelArt
     });
 
     public static Sprite FruitTree(bool fruit, Biome biome = Biome.Tropical) =>
-        biome == Biome.Jungle ? Palm(fruit) : biome == Biome.Mushroom ? GiantMushroom() : biome == Biome.Bubble ? Kelp(true) : biome == Biome.Ice ? SnowPine() : RoundFruitTree(fruit);
+        biome is Biome.Jungle or Biome.Pirate ? Palm(fruit) : biome == Biome.Mushroom ? GiantMushroom() : biome == Biome.Bubble ? Kelp(true) : biome == Biome.Ice ? SnowPine() : RoundFruitTree(fruit);
 
     static Sprite Palm(bool fruit) => Get(fruit ? "palm" : "palm_empty", () =>
     {
@@ -596,8 +599,157 @@ public static class PixelArt
         EnemyKind.Eel => Eel(frame),
         EnemyKind.DeepCrab => DeepCrab(frame),
         EnemyKind.Kraken => Kraken(frame),
+        EnemyKind.SkeletonPirate => SkeletonPirate(frame),
+        EnemyKind.PirateMonkey => PirateMonkey(frame),
+        EnemyKind.Captain => Captain(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Pirate Cove
+    /// Where a cannonball / coconut is about to land (scaled by the blast radius).
+    public static Sprite StrikeMark() => Get("strike_mark", () =>
+    {
+        var c = new Canvas(32, 16);
+        c.Ellipse(16, 8, 15, 7.5f, new Color(1f, 1f, 1f, 0.25f));
+        for (int i = 0; i < 48; i++)
+        {
+            float a = i * Mathf.PI * 2f / 48f;
+            c.Set(Mathf.RoundToInt(16 + Mathf.Cos(a) * 14.5f), Mathf.RoundToInt(8 + Mathf.Sin(a) * 7f), Color.white);
+        }
+        c.Line(12, 6, 20, 10, Color.white); c.Line(20, 6, 12, 10, Color.white);
+        return c.ToSprite(16, 8);
+    });
+
+    /// The skeleton crew's warship anchored offshore (black sails, gun ports).
+    public static Sprite Warship() => Get("warship", () =>
+    {
+        var c = new Canvas(72, 60);
+        Color h = Hex("#3a2418"), hL = Hex("#5a3a24"), sail = Hex("#2a2a30"), sailL = Hex("#4a4a52");
+        for (int y = 38; y <= 52; y++) { int x0 = 6 + (y - 38) / 2, x1 = 66 - (y - 38); c.Rect(x0, y, x1 - x0, 1, y % 4 == 0 ? hL : h); }
+        c.Rect(8, 36, 56, 2, Hex("#c8a040"));
+        for (int x = 14; x <= 54; x += 8) c.Rect(x, 42, 3, 3, Hex("#101010"));        // gun ports
+        c.Ellipse(36, 54, 34, 3, new Color(1f, 1f, 1f, 0.35f));                       // foam
+        for (int m = 0; m < 2; m++)
+        {
+            int x = 24 + m * 20;
+            c.Rect(x, 6, 2, 32, h);
+            for (int y = 10; y <= 30; y++) c.Rect(x - 9 + (y - 10) / 8, y, 18 - (y - 10) / 4, 1, y % 5 == 0 ? sailL : sail);
+        }
+        c.Rect(26, 2, 8, 4, Hex("#101010")); c.Set(29, 3, Color.white); c.Set(31, 3, Color.white); // dark flag
+        return c.ToSprite(36, 54);
+    });
+
+    /// X marks the spot: crossed lines dug in the sand (dug = a filled-in hole).
+    public static Sprite DigSpot(bool fresh) => Get(fresh ? "dig_spot" : "dig_spot_dug", () =>
+    {
+        var c = new Canvas(16, 10);
+        if (fresh) { Color x = Hex("#8a3020"); c.Line(3, 2, 12, 8, x); c.Line(4, 2, 13, 8, x); c.Line(12, 2, 3, 8, x); c.Line(13, 2, 4, 8, x); }
+        else { c.Ellipse(8, 5, 5, 2.5f, Hex("#b89a5e")); c.Ellipse(8, 5, 3, 1.5f, Hex("#8a7048")); }
+        return c.ToSprite(8, 5);
+    });
+
+    /// The pirates' beached ship, leaning on the sand.
+    public static Sprite PirateShip() => Get("pirate_ship", () =>
+    {
+        var c = new Canvas(60, 48);
+        c.Ellipse(30, 44, 27, 4, Shadow);
+        Color h = Hex("#5a3a24"), hL = Hex("#7a5236"), hD = Hex("#3a2418");
+        for (int y = 26; y <= 42; y++) { int x0 = 6 + (42 - y) / 4, x1 = 54 - (42 - y) / 3; c.Rect(x0, y, x1 - x0, 1, (y / 3) % 2 == 0 ? h : hL); c.Set(x1, y, hD); }
+        c.Rect(6, 24, 50, 2, Hex("#c8a040"));
+        c.Rect(28, 4, 2, 22, hD);
+        for (int y = 6; y <= 20; y++) c.Rect(30, y, 14 - (y - 6) / 2, 1, y % 4 == 0 ? Hex("#cbbf9c") : Hex("#f0e6c8"));
+        c.Rect(22, 2, 6, 3, Hex("#101010"));
+        c.Rect(46, 30, 4, 4, Hex("#101010"));
+        return c.ToSprite(30, 44);
+    });
+
+    public static Sprite Tent() => Get("tent", () =>
+    {
+        var c = new Canvas(34, 28);
+        c.Ellipse(17, 25, 15, 3, Shadow);
+        Color a = Hex("#c84a3a"), b = Hex("#f0e6c8");
+        for (int y = 4; y <= 25; y++) { int hw = (y - 4) * 15 / 21; for (int x = 17 - hw; x <= 17 + hw; x++) c.Set(x, y, ((x / 3) % 2 == 0) ? a : b); }
+        c.Rect(15, 16, 4, 9, Hex("#2a1a10"));
+        c.Line(17, 4, 17, 1, Hex("#4a2c1a"));
+        return c.ToSprite(17, 25);
+    });
+
+    public static Sprite Cannon() => Get("cannon", () =>
+    {
+        var c = new Canvas(26, 18);
+        c.Ellipse(13, 16, 11, 2, Shadow);
+        c.Rect(5, 9, 16, 5, Hex("#2a2a30")); c.Rect(5, 9, 16, 1, Hex("#5a5a64")); c.Rect(20, 8, 4, 7, Hex("#1a1a20"));
+        c.Ball(8, 14, 3, 3, Hex("#4a2c1a"), Hex("#6b4226"), Hex("#8a5a36")); c.Ball(17, 14, 3, 3, Hex("#4a2c1a"), Hex("#6b4226"), Hex("#8a5a36"));
+        for (int i = 0; i < 3; i++) c.Ball(2 + i * 2, 15, 1.5f, 1.5f, Hex("#101010"), Hex("#2a2a30"), Hex("#5a5a64")); // cannonballs
+        return c.ToSprite(13, 16);
+    });
+
+    /// Skeleton pirate: frame 2 = a heap of bones (knocked down, about to get back up).
+    static Sprite SkeletonPirate(int frame) => Get("skeleton_pirate_" + frame, () =>
+    {
+        var c = new Canvas(16, 24);
+        c.Ellipse(8, 22.5f, 5, 1.2f, Shadow);
+        Color bone = Hex("#ece6d8"), boneD = Hex("#b8b0a0"), cloth = Hex("#8a2a2a");
+        if (frame == 2)
+        {
+            c.Ball(8, 20, 5, 2, boneD, bone, Color.white); c.Line(3, 20, 13, 18, boneD); c.Ball(11, 17, 2.5f, 2.2f, boneD, bone, Color.white);
+            c.Set(10, 17, Color.black); c.Set(12, 17, Color.black);
+            return c.ToSprite(8, 22);
+        }
+        int l = frame;
+        c.Rect(5, 16, 1, 6 - l, bone); c.Rect(10, 16, 1, 5 + l, bone);
+        c.Rect(4, 15, 8, 2, cloth);                                  // ragged trousers
+        for (int y = 9; y <= 14; y += 2) c.Rect(5, y, 6, 1, bone);   // ribs
+        c.Rect(7, 9, 1, 6, boneD);
+        c.Rect(3, 10, 1, 5, bone); c.Rect(12, 10 - l, 1, 5, bone);
+        c.Line(13, 9 - l, 15, 4 - l, Hex("#c8c8d0"));                // rusty cutlass
+        c.Ball(8, 5, 3.6f, 3.4f, boneD, bone, Color.white);
+        c.Set(6, 5, Color.black); c.Set(9, 5, Color.black); c.Rect(7, 7, 3, 1, boneD);
+        c.Rect(3, 2, 10, 2, cloth);                                  // bandana
+        return c.ToSprite(8, 22);
+    });
+
+    static Sprite PirateMonkey(int frame) => Get("pirate_monkey_" + frame, () =>
+    {
+        var c = new Canvas(16, 16);
+        c.Ellipse(8, 14.5f, 5, 1.2f, Shadow);
+        Color f = Hex("#6b4226"), fL = Hex("#a87a48"), face = Hex("#e0b890");
+        int hop = frame;
+        c.Ball(8, 10 - hop, 4, 3.5f, f, f, fL);
+        c.Ball(8, 5 - hop, 3.5f, 3.2f, f, f, fL); c.Ball(8, 6 - hop, 2.2f, 1.8f, face, face, Color.white);
+        c.Set(7, 5 - hop, Color.black); c.Set(9, 5 - hop, Color.black);
+        c.Ball(4, 4 - hop, 1.4f, 1.4f, f, face, face); c.Ball(12, 4 - hop, 1.4f, 1.4f, f, face, face); // ears
+        c.Rect(5, 1 - hop, 6, 2, Hex("#c84a3a"));                                                       // little bandana
+        c.Line(12, 11 - hop, 15, 7 - hop, f); c.Ball(15, 6 - hop, 1.6f, 1.6f, Hex("#4a2c1a"), Hex("#8a5a36"), Hex("#c8a070")); // coconut in hand
+        c.Line(3, 12, 1, 9, f);                                                                          // tail
+        return c.ToSprite(8, 14);
+    });
+
+    /// Captain Blackbones: a big skeleton in a tricorne and long red coat (frame 2 = collapsed).
+    static Sprite Captain(int frame) => Get("captain_" + frame, () =>
+    {
+        var c = new Canvas(30, 40);
+        c.Ellipse(15, 37, 10, 2, Shadow);
+        Color bone = Hex("#ece6d8"), boneD = Hex("#b8b0a0"), coat = Hex("#8a1a1a"), coatD = Hex("#5a1010"), gold = Hex("#f2c43a");
+        if (frame == 2)
+        {
+            c.Ball(15, 33, 9, 3, coatD, coat, Hex("#c84a3a")); c.Ball(20, 29, 3.5f, 3f, boneD, bone, Color.white);
+            c.Rect(15, 25, 10, 3, Hex("#101010"));
+            return c.ToSprite(15, 37);
+        }
+        int l = frame;
+        c.Rect(10, 28, 2, 8 - l, bone); c.Rect(18, 28, 2, 7 + l, bone);
+        for (int y = 14; y <= 30; y++) { int hw = 5 + (y - 14) / 4; c.Rect(15 - hw, y, hw * 2, 1, y % 3 == 0 ? coatD : coat); }
+        c.Rect(14, 14, 2, 14, gold);
+        c.Rect(6, 16, 2, 8, coat); c.Rect(22, 16 - l, 2, 8, coat);
+        c.Line(24, 15 - l, 28, 6 - l, Hex("#d8d8e0")); c.Rect(22, 15 - l, 3, 2, gold); // sabre
+        c.Ball(15, 9, 5, 4.6f, boneD, bone, Color.white);
+        c.Rect(12, 8, 2, 2, Color.black); c.Rect(17, 8, 2, 2, Color.black); c.Set(12, 8, Hex("#ff4040")); c.Set(17, 8, Hex("#ff4040"));
+        c.Rect(13, 12, 5, 1, boneD);
+        for (int y = 1; y <= 5; y++) c.Rect(15 - (12 - y * 2), y, (12 - y * 2) * 2, 1, Hex("#101010")); // tricorne
+        c.Rect(5, 5, 20, 1, Hex("#101010")); c.Set(15, 3, gold);
+        return c.ToSprite(15, 37);
+    });
 
     // ------------------------------------------------------------------ Sunken City
     /// The drowned temple: broken columns, a domed roof covered in coral.
@@ -1759,6 +1911,18 @@ public static class PixelArt
                 Person(inner, 0, frame, Hex("#f1c27d"), Hex("#d0a060"), Hex("#4a2c1a"), Hex("#b8a070"), Hex("#988050"), Hex("#6b5a3a"), Hex("#4a3a2a"), false, false);
                 inner.Ball(7, 5, 5, 5, Hex("#8a6a20"), Hex("#c8a040"), Hex("#f0d890")); inner.Ball(7, 5, 2.5f, 2.5f, Hex("#3a6a9a"), Hex("#7ab0d8"), Color.white);
                 break;
+            case 16: // old pirate: eye patch, striped shirt, grey beard, peg leg
+                Person(inner, 0, frame, Hex("#d8a070"), Hex("#b88050"), Hex("#8a8a8a"), Hex("#e8e8e8"), Hex("#c8c8c8"), Hex("#3a3a5a"), Hex("#2a2a4a"), false, false);
+                for (int y = 11; y <= 16; y += 2) inner.Rect(3, y, 8, 1, Hex("#c84a3a"));
+                inner.Rect(4, 6, 3, 2, Hex("#101010")); inner.Line(3, 5, 10, 4, Hex("#101010"));
+                inner.Rect(4, 8, 6, 2, Hex("#9a9a9a"));
+                inner.Rect(8, 17, 1, 5, Hex("#8a5a36"));
+                break;
+            case 17: // gold merchant: purple shawl, gold earrings and necklace
+                Person(inner, 0, frame, Hex("#e0ac69"), Hex("#c08a50"), Hex("#2a1a10"), Hex("#7a3f8a"), Hex("#5a2a68"), Hex("#7a3f8a"), Hex("#5a2a68"), true, false, 3);
+                inner.Set(3, 7, Hex("#f2c43a")); inner.Set(10, 7, Hex("#f2c43a"));
+                for (int x = 4; x <= 9; x++) inner.Set(x, 10, Hex("#f2c43a"));
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1830,6 +1994,19 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.GoldCoin:
+                c.Ball(6, 10, 4.5f, 4.5f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0")); c.Ball(10, 7, 4.5f, 4.5f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0"));
+                c.Rect(9, 6, 2, 3, Hex("#b88a1a"));
+                break;
+            case Item.Shovel:
+                c.Line(3, 14, 10, 6, Bark); c.Line(4, 14, 11, 6, BarkD);
+                c.Ball(12, 4, 3, 3.5f, StoneD, StoneM, StoneL); c.Rect(2, 13, 3, 2, Bark);
+                break;
+            case Item.Compass:
+                c.Ball(8, 8, 6.5f, 6.5f, Hex("#8a6a20"), Hex("#c8a040"), Hex("#f0d890"));
+                c.Ball(8, 8, 5, 5, Hex("#d8d0c0"), Hex("#f6f0e6"), Color.white);
+                c.Line(8, 8, 8, 3, Hex("#d9534f")); c.Line(8, 8, 8, 13, Hex("#3a3a40")); c.Set(8, 8, Hex("#101010"));
+                break;
             case Item.AncientRelic:
                 c.Rect(4, 2, 8, 12, Hex("#8a98a8")); c.Rect(10, 2, 2, 12, Hex("#5a6878"));
                 for (int y = 4; y < 13; y += 3) c.Rect(5, y, 4, 1, Hex("#7ff5e6"));
