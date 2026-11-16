@@ -337,6 +337,7 @@ public partial class IslandGame
             again.hover.textColor = Color.white;
             if (GUI.Button(new Rect(W / 2f - 130f, H / 2 + 40, 260f, 46f), "เริ่มการผจญภัยใหม่ (R)", again)) StartGame(null);
         }
+        DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
         DrawTouchControls();
     }
 

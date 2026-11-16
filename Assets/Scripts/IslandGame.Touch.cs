@@ -139,6 +139,35 @@ public partial class IslandGame
         TouchCircle(SmallCenter(TouchBtn.Skills), SmallR, "สกิล", new Color(0.8f, 0.7f, 1f), skillsOpen, 11);
     }
 
+    /// With a mouse (no touch screen): two big round buttons in the bottom-right corner for the
+    /// special power (R) and the special move (T), dimmed with a countdown while recharging.
+    void DrawMousePowerButtons(float W, float H)
+    {
+        if (ShowTouch || title || dead || player == null || voyage != null || power == Power.None) return;
+        if (sailT > 0f || sleepT > 0f || homeT > 0f || dialog != null || craftOpen || skillsOpen || bagOpen || buildOpen) return;
+        var atk = new Vector2(W - 64f, H - 150f);
+        var pow = new Vector2(W - 152f, H - 132f);
+        MouseRoundButton(pow, 32f, "พลัง", "R", PowerReady, PowerCooldown, new Color(1f, 0.85f, 0.3f), UsePower);
+        MouseRoundButton(atk, 40f, "ท่าพิเศษ", "T", PowerAttackReady, PowerAttackCooldown, new Color(1f, 0.55f, 0.35f), UsePowerAttack);
+    }
+
+    void MouseRoundButton(Vector2 c, float r, string text, string key, float ready, float cooldown, Color col, System.Action act)
+    {
+        var e = Event.current;
+        bool over = (e.mousePosition - c).magnitude < r;
+        if (over && e.type == EventType.MouseDown && e.button == 0)
+        {
+            e.Use();
+            if (!chatOpen && !Busy) act();
+        }
+        bool ok = ready >= 1f;
+        TouchCircle(c, r, null, new Color(col.r, col.g, col.b, ok ? 1f : 0.35f), ok && over, 0);
+        var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = r > 35f ? 13 : 12, fontStyle = FontStyle.Bold };
+        string sub = ok ? $"[{key}]" : $"{Mathf.CeilToInt((1f - ready) * cooldown)} วิ";
+        ShadowLabel(new Rect(c.x - r, c.y - r, r * 2f, r * 2f - 12f), text, st, ok ? col : new Color(col.r, col.g, col.b, 0.6f));
+        ShadowLabel(new Rect(c.x - r, c.y - r + 16f, r * 2f, r * 2f - 12f), sub, new GUIStyle(st) { fontSize = 11 }, new Color(1f, 1f, 1f, ok ? 0.85f : 0.6f));
+    }
+
     static Texture2D ringTex, discTex;
 
     static void TouchCircle(Vector2 c, float r, string text, Color col, bool lit, int fontSize)
