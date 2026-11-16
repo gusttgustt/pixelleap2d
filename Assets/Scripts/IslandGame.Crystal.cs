@@ -44,21 +44,28 @@ public partial class IslandGame
     {
         m.hits = (m.hits + 1) % 4;
         m.Refresh();
+        SendNode(m, "set"); // friends see the mirror turn too
         Sfx.Play("craft", 0.4f);
         if (MirrorLit(m))
         {
             Popup("แสงพุ่งเข้าหาห้องนิรภัย!", m.transform.position + Vector3.up * 1f, new Color(0.8f, 0.95f, 1f));
-            int lit = 0, all = 0;
-            foreach (var n in nodes) if (n != null && n.kind == NodeKind.Mirror) { all++; if (MirrorLit(n)) lit++; }
-            if (lit == all && !Flag("vault" + island))
-            {
-                flags.Add("vault" + island);
-                var v = Vault;
-                if (v != null) { v.Refresh(); Fx.Burst(v.transform.position + Vector3.up * 1f, new Color(0.85f, 0.95f, 1f), 30, 2f, 2f, 1.2f, 2f); }
-                Sfx.Play("win", 0.7f);
-                Hint("ห้องนิรภัยผลึกเปิดแล้ว! เข้าไปเอาสมบัติข้างในได้เลย", 6f);
-            }
+            CheckVault(true);
         }
+    }
+
+    /// All three mirrors lit: the vault opens (for whoever turned the last one, and for
+    /// everyone else on the island when the turn reaches them).
+    void CheckVault(bool mine)
+    {
+        if (Flag("vault" + island)) return;
+        int lit = 0, all = 0;
+        foreach (var n in nodes) if (n != null && n.kind == NodeKind.Mirror) { all++; if (MirrorLit(n)) lit++; }
+        if (all == 0 || lit < all) return;
+        flags.Add("vault" + island);
+        var v = Vault;
+        if (v != null) { v.Refresh(); Fx.Burst(v.transform.position + Vector3.up * 1f, new Color(0.85f, 0.95f, 1f), 30, 2f, 2f, 1.2f, 2f); }
+        Sfx.Play("win", 0.7f);
+        Hint(mine ? "ห้องนิรภัยผลึกเปิดแล้ว! เข้าไปเอาสมบัติข้างในได้เลย" : "เพื่อนหมุนกระจกครบแล้ว! ห้องนิรภัยผลึกเปิดแล้ว", 6f);
     }
 
     void OpenVault(WorldNode v)

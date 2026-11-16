@@ -541,10 +541,7 @@ public partial class IslandGame
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
-        if (kind == EnemyKind.AntQueen) { flags.Add("queen" + island); Hint("ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว", 6f); }
-        if (kind == EnemyKind.Thunderbird) { flags.Add("thunderbird" + island); Hint("นกอัสนีร่วงลงแล้ว! พายุเบาลง", 6f); }
-        if (kind == EnemyKind.Captain) { flags.Add("captain" + island); Hint("กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว", 6f); }
-        if (kind == EnemyKind.Kraken) { flags.Add("kraken" + island); Hint("อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร", 6f); }
+        BossDown(kind);
         if (kind == EnemyKind.Snowman) SplitSnowman(WorldDeltaToGrid(at)); // bursts into snowlings
         if (kind == EnemyKind.ShroomKing) Hint("ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ", 6f);
         inv[drop] = Count(drop) + n;
@@ -809,6 +806,14 @@ public partial class IslandGame
 
     void EatBest()
     {
+        // full but hurt: eat whatever heals the most (honey included)
+        if (hunger >= 99f && health < MaxHealth - 0.5f)
+        {
+            foreach (var it in new[] { Item.Honey, Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish })
+                if (Count(it) > 0) { Eat(it); return; }
+            Hint("ยังไม่หิว (อาหารปิ้งหรือน้ำผึ้งช่วยฟื้น HP ได้แม้อิ่ม)", 2f);
+            return;
+        }
         foreach (var it in new[] { Item.CookedMeat, Item.CookedCrab, Item.CookedFruit, Item.CookedFish, Item.Fruit, Item.Berry, Item.RawFish, Item.CrabMeat, Item.RawMeat })
             if (Count(it) > 0) { Eat(it); return; }
         Hint("ไม่มีอาหาร! ไปเก็บเบอร์รี่หรือผลไม้", 2f);
@@ -818,13 +823,20 @@ public partial class IslandGame
     {
         int food = FoodValue(it);
         if (food <= 0 || Count(it) == 0) return;
-        if (hunger >= 99f) { Hint("ยังไม่หิว", 1.5f); return; }
+        int heal = HealValue(it);
+        bool hurt = health < MaxHealth - 0.5f;
+        if (hunger >= 99f && !(heal > 0 && hurt)) // healing food can still be eaten when full, if you're hurt
+        {
+            Hint(hurt ? "ยังไม่หิว (อาหารปิ้งหรือน้ำผึ้งช่วยฟื้น HP ได้แม้อิ่ม)" : "ยังไม่หิว", 1.5f);
+            return;
+        }
         inv[it]--;
         hunger = Mathf.Min(100f, hunger + food);
         thirst = Mathf.Min(100f, thirst + ThirstValue(it));
-        health = Mathf.Min(MaxHealth, health + HealValue(it));
+        health = Mathf.Min(MaxHealth, health + heal);
         Sfx.Play("eat", 0.6f);
         Popup($"+{food} อิ่ม", PlayerPos + Vector3.up * 0.9f, new Color(1f, 0.7f, 0.3f));
+        if (heal > 0 && hurt) Popup($"+{heal} HP", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.4f, 0.45f));
     }
 
     // ------------------------------------------------------------------ sleep

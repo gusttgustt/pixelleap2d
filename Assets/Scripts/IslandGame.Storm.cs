@@ -34,14 +34,21 @@ public partial class IslandGame
         inv[Item.Copper] -= 2;
         rod.hits = 1;
         rod.Refresh();
+        SendNode(rod, "set"); // the rod is mended for friends too
         Sfx.Play("craft", 0.6f);
         Fx.Burst(rod.transform.position + Vector3.up * 1.5f, new Color(1f, 0.95f, 0.5f), 16, 1f, 1.6f);
         Popup("ซ่อมสายล่อฟ้าแล้ว!", rod.transform.position + Vector3.up * 1.8f, new Color(1f, 0.95f, 0.5f));
-        if (!nodes.Exists(n => n != null && n.kind == NodeKind.LightningRod && n.hits == 0))
-        {
-            flags.Add("rods" + island);
-            Hint("สายล่อฟ้าครบทั้งเกาะแล้ว! ฟ้าผ่าน้อยลงมาก", 5f);
-        }
+        CheckRods(true);
+    }
+
+    /// Every rod on the island mended (by you or by friends): far fewer bolts.
+    void CheckRods(bool mine)
+    {
+        if (Flag("rods" + island)) return;
+        if (!nodes.Exists(n => n != null && n.kind == NodeKind.LightningRod)) return;
+        if (nodes.Exists(n => n != null && n.kind == NodeKind.LightningRod && n.hits == 0)) return;
+        flags.Add("rods" + island);
+        Hint(mine ? "สายล่อฟ้าครบทั้งเกาะแล้ว! ฟ้าผ่าน้อยลงมาก" : "เพื่อนซ่อมสายล่อฟ้าครบแล้ว! ฟ้าผ่าน้อยลงมาก", 5f);
     }
 
     void UpdateStorm(float dt)

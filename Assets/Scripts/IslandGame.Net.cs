@@ -259,6 +259,7 @@ public partial class IslandGame
                 {
                     enemies.Remove(target);
                     Send(new NetMsg { t = "kill", id = m.id, by = m.from, kind = (int)kind, hits = xpGain, x = at.x, y = at.y });
+                    BossDown(kind); // a friend finished it, but the island is calm for me too
                 }
                 break;
 
@@ -272,6 +273,7 @@ public partial class IslandGame
                     Destroy(dead.gameObject);
                 }
                 if (m.by == myId) GrantKill((EnemyKind)m.kind, m.hits, where); // my blow finished it
+                else BossDown((EnemyKind)m.kind);                                // someone else's: still counts for the island
                 break;
 
             case "dmg":
@@ -355,11 +357,40 @@ public partial class IslandGame
         float left = e.dur - e.age;
         switch (e.ev)
         {
-            case "deplete": if (left > 0f && node.available) node.Deplete(left); break;
+            case "deplete": if (left > 0f && node.available) { node.Deplete(left); if (node.kind == NodeKind.DigSpot) CheckTreasure(false); } break;
             case "remove": RemoveNode(node); break;
             case "stump": if (node.kind == NodeKind.Tree && left > 0f) node.BecomeStump(left); break;
             case "hits": node.hits = Mathf.Max(node.hits, e.hits); node.Shake(); break;
+            case "set": // a mirror turned / a rod mended: take the exact value
+                node.hits = e.hits;
+                node.Refresh();
+                if (node.kind == NodeKind.Mirror) CheckVault(false);
+                if (node.kind == NodeKind.LightningRod) CheckRods(false);
+                break;
         }
+    }
+
+    /// A boss fell on this island: everyone here gets the calm island (and the quest step),
+    /// not just whoever landed the last blow.
+    void BossDown(EnemyKind kind)
+    {
+        string f = kind switch
+        {
+            EnemyKind.AntQueen => "queen",
+            EnemyKind.Thunderbird => "thunderbird",
+            EnemyKind.Captain => "captain",
+            EnemyKind.Kraken => "kraken",
+            _ => null,
+        };
+        if (f == null || Flag(f + island)) return;
+        flags.Add(f + island);
+        Hint(kind switch
+        {
+            EnemyKind.AntQueen => "ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว",
+            EnemyKind.Thunderbird => "นกอัสนีร่วงลงแล้ว! พายุเบาลง",
+            EnemyKind.Captain => "กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว",
+            _ => "อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร",
+        }, 6f);
     }
 
     // ------------------------------------------------------------------ shared creatures

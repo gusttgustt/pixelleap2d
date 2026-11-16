@@ -134,12 +134,18 @@ public partial class IslandGame
         if (r.Next(5) == 0) Give(FruitFor(Biome.Tropical + r.Next(4)), 1, n);
         Fx.Burst(n.transform.position, new Color(0.85f, 0.7f, 0.4f), 16, 1f, 1.6f, 0.8f, 3f);
         Sfx.Play("chop", 0.6f);
-        n.Deplete(1e9f);
-        if (!nodes.Exists(x => x != null && x.kind == NodeKind.DigSpot && x.available))
-        {
-            flags.Add("treasure" + island);
-            Hint("ขุดสมบัติครบทุกจุดแล้ว!", 4f);
-        }
+        DepleteShared(n, 1e9f); // dug up for friends too: no second helping from the same hole
+        CheckTreasure(true);
+    }
+
+    /// Every X on the island dug up (by you or friends): the old pirate's task is done.
+    void CheckTreasure(bool mine)
+    {
+        if (Flag("treasure" + island)) return;
+        if (!nodes.Exists(x => x != null && x.kind == NodeKind.DigSpot)) return;
+        if (nodes.Exists(x => x != null && x.kind == NodeKind.DigSpot && x.available)) return;
+        flags.Add("treasure" + island);
+        Hint(mine ? "ขุดสมบัติครบทุกจุดแล้ว!" : "ขุดสมบัติครบทุกจุดแล้ว (เพื่อนช่วยขุด)!", 4f);
     }
 
     static readonly (Item item, int n, int price)[] MerchantStock =
