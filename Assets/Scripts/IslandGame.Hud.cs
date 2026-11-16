@@ -105,6 +105,9 @@ public partial class IslandGame
         NodeKind.SandCrystal => "เก็บทรายเวลา",
         NodeKind.Chest => "เปิดหีบสมบัติ",
         NodeKind.DigSpot => "ขุดสมบัติ",
+        NodeKind.CrystalCluster => "เก็บเศษผลึก",
+        NodeKind.Mirror => "หมุนกระจก",
+        NodeKind.CrystalVault => "เปิดห้องนิรภัยผลึก",
         NodeKind.Relic => "อ่านแผ่นจารึก",
         NodeKind.GiantClam => "หายใจจากหอยยักษ์",
         NodeKind.Shrine => "ไหว้ศาลเจ้าโบราณ",
@@ -221,6 +224,7 @@ public partial class IslandGame
         infoY = DrawIceHud(infoY);
         infoY = DrawSunkenHud(infoY);
         infoY = DrawPirateHud(infoY);
+        infoY = DrawCrystalHud(infoY);
         infoY = DrawCompassHud(infoY);
         if (poisonT > 0f)
         {
@@ -458,6 +462,7 @@ public partial class IslandGame
         Item.TribalHeadband => "ดาเมจ +1",
         Item.LeafTunic => "พลังชีวิตสูงสุด +15",
         Item.HideVest => "รับดาเมจ -20%",
+        Item.CrystalArmor => "รับดาเมจ -35%, พลังชีวิต +20",
         _ => "",
     };
 

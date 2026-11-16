@@ -27,7 +27,7 @@ public partial class IslandGame
         UpdateLantern();
         TickPower(dt);
         TickHourglass(dt);
-        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); UpdateWeather(dt); UpdateSunken(dt); UpdatePirate(dt); }
+        if (!title && !dead) { UpdateTurtle(dt); UpdateSky(dt); UpdateBubble(dt); UpdateIce(dt); UpdateWeather(dt); UpdateSunken(dt); UpdatePirate(dt); UpdateCrystal(dt); }
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
@@ -291,6 +291,14 @@ public partial class IslandGame
             case NodeKind.Chest: if (n.available) OpenChest(n); break;
             case NodeKind.Shrine: PrayAtShrine(n); break;
             case NodeKind.DigSpot: if (n.available) DigTreasure(n); break;
+            case NodeKind.Mirror: TurnMirror(n); break;
+            case NodeKind.CrystalVault: OpenVault(n); break;
+            case NodeKind.CrystalCluster:
+                Give(Item.CrystalShard, rnd.Next(1, 3) + Bonus(), n);
+                Fx.Burst(at + Vector3.up * 0.4f, new Color(0.85f, 0.9f, 1f), 10, 0.8f, 1.4f);
+                Sfx.Play("chop", 0.5f);
+                DepleteShared(n, 110f);
+                break;
             case NodeKind.Relic: if (n.available) ReadRelic(n); break;
             case NodeKind.GiantClam:
                 air = 100f;
@@ -507,6 +515,8 @@ public partial class IslandGame
             EnemyKind.SkeletonPirate => (Item.GoldCoin, 2),
             EnemyKind.PirateMonkey => (Item.Fruit, 2),
             EnemyKind.Captain => (Item.GoldCoin, 30),
+            EnemyKind.CrystalGolem => (Item.CrystalShard, 3),
+            EnemyKind.MirrorWisp => (Item.CrystalShard, 1),
             _ => (Item.CrabMeat, 1),
         };
         QuestKill(kind);
@@ -633,6 +643,8 @@ public partial class IslandGame
         EnemyKind.DeepCrab => (IsNight ? 3 : 2) + tier,
         EnemyKind.SkeletonPirate => (IsNight ? 5 : 3) + tier,
         EnemyKind.PirateMonkey => 2 + tier,
+        EnemyKind.CrystalGolem => (IsNight ? 3 : 2) + tier,
+        EnemyKind.MirrorWisp => (IsNight ? 4 : 2) + tier,
         _ => 0,
     };
 
@@ -649,6 +661,7 @@ public partial class IslandGame
         (Biome.Ice, _) => new[] { EnemyKind.Snowman, EnemyKind.FrostBat },
         (Biome.Sunken, _) => new[] { EnemyKind.Eel, EnemyKind.DeepCrab },
         (Biome.Pirate, _) => new[] { EnemyKind.Crab, EnemyKind.SkeletonPirate, EnemyKind.PirateMonkey },
+        (Biome.Crystal, _) => new[] { EnemyKind.CrystalGolem, EnemyKind.MirrorWisp },
         (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
         _ => new[] { EnemyKind.Crab },
     };
@@ -701,7 +714,8 @@ public partial class IslandGame
                 : r.output == Item.Sundial ? "ต้องเรียนจากลุงฟันเฟือง (เกาะนาฬิกาทราย)"
                 : r.output == Item.SpikedBoots ? "ต้องเรียนจากพรานธารา (เกาะน้ำแข็ง)"
                 : r.output == Item.Trident ? "ต้องเรียนจาก ดร.สมุทร (นครบาดาล)"
-                : r.output == Item.Compass ? "ต้องเรียนจากลุงตาเดียว (อ่าวโจรสลัด)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
+                : r.output == Item.Compass ? "ต้องเรียนจากลุงตาเดียว (อ่าวโจรสลัด)"
+                : r.output == Item.CrystalArmor ? "ต้องเรียนจากช่างแก้วเพชรา (เกาะผลึก)" : "ต้องเรียนจากช่างทอของชนเผ่า"; return false; }
         if (r.output != null && (IsTool(r.output.Value) || IsClothing(r.output.Value)) && Count(r.output.Value) > 0) { why = "มีอยู่แล้ว"; return false; }
         if (voyage != null && (r.needsFire || r.places != null || r.raftUpgrade)) { why = "ทำกลางทะเลไม่ได้"; return false; }
         if (r.places == NodeKind.Raft && raftLevel > 0) { why = "มีแพอยู่แล้ว"; return false; }

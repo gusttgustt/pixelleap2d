@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp }
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -25,6 +25,8 @@ public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barna
 ///   SkeletonPirate - Pirate Cove: knocked down once, it rattles back up at half strength.
 ///   PirateMonkey   - Pirate Cove: lobs coconuts at you from a distance (a red mark shows where).
 ///   Captain        - Pirate Cove boss: calls cannon fire around you, and gets back up once too.
+///   CrystalGolem   - Crystal island: slow and heavy; its crystal body takes only half of every blow.
+///   MirrorWisp     - Crystal island: quick; every hit on it throws glass splinters back at you.
 public class Enemy : MonoBehaviour
 {
     public EnemyKind kind;
@@ -85,7 +87,8 @@ public class Enemy : MonoBehaviour
         EnemyKind.WindupDoll => "ตุ๊กตาไขลาน", EnemyKind.TimeBeetle => "ด้วงทรายเวลา",
         EnemyKind.Snowman => "มนุษย์หิมะละลาย", EnemyKind.Snowling => "ตัวหิมะจิ๋ว", EnemyKind.FrostBat => "ค้างคาวน้ำแข็ง",
         EnemyKind.Eel => "ปลาไหลไฟฟ้า", EnemyKind.DeepCrab => "ปูยักษ์ทะเลลึก", EnemyKind.Kraken => "อสูรหมึกยักษ์",
-        EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", _ => "กัปตันกระดูกดำ",
+        EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", EnemyKind.Captain => "กัปตันกระดูกดำ",
+        EnemyKind.CrystalGolem => "โกเลมผลึก", _ => "ภูตกระจก",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -142,6 +145,8 @@ public class Enemy : MonoBehaviour
             EnemyKind.SkeletonPirate => (6, 10f, 1.4f, 7f, 26),
             EnemyKind.PirateMonkey => (4, 8f, 1.8f, 7f, 20),
             EnemyKind.Captain => (80, 16f, 1.0f, 8f, 220),
+            EnemyKind.CrystalGolem => (14, 14f, 0.8f, 6f, 36),
+            EnemyKind.MirrorWisp => (4, 6f, 2.0f, 8f, 22),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
@@ -415,7 +420,9 @@ public class Enemy : MonoBehaviour
             }
             return false;
         }
-        if (variant == IslandGame.Variant.Armored || kind == EnemyKind.DeepCrab) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind == EnemyKind.DeepCrab ? 0.5f : 0.6f))); // armour soaks blows
+        if (variant == IslandGame.Variant.Armored || kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem)
+            dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem ? 0.5f : 0.6f))); // armour soaks blows
+        if (kind == EnemyKind.MirrorWisp) IslandGame.I.DamagePlayer(2f, "เศษแก้วสะท้อน!"); // splinters fly back
         hp -= dmg;
         Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;

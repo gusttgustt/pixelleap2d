@@ -201,7 +201,7 @@ public static class PixelArt
     });
 
     /// Land tile. height raises the top and makes the cliff side taller.
-    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", Biome.Ice => "ice_", Biome.Sunken => "sunken_", Biome.Pirate => "pirate_", _ => "" };
+    static string BiomeKey(Biome b) => b switch { Biome.Jungle => "jungle_", Biome.Volcanic => "volcanic_", Biome.Tribal => "tribal_", Biome.Mushroom => "mushroom_", Biome.Turtle => "turtle_", Biome.Sky => "sky_", Biome.Bubble => "bubble_", Biome.Hourglass => "hourglass_", Biome.Ice => "ice_", Biome.Sunken => "sunken_", Biome.Pirate => "pirate_", Biome.Crystal => "crystal_", _ => "" };
 
     public static Sprite Land(bool grass, int variant, int height, Biome biome = Biome.Tropical) =>
         Get($"{BiomeKey(biome)}{(grass ? "grass" : "sand")}_tile_{variant}_h{height}", () =>
@@ -215,6 +215,8 @@ public static class PixelArt
             (Biome.Jungle, false) => new[] { "#dcc98e", "#c9b47a", "#ead9a8", "#b89a5e", "#9a7e48", "#c9b47a" },
             (Biome.Volcanic, true) => new[] { "#6b6460", "#5a5450", "#857d78", "#4a3f3a", "#3a302c", "#4f4844" },
             (Biome.Volcanic, false) => new[] { "#3d3a3a", "#333030", "#514c4c", "#2e2b2b", "#242121", "#333030" },
+            (Biome.Crystal, true) => new[] { "#a8a0d8", "#948cc4", "#c8c0f0", "#7a6aa8", "#5e5088", "#8a82c0" },   // lilac glassy turf
+            (Biome.Crystal, false) => new[] { "#e8e4f4", "#d4cee8", "#ffffff", "#b8b0d0", "#9890b0", "#d4cee8" }, // white quartz sand
             (Biome.Pirate, true) => new[] { "#8aa84a", "#76923e", "#a8c46a", "#8a6a3a", "#6e522a", "#6e8a38" },     // dry cove grass
             (Biome.Pirate, false) => new[] { "#f4e2a8", "#e4cc8a", "#fff2c8", "#d4b47a", "#b8985e", "#e4cc8a" }, // bright white-gold sand
             (Biome.Sunken, true) => new[] { "#2f5a6a", "#244a58", "#4a7a8a", "#4a5a6a", "#3a4858", "#204452" },   // sea-floor weed
@@ -293,6 +295,7 @@ public static class PixelArt
         Biome.Bubble => LeafyTree("tree_bubble", "#1f5a5a", "#2f8a7a", "#6ac8b0"), // sea-green trees: wood for fires down here
         Biome.Ice => SnowPine(),
         Biome.Pirate => Palm(true),
+        Biome.Crystal => LeafyTree("tree_crystal", "#6a5aa8", "#a898e0", "#f0e8ff"), // glassy lilac trees
         Biome.Sunken => LeafyTree("tree_sunken", "#143a40", "#1f5a5a", "#4a9a8a"),
         Biome.Hourglass => LeafyTree("tree_hourglass", "#8a5a1a", "#c8862a", "#f2c45a"), // amber autumn trees
         Biome.Sky => LeafyTree("tree_sky", "#c86a9a", "#f0a0c8", "#ffd8ea"), // blossom trees
@@ -602,8 +605,89 @@ public static class PixelArt
         EnemyKind.SkeletonPirate => SkeletonPirate(frame),
         EnemyKind.PirateMonkey => PirateMonkey(frame),
         EnemyKind.Captain => Captain(frame),
+        EnemyKind.CrystalGolem => CrystalGolem(frame),
+        EnemyKind.MirrorWisp => MirrorWisp(frame),
         _ => Crab(frame),
     };
+
+    // ------------------------------------------------------------------ Crystal island
+    public static Sprite CrystalCluster(bool full) => Get(full ? "crystal_cluster" : "crystal_cluster_empty", () =>
+    {
+        var c = new Canvas(20, 22);
+        c.Ellipse(10, 20, 7, 1.5f, Shadow);
+        if (!full) { c.Rect(7, 17, 6, 3, Hex("#8a7aa8")); return c.ToSprite(10, 20); }
+        Color d = Hex("#7a5ab8"), m = Hex("#b89af0"), l = Hex("#f0e8ff");
+        int[,] spikes = { { 6, 8, 3 }, { 10, 3, 4 }, { 14, 9, 3 }, { 8, 12, 2 }, { 13, 13, 2 } };
+        for (int i = 0; i < spikes.GetLength(0); i++)
+        {
+            int x = spikes[i, 0], top = spikes[i, 1], w = spikes[i, 2];
+            for (int y = top; y <= 19; y++) { int hw = Mathf.Min(w, (y - top) / 2 + 1); c.Rect(x - hw / 2, y, hw, 1, m); c.Set(x + hw / 2, y, d); }
+            c.Set(x - 1, top + 2, l);
+        }
+        return c.ToSprite(10, 20);
+    });
+
+    /// A turnable mirror on a stand; dir 0-3 = which way it faces.
+    public static Sprite Mirror(int dir) => Get("mirror_" + dir, () =>
+    {
+        var c = new Canvas(18, 30);
+        c.Ellipse(9, 28, 6, 1.5f, Shadow);
+        c.Rect(8, 16, 2, 12, Hex("#8a6a20")); c.Rect(5, 26, 8, 2, Hex("#8a6a20"));
+        Color frame = Hex("#c8a040"), glass = Hex("#c8e8ff"), shine = Color.white;
+        int w = dir % 2 == 0 ? 10 : 4;                   // face-on or edge-on
+        c.Rect(9 - w / 2 - 1, 3, w + 2, 14, frame); c.Rect(9 - w / 2, 4, w, 12, glass);
+        c.Set(9 - w / 2 + 1, 5, shine);
+        int ax = dir == 0 ? 0 : dir == 1 ? 1 : dir == 2 ? 0 : -1, ay = dir == 0 ? -1 : dir == 2 ? 1 : 0; // a little arrow: where it points
+        c.Line(9, 1, 9 + ax * 3, 1 + ay, Hex("#ffe14a"));
+        return c.ToSprite(9, 28);
+    });
+
+    /// The crystal vault: sealed (dark) or open (glowing, door wide).
+    public static Sprite CrystalVault(bool open) => Get(open ? "crystal_vault_open" : "crystal_vault", () =>
+    {
+        var c = new Canvas(48, 56);
+        c.Ellipse(24, 52, 20, 3.5f, Shadow);
+        Color d = open ? Hex("#8a6ac8") : Hex("#4a3a6a"), m = open ? Hex("#c8a8ff") : Hex("#6a5a8a"), l = open ? Color.white : Hex("#9a8ab8");
+        for (int y = 4; y <= 52; y++)
+        {
+            int hw = y < 20 ? (y - 4) * 14 / 16 + 2 : 16;
+            c.Rect(24 - hw, y, hw * 2, 1, y % 6 == 0 ? d : m);
+            c.Set(24 + hw - 1, y, d);
+        }
+        c.Line(18, 10, 22, 40, l); c.Line(30, 14, 28, 44, l);
+        c.Rect(18, 36, 12, 16, open ? Hex("#fff8c8") : Hex("#2a2040"));     // door
+        if (open) c.Ball(24, 44, 4, 3, Hex("#f2c43a"), Hex("#fff0a0"), Color.white); // the treasure glinting inside
+        c.Ball(24, 24, 4, 4, d, open ? Hex("#ffe14a") : d, open ? Color.white : m); // the prism eye
+        return c.ToSprite(24, 52);
+    });
+
+    static Sprite CrystalGolem(int frame) => Get("crystal_golem_" + frame, () =>
+    {
+        var c = new Canvas(26, 28);
+        c.Ellipse(13, 26, 9, 2, Shadow);
+        Color d = Hex("#5a4a8a"), m = Hex("#9a8ad8"), l = Hex("#e0d8ff");
+        int l1 = frame;
+        c.Rect(8, 20, 4, 6 - l1, d); c.Rect(15, 20, 4, 5 + l1, d);
+        c.Ball(13, 15, 8, 6, d, m, l);                         // chest
+        c.Ball(4, 15 - l1, 3, 4, d, m, l); c.Ball(22, 15 - (1 - l1), 3, 4, d, m, l); // fists
+        c.Ball(13, 6, 4.5f, 4, d, m, l);                       // head
+        c.Rect(11, 5, 1, 2, Hex("#ffe14a")); c.Rect(15, 5, 1, 2, Hex("#ffe14a"));
+        c.Line(9, 12, 13, 17, l); c.Line(17, 11, 14, 16, l);   // facets
+        c.Rect(12, 0, 2, 3, m);                                // a crystal spike on top
+        return c.ToSprite(13, 26);
+    });
+
+    static Sprite MirrorWisp(int frame) => Get("mirror_wisp_" + frame, () =>
+    {
+        var c = new Canvas(16, 18);
+        c.Ellipse(8, 16.5f, 3, 0.8f, Shadow);
+        int bob = frame;
+        Color d = Hex("#8ab0d8"), m = Hex("#d0e8ff"), l = Color.white;
+        for (int y = 2; y <= 12; y++) { int hw = 5 - Mathf.Abs(y - 7) * 5 / 6; c.Rect(8 - hw, y - bob, hw * 2, 1, (y + frame) % 3 == 0 ? d : m); } // a spinning diamond
+        c.Set(6, 5 - bob, l); c.Set(7, 6 - bob, Color.black); c.Set(9, 6 - bob, Color.black);
+        c.Set(3, 10 - bob, l); c.Set(13, 4 - bob, l); c.Set(12, 12 - bob, d);  // glints
+        return c.ToSprite(8, 16);
+    });
 
     // ------------------------------------------------------------------ Pirate Cove
     /// Where a cannonball / coconut is about to land (scaled by the blast radius).
@@ -1791,6 +1875,7 @@ public static class PixelArt
             var l = CharacterLook.FromCode(look);
             Color shirt = l.Shirt, shirtD = l.ShirtDark;
             if (outfit == Item.LeafTunic) { shirt = Hex("#4f9a3f"); shirtD = Hex("#3a7a30"); }
+            if (outfit == Item.CrystalArmor) { shirt = Hex("#b8a8f0"); shirtD = Hex("#7a6ac0"); }
             bool female = l.gender == 1;
             // girls: bare legs under a skirt in the "pants" colour (drawn below)
             Person(c, dir, frame, l.Skin, l.SkinDark, l.Hair, shirt, shirtD,
@@ -1816,6 +1901,7 @@ public static class PixelArt
                 c.Line(4, 11, 6, 14, vein); c.Line(9, 11, 7, 14, vein);
                 for (int x = 3; x <= 10; x += 2) c.Set(x, 17, shirtD); // jagged leafy hem
             }
+            else if (outfit == Item.CrystalArmor) { c.Set(5, 12, Color.white); c.Set(8, 14, Color.white); c.Rect(3, 10, 8, 1, Hex("#e0d8ff")); }
             else if (outfit == Item.HideVest)
             {
                 Color v1 = Hex("#8a5a36"), v2 = Hex("#6b4226");
@@ -1923,6 +2009,10 @@ public static class PixelArt
                 inner.Set(3, 7, Hex("#f2c43a")); inner.Set(10, 7, Hex("#f2c43a"));
                 for (int x = 4; x <= 9; x++) inner.Set(x, 10, Hex("#f2c43a"));
                 break;
+            case 18: // glass artisan: lilac robe, crystal pendant, white hair in a bun
+                Person(inner, 0, frame, Hex("#ffdbac"), Hex("#e0b890"), Hex("#f0f0f0"), Hex("#8a7ac8"), Hex("#6a5aa8"), Hex("#8a7ac8"), Hex("#6a5aa8"), true, false, 3);
+                inner.Rect(6, 10, 2, 2, Hex("#e0d8ff")); inner.Set(6, 10, Color.white);
+                break;
             default: // villager: orange wrap
                 Person(inner, 0, frame, skin, skinD, black, Hex("#d9822b"), Hex("#b0661c"), grass, grassD, true, false);
                 break;
@@ -1994,6 +2084,14 @@ public static class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         switch (it)
         {
+            case Item.CrystalShard:
+                for (int y = 2; y <= 14; y++) { int hw = Mathf.Min(3, (y - 2) / 2 + 1); c.Rect(7 - hw / 2, y, hw, 1, Hex("#b89af0")); c.Set(7 + hw / 2, y, Hex("#7a5ab8")); }
+                c.Set(6, 4, Color.white); c.Rect(10, 8, 2, 6, Hex("#b89af0"));
+                break;
+            case Item.CrystalArmor:
+                c.Rect(3, 3, 10, 11, Hex("#b8a8f0")); c.Rect(10, 3, 3, 11, Hex("#7a6ac0")); c.Rect(1, 3, 3, 5, Hex("#b8a8f0")); c.Rect(12, 3, 3, 5, Hex("#7a6ac0"));
+                c.Rect(6, 3, 4, 2, Hex("#3a2a6a")); c.Set(5, 7, Color.white); c.Set(8, 10, Color.white);
+                break;
             case Item.GoldCoin:
                 c.Ball(6, 10, 4.5f, 4.5f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0")); c.Ball(10, 7, 4.5f, 4.5f, Hex("#b88a1a"), Hex("#f2c43a"), Hex("#fff0a0"));
                 c.Rect(9, 6, 2, 3, Hex("#b88a1a"));

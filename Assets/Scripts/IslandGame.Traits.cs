@@ -114,6 +114,32 @@ public partial class IslandGame
         return v;
     }
 
+    /// Turns every bit of land you can't walk to from the middle back into sea.
+    void RemoveUnreachableLand(Vector2 center)
+    {
+        var seen = new bool[Size, Size];
+        var q = new System.Collections.Generic.Queue<Vector2Int>();
+        var c = new Vector2Int(Mathf.RoundToInt(center.x), Mathf.RoundToInt(center.y));
+        q.Enqueue(c); seen[c.x, c.y] = true;
+        var steps = new[] { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
+        while (q.Count > 0)
+        {
+            var p = q.Dequeue();
+            foreach (var s in steps)
+            {
+                var n = p + s;
+                if (n.x < 0 || n.y < 0 || n.x >= Size || n.y >= Size || seen[n.x, n.y]) continue;
+                if (!(tiles[n.x, n.y] is 1 or 2)) continue;
+                if (Mathf.Abs(heights[n.x, n.y] - heights[p.x, p.y]) > 1) continue;
+                seen[n.x, n.y] = true;
+                q.Enqueue(n);
+            }
+        }
+        for (int x = 0; x < Size; x++)
+            for (int y = 0; y < Size; y++)
+                if (tiles[x, y] is 1 or 2 && !seen[x, y]) { tiles[x, y] = 0; heights[x, y] = 0; }
+    }
+
     float ShapeHillBias => T.shape == Shape.Peak ? 0.15f : 0f;
 
     // ------------------------------------------------------------------ landmarks
