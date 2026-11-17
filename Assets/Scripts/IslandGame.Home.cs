@@ -351,8 +351,11 @@ public partial class IslandGame
     };
 
     // ------------------------------------------------------------------ HUD
+    float hudButtonsBottom = 72f; // where the top-right buttons end (the quest list goes below)
+
     void DrawHomeButton(float W)
     {
+        hudButtonsBottom = 72f;
         if (player == null || voyage != null || dead || homeT > 0f) return;
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
@@ -365,12 +368,14 @@ public partial class IslandGame
             var bst = new GUIStyle(st); bst.normal.textColor = new Color(0.75f, 1f, 0.7f);
             if (GUI.Button(new Rect(W - 182, y, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
             y += 26f;
+            hudButtonsBottom = y;
         }
         if (buildOpen) return;
         var pst = new GUIStyle(st); pst.normal.textColor = new Color(1f, 0.72f, 0.82f);
         if (Online && serverHomes && GUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
         if (Online && serverHomes) y += 26f;
         if (GUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
+        hudButtonsBottom = y + 22f;
     }
 
     void DrawHomeWarp(float W, float H)

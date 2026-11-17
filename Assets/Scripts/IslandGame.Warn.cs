@@ -88,12 +88,16 @@ public partial class IslandGame
 
     float WarnBanner(float W, float y, string text, Color col, float pulse)
     {
-        var r = new Rect(W / 2f - 230f, y, 460f, 26f);
-        Fill(r, new Color(0f, 0f, 0f, 0.6f));
+        // between the status bars (left) and the menu buttons (right), wrapping long advice onto two lines
+        float w = Mathf.Min(460f, W - 2f * 222f);
+        var st = new GUIStyle(labelCenter) { fontSize = 13, wordWrap = true, clipping = TextClipping.Clip };
+        float h = Mathf.Max(26f, st.CalcHeight(new GUIContent(text), w - 12f) + 4f);
+        var r = new Rect(W / 2f - w / 2f, y, w, h);
+        Fill(r, new Color(0f, 0f, 0f, 0.65f));
         Fill(new Rect(r.x, r.y, 4f, r.height), col);
         Fill(new Rect(r.xMax - 4f, r.y, 4f, r.height), col);
-        ShadowLabel(r, text, labelCenter, Color.Lerp(col, Color.white, 0.35f * pulse));
-        return y + 30f;
+        ShadowLabel(new Rect(r.x + 6f, r.y, r.width - 12f, r.height), text, st, Color.Lerp(col, Color.white, 0.35f * pulse));
+        return y + h + 4f;
     }
 
     /// Soft coloured edges: several thin bands fading in towards the middle.

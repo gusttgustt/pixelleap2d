@@ -19,7 +19,7 @@ public partial class IslandGame
     void UpdateCamera()
     {
         var m = Mouse.current;
-        if (m != null && !craftOpen && !skillsOpen && !bagOpen) // the wheel scrolls the panels while they're open
+        if (m != null && !craftOpen && !skillsOpen && !bagOpen && dialog?.shop == null) // the wheel scrolls the panels while they're open
         {
             float s = m.scroll.ReadValue().y;
             if (s > 0.1f && zoom < 8) zoomOffset++;
@@ -31,9 +31,9 @@ public partial class IslandGame
         cam.orthographicSize = Screen.height / (2f * PixelArt.PPU * zoom);
         Vector3 goal;
         if (voyage != null) goal = (Vector3)(voyage.raft + voyage.vel * 0.8f) + Vector3.up * 0.3f; // look ahead while paddling
-        else if (player != null) goal = player.transform.position + Vector3.up * 0.3f;
+        else if (player != null) goal = player.transform.position + Vector3.up * 0.3f + (Vector3)CameraLead(Time.deltaTime); // looks a little ahead of you (IslandGame.Feel.cs)
         else return;
-        camPos = Vector3.Lerp(camPos, goal, 1f - Mathf.Exp(-6f * Time.deltaTime));
+        camPos = Vector3.Lerp(camPos, goal, 1f - Mathf.Exp(-5f * Time.deltaTime));
         float u = 1f / (PixelArt.PPU * zoom); // snap to screen pixels
         Vector3 shake = ShakeOffset(Time.deltaTime);
         cam.transform.position = new Vector3(Mathf.Round((camPos.x + shake.x) / u) * u, Mathf.Round((camPos.y + shake.y) / u) * u, -10f);
@@ -139,10 +139,10 @@ public partial class IslandGame
     void InitStyles()
     {
         if (label != null) return;
-        label = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, richText = true };
+        label = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, richText = true, clipping = TextClipping.Overflow, wordWrap = false };
         label.normal.textColor = Color.white;
         labelCenter = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
-        small = new GUIStyle(label) { fontSize = 11, fontStyle = FontStyle.Normal };
+        small = new GUIStyle(label) { fontSize = 12, fontStyle = FontStyle.Normal };
         smallRight = new GUIStyle(small) { alignment = TextAnchor.LowerRight, fontStyle = FontStyle.Bold };
         smallCenter = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter };
         titleCenter = new GUIStyle(labelCenter) { fontSize = 28 };
@@ -171,6 +171,50 @@ public partial class IslandGame
         if (v < 0.25f) col = Color.Lerp(col, Color.white, 0.35f * (0.5f + 0.5f * Mathf.Sin(Time.time * 8f))); // blink when low
         Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(v), r.height), col);
         ShadowLabel(new Rect(r.x, r.y - 2, r.width, r.height + 4), text, smallCenter);
+    }
+
+    // ------------------------------------------------------------------ controls
+    bool helpOpen; // F1: every key, in a readable panel
+
+    static readonly (string key, string what)[] AllKeys =
+    {
+        ("WASD", "เดิน"), ("E / Space", "ใช้ เก็บ คุย โจมตี"), ("Tab / C", "ประดิษฐ์"), ("B", "กระเป๋า"),
+        ("1-8", "ช่องลัด"), ("F", "กินอาหาร"), ("Q", "ดื่มจากกระบอกน้ำ"), ("X", "ดับกองไฟ"),
+        ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("K", "สกิล"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
+        ("H", "เกาะส่วนตัว / กลับไปผจญภัย"), ("G", "สร้าง / รื้อ"), ("V", "เยี่ยมบ้านเพื่อน"), ("Enter", "แชท"),
+        ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
+    };
+
+    /// A short line of the keys you need right now, with F1 for the rest.
+    void DrawKeyBar(float W, float H)
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.f1Key.wasPressedThisFrame && Event.current.type == EventType.Repaint) helpOpen = !helpOpen;
+        string[] keys = buildOpen ? new[] { "WASD เดิน", "E วาง/รื้อ", "Z X เลือกของ", "R หมุน", "G ออก" }
+                      : new[] { "WASD เดิน", "E ใช้/เก็บ", "Tab ประดิษฐ์", "B กระเป๋า", "F กิน", "Q ดื่ม", "F1 ปุ่มทั้งหมด" };
+        var st = new GUIStyle(small) { fontSize = 13, alignment = TextAnchor.MiddleCenter };
+        float x = 10f, y = H - 24f;
+        foreach (var k in keys)
+        {
+            float w = st.CalcSize(new GUIContent(k)).x + 14f;
+            Fill(new Rect(x, y, w, 20f), new Color(0f, 0f, 0f, 0.45f));
+            int sp = k.IndexOf(' ');
+            ShadowLabel(new Rect(x, y, w, 20f), $"<color=#ffd84d><b>{k.Substring(0, sp)}</b></color>{k.Substring(sp)}", st);
+            x += w + 5f;
+        }
+        if (!helpOpen) return;
+        float pw = Mathf.Min(560f, W - 20f), rows = Mathf.Ceil(AllKeys.Length / 2f), ph = 52f + rows * 24f;
+        var box = new Rect(W / 2f - pw / 2f, Mathf.Max(10f, H / 2f - ph / 2f - 20f), pw, ph);
+        Fill(box, new Color(0.06f, 0.07f, 0.1f, 0.94f));
+        Fill(new Rect(box.x, box.y, box.width, 3f), new Color(1f, 0.85f, 0.3f));
+        ShadowLabel(new Rect(box.x + 14, box.y + 8, pw, 24), "ปุ่มทั้งหมด  <size=12><color=#aaaaaa>(F1 ปิด)</color></size>", label, new Color(1f, 0.85f, 0.3f));
+        var ks = new GUIStyle(label) { fontSize = 14 };
+        for (int i = 0; i < AllKeys.Length; i++)
+        {
+            float cx = box.x + 16 + (i % 2) * (pw / 2f), cy = box.y + 40 + (i / 2) * 24f;
+            ShadowLabel(new Rect(cx, cy, 110, 22), AllKeys[i].key, ks, new Color(1f, 0.85f, 0.3f));
+            ShadowLabel(new Rect(cx + 104, cy, pw / 2f - 120, 22), AllKeys[i].what, new GUIStyle(ks) { fontStyle = FontStyle.Normal });
+        }
     }
 
     static void Icon(Rect r, Sprite s) => GUI.DrawTexture(r, s.texture, ScaleMode.ScaleToFit);
@@ -207,37 +251,40 @@ public partial class IslandGame
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
         DrawWarnings(W, H);
 
-        Bar(new Rect(14, 14, 180, 14), health / MaxHealth, new Color(0.85f, 0.25f, 0.25f), $"พลังชีวิต {Mathf.CeilToInt(health)}/{MaxHealth:0}");
-        Bar(new Rect(14, 34, 180, 14), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
-        Bar(new Rect(14, 54, 180, 14), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
-        Bar(new Rect(14, 74, 180, 10), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
+        // status block: a dark backing so it reads over grass and sand, with room between the bars
+        Fill(new Rect(6, 6, 208, 98), new Color(0f, 0f, 0f, 0.32f));
+        Bar(new Rect(14, 12, 192, 17), health / MaxHealth, new Color(0.85f, 0.25f, 0.25f), $"พลังชีวิต {Mathf.CeilToInt(health)}/{MaxHealth:0}");
+        Bar(new Rect(14, 35, 192, 17), hunger / 100f, new Color(0.95f, 0.6f, 0.2f), $"ความอิ่ม {Mathf.CeilToInt(hunger)}");
+        Bar(new Rect(14, 58, 192, 17), thirst / 100f, new Color(0.3f, 0.65f, 0.95f), $"น้ำ {Mathf.CeilToInt(thirst)}");
+        Bar(new Rect(14, 81, 192, 15), xp / (float)XpToNext(level), new Color(0.6f, 0.45f, 0.95f), $"Lv {level}   XP {xp}/{XpToNext(level)}");
         string where = visiting ? (inHouse ? $"ในบ้านของ {visitName}  <size=11>{HouseName(houseLevel)} Lv {Mathf.Max(1, houseLevel)}</size>" : $"เกาะส่วนตัวของ {visitName}  <size=11>มาเยี่ยมบ้าน</size>")
             : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
             : voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
             : $"เกาะที่ {island}: {T.name}  <size=11>{BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
-        ShadowLabel(new Rect(14, 88, 400, 20), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
+        ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = visiting ? "เดินชมบ้านเพื่อน ทักทายด้วย Enter ร้านค้าในตลาดใช้ได้ตามปกติ  (H กลับบ้านตัวเอง)"
                     : atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
                     : voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
                     : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
                     : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
-        ShadowLabel(new Rect(14, 106, 400, 18), goal, small, new Color(1f, 1f, 1f, 0.75f));
+        float infoY = 136f;
+        if (TutorialActive) infoY = DrawTutorial(W, H, infoY, s); // first steps, one at a time (IslandGame.Feel.cs)
+        else { ShadowLabel(new Rect(14, infoY, 400, 20), goal, small, new Color(1f, 1f, 1f, 0.85f)); infoY += 24f; }
         if (voyage != null) DrawVoyageBar(W);
-        float infoY = 122f;
         if (hat != null || outfit != null)
         {
             var worn = new List<string>();
             if (hat != null) worn.Add(Name(hat.Value));
             if (outfit != null) worn.Add(Name(outfit.Value));
             ShadowLabel(new Rect(14, infoY, 320, 18), "สวมอยู่: " + string.Join(", ", worn), small, new Color(1f, 0.9f, 0.7f));
-            infoY += 16f;
+            infoY += 19f;
         }
         if (Count(Item.WaterFlask) > 0)
         {
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
-            infoY += 16f;
+            infoY += 19f;
         }
         infoY = DrawHomeHud(infoY, s); // coins, fishing line, animals (IslandGame.Home.cs)
         infoY = DrawPowerHud(infoY);
@@ -255,7 +302,7 @@ public partial class IslandGame
         {
             ShadowLabel(new Rect(14, infoY, 320, 18), Count(Item.Antidote) > 0 ? "ติดพิษ! คลิกยาแก้พิษในกระเป๋า" : "ติดพิษ! พลังชีวิตลดลงเรื่อยๆ", small,
                 new Color(0.6f, 1f, 0.4f, 0.6f + 0.4f * Mathf.Sin(Time.time * 6f)));
-            infoY += 16f;
+            infoY += 19f;
         }
         if (skillPoints > 0)
             ShadowLabel(new Rect(14, infoY, 300, 18), $"มีแต้มสกิล {skillPoints} แต้ม! กด K", small,
@@ -298,9 +345,7 @@ public partial class IslandGame
         if (dialog != null) DrawDialog(W, H);
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
-        if (!touchUsed) ShadowLabel(new Rect(14, H - 22, W - 28, 20),
-            buildOpen ? "WASD เดิน | E วาง/รื้อ | Z X เลือกของ | R หมุน | G หรือ Esc ออกจากโหมดสร้าง"
-            : "WASD เดิน | E ใช้/โจมตี | R พลัง | T ท่าพิเศษ | B กระเป๋า | 1-8 ช่องลัด | F กิน | Q ดื่มน้ำ | Tab ประดิษฐ์ | K สกิล | H เกาะส่วนตัว | G สร้าง/รื้อ | M เสียง | F5 เซฟ", small);
+        if (!touchUsed) DrawKeyBar(W, H);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
@@ -600,6 +645,7 @@ public partial class IslandGame
     void DrawDialog(float W, float H)
     {
         var d = dialog;
+        if (d.shop != null) { DrawShop(W, H, d); return; } // market stalls (IslandGame.Shop.cs)
         float pw = Mathf.Min(620f, W - 20f);
         const float optH = 26f;
         var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
@@ -697,9 +743,10 @@ public partial class IslandGame
         else if (pond != null) { text = "ดื่มน้ำ"; at = GridToWorld(pond.Value) + Vector3.up * 0.3f; }
         else if (seaSpot != null && HasRod) { text = "ตกปลา (เบ็ด)"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }
         else if (seaSpot != null && HasSpear) { text = "แทงปลา"; at = GridToWorld(seaSpot.Value) + Vector3.up * 0.3f; }
-        if (text == null) return;
+        if (string.IsNullOrEmpty(text)) { DrawNearMiss(s); return; } // something usable just out of reach (IslandGame.Feel.cs)
         var gp = ToGui(at, s);
-        ShadowLabel(new Rect(gp.x - 110, gp.y - 22, 220, 20), $"[E] {text}", labelCenter);
+        string note = enemyTarget == null && villagerTarget == null && target != null && voyage == null && fishState == 0 ? TargetNote(target) : null;
+        DrawKeyTag(gp, text, note, 1f, !touchUsed);
     }
 
     void DrawInventory(float W, float H)
@@ -743,24 +790,60 @@ public partial class IslandGame
 
     void DrawCrafting(float W, float H)
     {
-        const float pw = 330f, rowH = 52f, top = 70f;
-        var Recipes = CraftList; // the workbench has its own list (IslandGame.House.cs)
-        float contentH = Recipes.Length * (rowH + 4f);
-        var panel = new Rect(W - pw - 14, top, pw, Mathf.Min(H - top - 130f, contentH + 40f));
+        if (benchOpen && !inHouse) { craftOpen = false; benchOpen = false; return; } // the home list only works inside your house
+        const float pw = 360f, rowH = 52f, headH = 22f, top = 64f;
+        var view = CraftView(); // the workbench has its own list (IslandGame.House.cs)
+        var tabs = CraftTabs;
+        int tab = Mathf.Clamp(CurrentTab, 0, tabs.Length - 1);
+        // rows plus a header wherever the category changes (only while showing every tab)
+        float contentH = 0f;
+        for (int i = 0; i < view.Count; i++) contentH += (tab == 0 && (i == 0 || RecipeCat(view[i]) != RecipeCat(view[i - 1])) ? headH : 0f) + rowH + 4f;
+        if (view.Count == 0) contentH = 40f;
+        const float headerH = 86f;
+        var panel = new Rect(W - pw - 14, top, pw, Mathf.Min(H - top - 130f, contentH + headerH + 6f));
+        Color accent = benchOpen ? new Color(1f, 0.78f, 0.45f) : new Color(0.6f, 0.95f, 1f);
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
-        ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), (benchOpen ? "โต๊ะช่าง" : "ประดิษฐ์") + "   <size=11>(Tab ปิด, กดตัวเลขเพื่อสร้าง)</size>", label);
+        Fill(new Rect(panel.x, panel.y, panel.width, 3), accent);
+        ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), benchOpen ? "โต๊ะช่าง · ของใช้ในบ้าน" : "ประดิษฐ์ · ของผจญภัย", label, accent);
+        GUI.Label(new Rect(panel.x + 10, panel.y + 26, pw - 20, 16),
+            benchOpen ? "<color=#cccccc>ทำได้ในบ้านเท่านั้น · [ ] เปลี่ยนหมวด · ตัวเลขสร้าง</color>"
+                      : "<color=#cccccc>ของใช้ในบ้านทำที่โต๊ะช่างในบ้าน · [ ] เปลี่ยนหมวด</color>", small);
         var fire = benchOpen ? null : FireInReach();
         if (fire != null && GUI.Button(new Rect(panel.xMax - 92, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
 
-        var view = new Rect(panel.x + 4, panel.y + 32, pw - 8, panel.height - 36);
-        var content = new Rect(0, 0, view.width - 18, contentH);
-        craftScroll = GUI.BeginScrollView(view, craftScroll, content, false, true);
-        for (int i = 0; i < Recipes.Length; i++)
+        // category tabs
+        float tx = panel.x + 6, ty = panel.y + 46, tw = (pw - 12f) / tabs.Length;
+        var tabStyle = new GUIStyle(GUI.skin.button) { fontSize = 11, richText = true, padding = new RectOffset(1, 1, 2, 2) };
+        for (int t = 0; t < tabs.Length; t++)
         {
-            var r = Recipes[i];
-            var row = new Rect(2, i * (rowH + 4f), content.width - 4, rowH);
+            bool on = t == tab;
+            if (on) Fill(new Rect(tx + t * tw, ty, tw - 2, 28), new Color(accent.r, accent.g, accent.b, 0.35f));
+            if (GUI.Button(new Rect(tx + t * tw, ty, tw - 2, 28), on ? $"<b>{tabs[t]}</b>" : tabs[t], tabStyle)) { CurrentTab = t; craftScroll = Vector2.zero; return; }
+        }
+
+        var viewRect = new Rect(panel.x + 4, panel.y + headerH, pw - 8, panel.height - headerH - 4);
+        var content = new Rect(0, 0, viewRect.width - 18, contentH);
+        craftScroll = GUI.BeginScrollView(viewRect, craftScroll, content, false, true);
+        if (view.Count == 0) GUI.Label(new Rect(8, 10, content.width - 16, 20), "<color=#cccccc>ยังไม่มีสูตรในหมวดนี้</color>", small);
+        float y = 0f;
+        for (int i = 0; i < view.Count; i++)
+        {
+            var r = view[i];
+            if (tab == 0 && (i == 0 || RecipeCat(r) != RecipeCat(view[i - 1])))
+            {
+                ShadowLabel(new Rect(6, y + 2, content.width - 8, 18), $"— {RecipeCat(r)} —", small, accent);
+                y += headH;
+            }
+            var row = new Rect(2, y, content.width - 4, rowH);
+            y += rowH + 4f;
             GUI.Box(row, GUIContent.none);
+            if (r.output != null && TutorialRecipe == r.output) // the first-steps guide asks for this one (IslandGame.Feel.cs)
+            {
+                var hl = new Color(1f, 0.85f, 0.3f, 0.55f + 0.45f * Mathf.Sin(Time.time * 6f));
+                Fill(new Rect(row.x, row.y, row.width, 2), hl); Fill(new Rect(row.x, row.yMax - 2, row.width, 2), hl);
+                Fill(new Rect(row.x, row.y, 2, row.height), hl); Fill(new Rect(row.xMax - 2, row.y, 2, row.height), hl);
+            }
             Sprite icon = r.output != null ? PixelArt.Icon(r.output.Value)
                         : r.places == NodeKind.Shelter ? PixelArt.Shelter()
                         : r.places == NodeKind.Raft ? PixelArt.Raft(1)
@@ -768,7 +851,8 @@ public partial class IslandGame
                         : PixelArt.Campfire(0);
             Icon(new Rect(row.x + 5, row.y + 9, 32, 32), icon);
             string hotkey = i < 9 ? $"{i + 1}. " : i == 9 ? "0. " : "";
-            ShadowLabel(new Rect(row.x + 44, row.y + 1, 190, 20), $"{hotkey}{r.name}", label);
+            string extra = r.count > 1 ? $" x{r.count}" : "";
+            ShadowLabel(new Rect(row.x + 44, row.y + 1, 220, 20), $"{hotkey}{r.name}{extra}", label);
 
             var cost = new System.Text.StringBuilder();
             foreach (var c in r.cost)

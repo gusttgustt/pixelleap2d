@@ -30,6 +30,7 @@ public class Pet : MonoBehaviour
         home = at;
         grid = at;
         sr = gameObject.AddComponent<SpriteRenderer>();
+        GroundShadow.Attach(sr, 0.8f);
         if (Caught) transform.localScale = Vector3.one * 0.72f; // a tame one is a bit smaller than the wild ones
         height = IslandGame.I.HeightAt(grid);
         heartT = Random.Range(6f, 14f);

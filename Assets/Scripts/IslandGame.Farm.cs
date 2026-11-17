@@ -63,7 +63,7 @@ public partial class IslandGame
                     return;
                 }
                 if (n.hits > 0) { Hint($"{Name(CropOf(n.dropItem))}กำลังโต อีก {Mathf.CeilToInt(n.TimerLeft)} วินาที (ปุ๋ยหมักช่วยให้โตทันที)", 2f); return; }
-                if (Count(Item.WateringCan) == 0) { Hint("ต้องมีบัวรดน้ำ (ประดิษฐ์ได้ใน Tab หรือซื้อที่ร้านเมล็ดพันธุ์)", 3f); return; }
+                if (Count(Item.WateringCan) == 0) { Hint("ต้องมีบัวรดน้ำ (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านเมล็ดพันธุ์)", 3f); return; }
                 n.hits = 1;
                 n.StartTimer(StageSeconds(n.dropItem) * (NearScarecrow(n.grid) ? 0.75f : 1f) / GrowScale);
                 n.Refresh();

@@ -191,14 +191,60 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ the workbench
-    Recipe[] CraftList => benchOpen ? BenchRecipes : Recipes;
+    // ------------------------------------------------------------------ crafting tabs
+    // Two separate lists: adventure crafting (Tab / C anywhere outside your house) and the
+    // workbench's home list (farm supplies, home tools, furniture), which only works inside your house.
+    static readonly string[] AdventureTabs = { "ทั้งหมด", "วัตถุดิบ", "เครื่องมือ", "อาหาร/ยา", "เรือ/ที่พัก", "เครื่องแต่งกาย" };
+    static readonly string[] BenchTabs = { "ทั้งหมด", "ฟาร์ม", "เครื่องมือบ้าน", "เฟอร์นิเจอร์" };
+    int craftTab, benchTab;
+    string[] CraftTabs => benchOpen ? BenchTabs : AdventureTabs;
+    int CurrentTab { get => benchOpen ? benchTab : craftTab; set { if (benchOpen) benchTab = value; else craftTab = value; } }
+
+    static string RecipeCat(Recipe r)
+    {
+        if (r.cat != null) return r.cat;
+        var it = r.output;
+        string c;
+        if (it is Item.FurnBed or Item.FurnTable or Item.FurnChair or Item.FurnRug or Item.FurnPlant or Item.FurnShelf or Item.FurnWorkbench) c = "เฟอร์นิเจอร์";
+        else if (it is Item.Fertilizer or Item.AnimalFeed or Item.CarrotSeed or Item.TomatoSeed or Item.WheatSeed) c = "ฟาร์ม";
+        else if (it is Item.Hoe or Item.WateringCan or Item.Hammer) c = "เครื่องมือบ้าน";
+        else if (r.places != null || r.raftUpgrade || it is Item.CanvasSail or Item.Balloon or Item.DivingBell) c = "เรือ/ที่พัก";
+        else if (it is Item.Rope or Item.Plank or Item.Cloth) c = "วัตถุดิบ";
+        else if (it is Item.Antidote || (it != null && FoodValue(it.Value) > 0)) c = "อาหาร/ยา";
+        else if (it != null && (IsClothing(it.Value) || it is Item.SpikedBoots or Item.ButterflyWings)) c = "เครื่องแต่งกาย";
+        else c = "เครื่องมือ";
+        return r.cat = c;
+    }
+
+    /// The recipes shown in the crafting panel right now, grouped by tab order (number keys follow this list).
+    List<Recipe> CraftView()
+    {
+        var all = benchOpen ? BenchRecipes : Recipes;
+        var tabs = CraftTabs;
+        int tab = Mathf.Clamp(CurrentTab, 0, tabs.Length - 1);
+        var list = new List<Recipe>();
+        for (int t = 1; t < tabs.Length; t++)
+            if (tab == 0 || tab == t)
+                foreach (var r in all) if (RecipeCat(r) == tabs[t]) list.Add(r);
+        return list;
+    }
+
+    /// Tab / C / the touch button: inside your house it opens the workbench's home list, elsewhere the adventure list.
+    void ToggleCraft()
+    {
+        if (craftOpen) { craftOpen = false; benchOpen = false; return; }
+        if (inHouse) { OpenBench(); return; }
+        craftOpen = true; benchOpen = false; skillsOpen = false; bagOpen = false;
+        craftScroll = Vector2.zero;
+    }
 
     void OpenBench()
     {
+        if (!inHouse) { Hint("ของใช้ในบ้านทำได้ที่โต๊ะช่างในบ้านเท่านั้น", 2.5f); return; }
         craftOpen = true; benchOpen = true;
         skillsOpen = false; bagOpen = false;
         craftScroll = Vector2.zero;
-        Hint("โต๊ะช่าง: ทำของสำหรับฟาร์มและของตกแต่งบ้าน (ทำเสร็จแล้วกด G เพื่อวางเฟอร์นิเจอร์)", 3f);
+        Hint("โต๊ะช่าง: ทำของใช้ในบ้าน ของฟาร์ม และเฟอร์นิเจอร์ (ทำเสร็จแล้วกด G เพื่อวางเฟอร์นิเจอร์)", 3f);
     }
 
     static readonly Recipe[] BenchRecipes =

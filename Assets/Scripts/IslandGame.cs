@@ -49,6 +49,7 @@ public class Recipe
     public bool raftUpgrade;    // cost depends on the island's biome and raft level (see RefreshRaftUpgrade)
     public bool learn;          // must be taught by the tribe's weaver first
     public int count = 1;       // how many you get
+    public string cat;          // tab in the crafting panel (set by IslandGame.RecipeCat)
 }
 
 /// <summary>
@@ -84,7 +85,7 @@ public partial class IslandGame : MonoBehaviour
     const float DayLength = 240f;          // seconds per full day
     const float StarveSeconds = 300f;      // full -> empty hunger
     const float ThirstSeconds = 220f;      // full -> empty thirst
-    const float InteractRange = 1.3f;
+    const float InteractRange = 1.45f; // grid units: things just below you on screen count as close too
     const float AutosaveInterval = 30f;
     const float RespawnInterval = 15f;     // how often a new stick / rock may appear
     const int FlaskSize = 3;
@@ -136,13 +137,10 @@ public partial class IslandGame : MonoBehaviour
         new Recipe { name = "ผ้าคลุมพายุ", output = Item.StormHood, learn = true, cost = new[] { (Item.Copper, 3), (Item.Feather, 2), (Item.Fiber, 6) }, desc = "หมวก: โจมตีเร็วขึ้น 20%, ดาเมจ +1, ฟ้าผ่าไม่โดน" },
         // taught by the Giant Insect island's butterfly keeper
         new Recipe { name = "ปีกผีเสื้อ", output = Item.ButterflyWings, learn = true, cost = new[] { (Item.Nectar, 4), (Item.Chitin, 4), (Item.Fiber, 6) }, desc = "เดินเร็วขึ้น 15% ทุกที่" },
-        // private island: farming, fishing, building (IslandGame.Home.cs)
+        // general goods (farm tools, seeds and furniture are made at the workbench inside your house: BenchRecipes)
         new Recipe { name = "แผ่นไม้", output = Item.Plank, count = 2, cost = new[] { (Item.Wood, 2) }, desc = "ไสไม้เป็นแผ่น ใช้สร้างบ้านและม้านั่ง (ได้ 2 แผ่น)" },
-        new Recipe { name = "จอบ", output = Item.Hoe, cost = new[] { (Item.Stick, 2), (Item.Stone, 2), (Item.Rope, 1) }, desc = "ขุดแปลงผักบนเกาะส่วนตัว (G)" },
         new Recipe { name = "ตาข่ายจับสัตว์", output = Item.PetNet, count = 2, cost = new[] { (Item.Rope, 2), (Item.Fiber, 4), (Item.Stick, 1) }, desc = "ตีสัตว์ป่าให้เลือดเหลือครึ่ง แล้วกด P จับ" },
-        new Recipe { name = "บัวรดน้ำ", output = Item.WateringCan, cost = new[] { (Item.Wood, 2), (Item.Stone, 1), (Item.Rope, 1) }, desc = "รดน้ำแปลงผักให้โต" },
         new Recipe { name = "เบ็ดตกปลา", output = Item.FishingRod, cost = new[] { (Item.Stick, 3), (Item.Rope, 2), (Item.Fiber, 2) }, desc = "ตกปลาริมทะเล ได้ปลาหลายชนิด" },
-        new Recipe { name = "ค้อน", output = Item.Hammer, cost = new[] { (Item.Stick, 2), (Item.Stone, 3), (Item.Rope, 1) }, desc = "รื้อสิ่งก่อสร้าง ได้วัตถุดิบคืนครึ่งหนึ่ง (G)" },
         new Recipe { name = "ไข่ทอด", output = Item.CookedEgg, cost = new[] { (Item.Egg, 1) }, needsFire = true, desc = "อิ่ม +30, พลังชีวิต +10" },
         new Recipe { name = "สลัดผัก", output = Item.Salad, cost = new[] { (Item.Carrot, 1), (Item.Tomato, 1) }, desc = "อิ่ม +45, พลังชีวิต +15" },
         new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
@@ -961,10 +959,20 @@ public partial class IslandGame : MonoBehaviour
         foreach (var n in nodes)
         {
             if (!n.Blocking) continue;
+            if (n.kind == NodeKind.Cottage) { if (SquareDepth(n, g, pad) > 0f) return false; continue; } // a 3x3 house is square, not round
             float r = n.BlockRadius + pad;
             if ((n.grid - g).sqrMagnitude < r * r) return false;
         }
         return true;
+    }
+
+    /// The house stands on a 3 x 3 tile square: how far g is inside it (0 = outside).
+    const float CottageHalf = 1.3f;
+    static float SquareDepth(WorldNode n, Vector2 g, float pad)
+    {
+        float h = CottageHalf + pad;
+        float dx = h - Mathf.Abs(g.x - n.grid.x), dy = h - Mathf.Abs(g.y - n.grid.y);
+        return dx > 0f && dy > 0f ? Mathf.Min(dx, dy) : 0f;
     }
 
     /// How deep g sits inside solid things (0 = free). Lets a stuck player walk out.
@@ -974,6 +982,7 @@ public partial class IslandGame : MonoBehaviour
         foreach (var n in nodes)
         {
             if (!n.Blocking) continue;
+            if (n.kind == NodeKind.Cottage) { sum += SquareDepth(n, g, pad); continue; }
             float r = n.BlockRadius + pad, d = (n.grid - g).magnitude;
             if (d < r) sum += r - d;
         }

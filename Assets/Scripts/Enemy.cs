@@ -183,6 +183,7 @@ public class Enemy : MonoBehaviour
         sr = gameObject.AddComponent<SpriteRenderer>();
         height = IslandGame.I.HeightAt(g);
         Apply();
+        GroundShadow.Attach(sr, Mathf.Clamp(sr.sprite != null ? sr.sprite.bounds.size.x * 1.4f : 1f, 0.6f, 3f));
     }
 
     /// Puppets: the latest state from the host.

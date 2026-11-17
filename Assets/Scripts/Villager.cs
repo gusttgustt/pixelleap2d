@@ -26,6 +26,7 @@ public class Villager : MonoBehaviour
         home = homePos;
         grid = homePos;
         sr = gameObject.AddComponent<SpriteRenderer>();
+        GroundShadow.Attach(sr);
         height = IslandGame.I.HeightAt(grid);
         Apply();
     }

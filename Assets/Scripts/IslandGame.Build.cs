@@ -121,7 +121,7 @@ public partial class IslandGame
             var tb = CurrentBuild;
             if (tb.hammer)
             {
-                if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ประดิษฐ์ใน Tab หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
+                if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
                 if (demolishTarget == null) { Hint(inHouse ? "แตะที่เฟอร์นิเจอร์เพื่อเก็บ" : "แตะที่สิ่งที่สร้างไว้เพื่อรื้อ", 2f); return; }
                 Demolish(demolishTarget);
                 return;
@@ -140,7 +140,7 @@ public partial class IslandGame
         var b = CurrentBuild;
         if (b.hammer)
         {
-            if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ประดิษฐ์ใน Tab หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
+            if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
             if (demolishTarget == null) { if (pressed) Hint("หันหน้าไปที่สิ่งที่สร้างไว้เพื่อรื้อ", 2f); return; }
             Demolish(demolishTarget);
             return;
@@ -216,6 +216,7 @@ public partial class IslandGame
             ghost.enabled = false;
             demolishTarget = FindDemolishTarget();
             cursor.enabled = demolishTarget != null;
+            cursor.transform.localScale = Vector3.one;
             if (demolishTarget != null)
             {
                 cursor.transform.position = IslandGame.GridToWorld(demolishTarget.grid) + Vector3.up * HeightAt(demolishTarget.grid);
@@ -235,6 +236,7 @@ public partial class IslandGame
         ghost.transform.position = pos;
         ghost.color = buildOk ? new Color(0.7f, 1f, 0.7f, 0.7f) : new Color(1f, 0.45f, 0.45f, 0.55f);
         cursor.enabled = true;
+        cursor.transform.localScale = Vector3.one;
         cursor.transform.position = pos;
         cursor.color = buildOk ? new Color(0.6f, 1f, 0.6f, 0.9f) : new Color(1f, 0.4f, 0.4f, 0.9f);
     }
@@ -291,7 +293,7 @@ public partial class IslandGame
         if (b.item != null && Count(b.item.Value) == 0) { why = $"ไม่มี{Name(b.item.Value)}ในกระเป๋า (คราฟต์ที่โต๊ะช่าง)"; return false; }
         if (b.kind == NodeKind.Plot)
         {
-            if (Count(Item.Hoe) == 0) { why = "ต้องมีจอบ (ประดิษฐ์ใน Tab หรือซื้อที่ร้านเมล็ดพันธุ์)"; return false; }
+            if (Count(Item.Hoe) == 0) { why = "ต้องมีจอบ (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านเมล็ดพันธุ์)"; return false; }
             if (tiles[t.x, t.y] != 2) { why = "ขุดแปลงผักได้บนพื้นหญ้าเท่านั้น"; return false; }
         }
         Vector2 g = t;

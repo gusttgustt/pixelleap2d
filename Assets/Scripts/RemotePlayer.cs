@@ -25,6 +25,7 @@ public class RemotePlayer : MonoBehaviour
         netId = id;
         playerName = string.IsNullOrEmpty(name) ? "ผู้เล่น " + id : name;
         sr = gameObject.AddComponent<SpriteRenderer>();
+        GroundShadow.Attach(sr);
         sr.enabled = false; // until the first position arrives
     }
 

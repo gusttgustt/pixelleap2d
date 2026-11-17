@@ -8,6 +8,7 @@ public partial class IslandGame
     public class Dialog
     {
         public string speaker, text;
+        public Villager shop; // a market stall: drawn as the shop window instead (IslandGame.Shop.cs)
         public readonly List<(string label, System.Action act, bool enabled)> options = new List<(string, System.Action, bool)>();
     }
 
@@ -215,6 +216,7 @@ public partial class IslandGame
         if (touchActionPressed) { CloseDialog(); return; } // the E button on a touch screen
         if (kb == null) return;
         if (kb.escapeKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame) { CloseDialog(); return; }
+        if (dialog.shop != null) return; // the shop window is clicked / tapped
         for (int i = 0; i < dialog.options.Count && i < 9; i++)
             if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame)
             {

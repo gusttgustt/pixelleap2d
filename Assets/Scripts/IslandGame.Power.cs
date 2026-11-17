@@ -313,9 +313,9 @@ public partial class IslandGame
         float atk = PowerAttackReady;
         Bar(new Rect(14, y + 2, 180, 10), atk, atk >= 1f ? PowerColor(power) : new Color(0.45f, 0.42f, 0.38f),
             atk >= 1f ? $"ท่าพิเศษ: {PowerAttackName(power)} [T]" : $"ท่าพิเศษ: {PowerAttackName(power)}");
-        y += 16f;
-        if (Invisible) { ShadowLabel(new Rect(14, y, 300, 18), $"ล่องหนอยู่ {invisibleT:0.0} วิ", small, new Color(0.75f, 0.7f, 1f)); y += 16f; }
-        if (Bubbled) { ShadowLabel(new Rect(14, y, 300, 18), $"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง", small, new Color(0.6f, 0.9f, 1f)); y += 16f; }
+        y += 19f;
+        if (Invisible) { ShadowLabel(new Rect(14, y, 300, 18), $"ล่องหนอยู่ {invisibleT:0.0} วิ", small, new Color(0.75f, 0.7f, 1f)); y += 19f; }
+        if (Bubbled) { ShadowLabel(new Rect(14, y, 300, 18), $"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง", small, new Color(0.6f, 0.9f, 1f)); y += 19f; }
         return y;
     }
 

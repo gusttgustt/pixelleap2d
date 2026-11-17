@@ -63,8 +63,8 @@ public partial class IslandGame
 
     static bool IsSeafood(Item it) => it is Item.RawFish or Item.CookedFish or Item.Tuna or Item.GoldenFish or Item.CrabMeat or Item.CookedCrab or Item.Pearl or Item.Coral or Item.ShellShard;
 
-    int shopPage;
-    bool shopSelling, sellAll;
+
+    bool shopSelling;
 
     /// The shopkeepers, one per stall, and a couple of townsfolk strolling around the fountain.
     void SpawnHomeFolk()
@@ -94,38 +94,44 @@ public partial class IslandGame
     }
 
     static string WareName(Ware w) => w.name ?? (w.n > 1 ? $"{Name(w.item.Value)} x{w.n}" : Name(w.item.Value));
+    static Sprite WareIcon(Ware w) => w.pet != null ? PixelArt.Pet(w.pet.Value, 0)
+                                    : w.animal == NodeKind.Cow ? PixelArt.Cow(0)
+                                    : w.animal != null ? PixelArt.Chicken(0)
+                                    : PixelArt.Icon(w.item.Value);
+    /// Goods you can buy several of at once (not tools, animals or pets).
+    static bool Stackable(Ware w) => w.item != null && !IsTool(w.item.Value);
 
+    static bool ShopSells(VillagerRole r) => r != VillagerRole.Buyer;                          // has a "buy" tab
+    static bool ShopBuys(VillagerRole r) => r is VillagerRole.Buyer or VillagerRole.Fisher;    // has a "sell" tab
+    static Ware[] WaresOf(VillagerRole r) => r switch { VillagerRole.FarmShop => FarmWares, VillagerRole.BuildShop => BuildWares, VillagerRole.PetShop => PetWares, _ => FishWares };
+    static readonly Item[] Produce = { Item.Carrot, Item.Tomato, Item.Egg, Item.Milk };
+
+    Vector2 shopScroll;
+
+    /// Walking up to a stall opens the shop window (drawn by DrawShop); `text` is the keeper's latest line.
     void ShopDialog(Villager v, Dialog d, string text)
     {
-        if (text == null) { shopPage = 0; shopSelling = v.role == VillagerRole.Buyer; } // just walked up
-        int coins = Count(Item.GoldCoin);
-        string greet = v.role switch
+        if (text == null) { shopSelling = !ShopSells(v.role); shopScroll = Vector2.zero; } // just walked up
+        d.shop = v;
+        d.text = text ?? v.role switch
         {
             VillagerRole.FarmShop => "เมล็ดพันธุ์สดๆ ไก่ วัว มีครบจ้า ปลูกเยอะๆ แล้วเอาผลผลิตไปขายร้านเจ๊ได้เลย",
             VillagerRole.BuildShop => "อยากสร้างบ้าน รั้ว หรือม้านั่ง? ไม้กับหินลุงมีให้ทั้งหมด",
-            VillagerRole.Fisher => "ทะเลรอบเกาะนี้ปลาชุม! มีเบ็ดสักคันแล้วไปยืนริมหาดดูสิ",
+            VillagerRole.Fisher => "ทะเลรอบเกาะนี้ปลาชุม! มีเบ็ดสักคันแล้วไปยืนริมหาดดูสิ จะขายปลาก็กดแท็บ \"ขายของ\" ได้เลย",
             VillagerRole.PetShop => "น้องๆ ทุกตัวขี้อ้อนมากเลยนะ! ตัวที่พาไปด้วยจะเดินตามไปทุกเกาะ และคาบของมาให้ด้วย อยากได้สัตว์ป่าก็ใช้ตาข่ายจับเอาเองได้",
             _ => "ผัก ไข่ นม ปลา ของจากเกาะไกลๆ เจ๊รับซื้อหมด ราคายุติธรรม!",
         };
-        d.text = $"{text ?? greet}\n<color=#ffd84d>เหรียญทองของคุณ: {coins}</color>";
-        if (shopSelling) { SellOptions(v, d); return; }
-
-        var wares = v.role switch { VillagerRole.FarmShop => FarmWares, VillagerRole.BuildShop => BuildWares, VillagerRole.PetShop => PetWares, _ => FishWares };
-        foreach (var ware in wares)
-        {
-            var w = ware;
-            bool owned = w.item != null && IsTool(w.item.Value) && Count(w.item.Value) > 0;
-            d.options.Add(owned ? ($"{WareName(w)} (มีแล้ว)", () => { }, false)
-                                : ($"ซื้อ{WareName(w)} - {w.price} เหรียญ", () => Buy(v, w), coins >= w.price));
-        }
-        if (v.role == VillagerRole.Fisher) d.options.Add(("ขายปลาและของทะเล", () => { shopSelling = true; shopPage = 0; OpenDialog(v, "เอาอะไรมาขายล่ะ?"); }, true));
     }
 
-    void Buy(Villager v, Ware w)
+    /// Buy `times` lots of a ware at once.
+    void Buy(Villager v, Ware w, int times = 1)
     {
-        if (Count(Item.GoldCoin) < w.price) return;
+        if (!Stackable(w)) times = 1;
+        int cost = w.price * times;
+        if (times <= 0 || Count(Item.GoldCoin) < cost) return;
         if (w.pet != null && pets.Count >= MaxPets) { OpenDialog(v, $"โอ๊ะ มีสัตว์เลี้ยงครบ {MaxPets} ตัวแล้วนี่ ดูแลไม่ไหวหรอก"); return; }
-        inv[Item.GoldCoin] -= w.price;
+        inv[Item.GoldCoin] -= cost;
+        Popup($"-{cost} เหรียญทอง", PlayerPos + Vector3.up * 1f, new Color(1f, 0.75f, 0.3f));
         if (w.pet != null)
         {
             var p = AddPet(w.pet.Value);
@@ -143,30 +149,18 @@ public partial class IslandGame
             Fx.Burst(n.transform.position + Vector3.up * 0.3f, new Color(1f, 0.85f, 0.5f), 10, 0.8f, 1f, 1f, 2f);
             Hint($"ได้{w.name}! สัตว์จะเดินเล่นแถวที่ปล่อย ทำรั้วล้อมคอกไว้ได้ (G)", 4f);
         }
-        else Give(w.item.Value, w.n, null);
+        else Give(w.item.Value, w.n * times, null);
         Sfx.Play("craft", 0.5f);
-        OpenDialog(v, $"ขอบใจจ้า! ได้{WareName(w)}แล้ว");
+        OpenDialog(v, times > 1 ? $"ขอบใจจ้า! ได้{Name(w.item.Value)} {w.n * times} ชิ้น จ่ายไป {cost} เหรียญ" : $"ขอบใจจ้า! ได้{WareName(w)}แล้ว");
     }
 
-    void SellOptions(Villager v, Dialog d)
+    /// What this stall will buy from your bag, in a steady order (rows don't jump around while you sell).
+    List<Item> SellList(Villager v)
     {
         var list = new List<Item>();
         foreach (Item it in System.Enum.GetValues(typeof(Item)))
             if (Count(it) > 0 && SellPrice(it) > 0 && (v.role != VillagerRole.Fisher || IsSeafood(it))) list.Add(it);
-        list.Sort((a, b) => (SellPrice(b) * Count(b)).CompareTo(SellPrice(a) * Count(a)));
-        if (list.Count == 0) d.text += "\n(ไม่มีของที่ขายได้ในกระเป๋า)";
-        const int perPage = 6;
-        shopPage = Mathf.Clamp(shopPage, 0, Mathf.Max(0, (list.Count - 1) / perPage));
-        for (int i = shopPage * perPage; i < list.Count && i < (shopPage + 1) * perPage; i++)
-        {
-            var it = list[i];
-            int n = sellAll ? Count(it) : 1;
-            d.options.Add(($"ขาย{Name(it)} x{n} ได้ {n * SellPrice(it)} เหรียญ  (มี {Count(it)}, ชิ้นละ {SellPrice(it)})", () => Sell(v, it, n), true));
-        }
-        d.options.Add((sellAll ? "โหมด: ขายทั้งหมด (กดเพื่อขายทีละชิ้น)" : "โหมด: ขายทีละชิ้น (กดเพื่อขายทั้งหมด)", () => { sellAll = !sellAll; OpenDialog(v, "เปลี่ยนวิธีขายแล้ว"); }, true));
-        if (shopPage > 0) d.options.Add(("◀ หน้าก่อน", () => { shopPage--; OpenDialog(v, "เลือกของที่จะขาย"); }, true));
-        if ((shopPage + 1) * perPage < list.Count) d.options.Add(("หน้าถัดไป ▶", () => { shopPage++; OpenDialog(v, "เลือกของที่จะขาย"); }, true));
-        if (v.role == VillagerRole.Fisher) d.options.Add(("ดูของที่ขาย", () => { shopSelling = false; OpenDialog(v, "เลือกดูได้เลย"); }, true));
+        return list;
     }
 
     void Sell(Villager v, Item it, int n)
@@ -180,5 +174,159 @@ public partial class IslandGame
         Popup($"+{got} เหรียญทอง", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
         Sfx.Play("pickup", 0.5f);
         OpenDialog(v, $"ขาย{Name(it)} {n} ชิ้น ได้ {got} เหรียญ");
+    }
+
+    /// Sell every farm crop, egg and milk in one go (the buyer only).
+    void SellProduce(Villager v)
+    {
+        int got = 0, pieces = 0;
+        foreach (var it in Produce)
+        {
+            int n = Count(it);
+            if (n <= 0) continue;
+            got += n * SellPrice(it); pieces += n;
+            inv[it] = 0;
+        }
+        if (pieces == 0) return;
+        inv[Item.GoldCoin] = Count(Item.GoldCoin) + got;
+        Popup($"+{got} เหรียญทอง", PlayerPos + Vector3.up * 1f, new Color(1f, 0.85f, 0.3f));
+        Sfx.Play("pickup", 0.5f);
+        OpenDialog(v, $"ขายผลผลิต {pieces} ชิ้น ได้ {got} เหรียญ ขอบใจจ้า!");
+    }
+
+    // ------------------------------------------------------------------ the shop window
+    void DrawShop(float W, float H, Dialog d)
+    {
+        var v = d.shop;
+        if (v == null) { CloseDialog(); return; }
+        int coins = Count(Item.GoldCoin);
+        float pw = Mathf.Min(600f, W - 16f);
+        // below the top-right HUD buttons (home / build, IslandGame.Home.cs) and above the hotbar
+        float ph = Mathf.Min(420f, H - 80f - 92f);
+        var box = new Rect(W / 2f - pw / 2f, Mathf.Max(80f, (H - ph) / 2f - 30f), pw, ph);
+        Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.97f));
+        Fill(new Rect(box.x, box.y, box.width, 3), new Color(1f, 0.85f, 0.3f, 0.9f));
+        var wrap = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
+        var btn = new GUIStyle(GUI.skin.button) { fontSize = 12, richText = true };
+
+        // header: who, your coins, close
+        ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 200, 22), v.Title, label, new Color(1f, 0.85f, 0.3f));
+        Icon(new Rect(box.xMax - 178, box.y + 8, 20, 20), PixelArt.Icon(Item.GoldCoin));
+        ShadowLabel(new Rect(box.xMax - 154, box.y + 8, 80, 22), $"{coins}", label, new Color(1f, 0.85f, 0.3f));
+        if (GUI.Button(new Rect(box.xMax - 72, box.y + 6, 62, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
+        float textH = Mathf.Min(48f, wrap.CalcHeight(new GUIContent(d.text), pw - 28f));
+        GUI.Label(new Rect(box.x + 14, box.y + 32, pw - 28, textH), $"<color=#f0e6d0>{d.text}</color>", wrap);
+        float y = box.y + 36f + textH;
+
+        // buy / sell tabs
+        bool canBuy = ShopSells(v.role), canSell = ShopBuys(v.role);
+        if (!canBuy) shopSelling = true;
+        if (!canSell) shopSelling = false;
+        if (canBuy && canSell)
+        {
+            float tw = (pw - 28f) / 2f;
+            for (int t = 0; t < 2; t++)
+            {
+                bool on = (t == 1) == shopSelling;
+                string name = t == 0 ? "ซื้อของ" : "ขายของ";
+                var r = new Rect(box.x + 14 + t * tw, y, tw - 4, 28);
+                if (on) Fill(r, new Color(1f, 0.85f, 0.3f, 0.35f));
+                if (GUI.Button(r, on ? $"<b>{name}</b>" : name, btn)) { shopSelling = t == 1; shopScroll = Vector2.zero; }
+            }
+            y += 32f;
+        }
+
+        // the buyer's one-tap "sell all produce"
+        if (shopSelling && v.role == VillagerRole.Buyer)
+        {
+            int total = 0, pieces = 0;
+            foreach (var it in Produce) { total += Count(it) * SellPrice(it); pieces += Count(it); }
+            GUI.enabled = pieces > 0;
+            bool click = GUI.Button(new Rect(box.x + 14, y, pw - 28, 26),
+                pieces > 0 ? $"ขายผัก ไข่ นม ทั้งหมด ({pieces} ชิ้น) ได้ <color=#ffd84d>{total} เหรียญ</color>" : "ขายผัก ไข่ นม ทั้งหมด (ไม่มีในกระเป๋า)", btn);
+            GUI.enabled = true;
+            if (click) { SellProduce(v); return; }
+            y += 30f;
+        }
+
+        const float footH = 22f, rowH = 46f;
+        var view = new Rect(box.x + 8, y, pw - 16, box.yMax - y - footH - 4);
+        if (shopSelling) DrawSellRows(v, view, rowH, btn);
+        else DrawBuyRows(v, view, rowH, btn, coins);
+
+        string tip = shopSelling ? "ราคาที่ร้านรับซื้อต่อชิ้น · กด \"ขายหมด\" เพื่อขายทั้งกอง"
+                   : canSell ? "ราคาแดง = เหรียญไม่พอ · x5 ซื้อทีเดียว 5 ชุด"
+                   : "ราคาแดง = เหรียญไม่พอ · x5 ซื้อทีเดียว 5 ชุด · ขายของได้ที่ร้านเจ๊กิมหงวน";
+        GUI.Label(new Rect(box.x + 14, box.yMax - footH, pw - 28, footH - 2), $"<color=#aaaaaa>{tip}</color>", small);
+    }
+
+    void DrawBuyRows(Villager v, Rect view, float rowH, GUIStyle btn, int coins)
+    {
+        var wares = WaresOf(v.role);
+        var content = new Rect(0, 0, view.width - 18, wares.Length * (rowH + 4f));
+        shopScroll = GUI.BeginScrollView(view, shopScroll, content, false, false);
+        for (int i = 0; i < wares.Length; i++)
+        {
+            var w = wares[i];
+            var row = new Rect(2, i * (rowH + 4f), content.width - 4, rowH);
+            GUI.Box(row, GUIContent.none);
+            Icon(new Rect(row.x + 6, row.y + 7, 32, 32), WareIcon(w));
+            ShadowLabel(new Rect(row.x + 46, row.y + 3, 260, 20), WareName(w), label);
+            bool owned = w.item != null && IsTool(w.item.Value) && Count(w.item.Value) > 0;
+            bool full = w.pet != null && pets.Count >= MaxPets;
+            string have = w.pet != null ? $"สัตว์เลี้ยง {pets.Count}/{MaxPets}" : w.animal != null ? "ปล่อยไว้ข้างตัวคุณ" : $"มีอยู่ {Count(w.item.Value)}";
+            string priceCol = coins >= w.price ? "#ffd84d" : "#ff8a8a";
+            GUI.Label(new Rect(row.x + 46, row.y + 23, 260, 18), $"<color={priceCol}>{w.price} เหรียญ</color>  <color=#bbbbbb>· {have}</color>", small);
+
+            float bx = row.xMax - 6;
+            if (owned || full)
+            {
+                GUI.enabled = false;
+                GUI.Button(new Rect(bx - 96, row.y + 9, 96, 28), owned ? "มีแล้ว" : "เต็มแล้ว", btn);
+                GUI.enabled = true;
+                continue;
+            }
+            bool bought = false;
+            if (Stackable(w))
+            {
+                int five = w.price * 5;
+                GUI.enabled = coins >= five;
+                if (GUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"x5 ({five})", btn)) { Buy(v, w, 5); bought = true; }
+                bx -= 92;
+            }
+            GUI.enabled = coins >= w.price;
+            if (!bought && GUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"ซื้อ ({w.price})", btn)) { Buy(v, w); bought = true; }
+            GUI.enabled = true;
+            if (bought) break;
+        }
+        GUI.EndScrollView();
+    }
+
+    void DrawSellRows(Villager v, Rect view, float rowH, GUIStyle btn)
+    {
+        var list = SellList(v);
+        var content = new Rect(0, 0, view.width - 18, Mathf.Max(30f, list.Count * (rowH + 4f)));
+        shopScroll = GUI.BeginScrollView(view, shopScroll, content, false, false);
+        if (list.Count == 0)
+            GUI.Label(new Rect(8, 8, content.width - 16, 20), v.role == VillagerRole.Fisher ? "<color=#cccccc>ไม่มีปลาหรือของทะเลในกระเป๋า</color>" : "<color=#cccccc>ไม่มีของที่ขายได้ในกระเป๋า</color>", small);
+        for (int i = 0; i < list.Count; i++)
+        {
+            var it = list[i];
+            int have = Count(it), price = SellPrice(it);
+            var row = new Rect(2, i * (rowH + 4f), content.width - 4, rowH);
+            GUI.Box(row, GUIContent.none);
+            Icon(new Rect(row.x + 6, row.y + 7, 32, 32), PixelArt.Icon(it));
+            ShadowLabel(new Rect(row.x + 46, row.y + 3, 220, 20), $"{Name(it)}  <size=11><color=#bbbbbb>มี {have}</color></size>", label);
+            GUI.Label(new Rect(row.x + 46, row.y + 23, 220, 18), $"<color=#ffd84d>ชิ้นละ {price} เหรียญ</color>", small);
+
+            float bx = row.xMax - 6;
+            int sell = 0;
+            if (GUI.Button(new Rect(bx - 116, row.y + 9, 116, 28), $"ขายหมด (+{have * price})", btn)) sell = have;
+            bx -= 122;
+            if (have >= 10) { if (GUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 10", btn)) sell = 10; bx -= 68; }
+            if (have > 1 && GUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 1", btn)) sell = 1;
+            if (sell > 0) { Sell(v, it, sell); break; }
+        }
+        GUI.EndScrollView();
     }
 }

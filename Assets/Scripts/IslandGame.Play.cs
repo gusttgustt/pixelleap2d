@@ -103,6 +103,9 @@ public partial class IslandGame
             return;
         }
         FindTarget();
+        FindNearMiss();  // IslandGame.Feel.cs
+        TickTutorial();
+        TickAmbient(dt);
         TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
         TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
         HandleChatKeys(kb);
@@ -126,7 +129,7 @@ public partial class IslandGame
     /// Keys that work both on land and at sea.
     void HandleCommonKeys(Keyboard kb)
     {
-        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) { craftOpen = !craftOpen; benchOpen = false; skillsOpen = false; bagOpen = false; }
+        if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) ToggleCraft(); // adventure list, or the home list inside your house (IslandGame.House.cs)
         if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
         if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; }
         HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
@@ -138,8 +141,13 @@ public partial class IslandGame
         if (kb.vKey.wasPressedThisFrame) AskHomes();    // visit a friend's private island (IslandGame.Visit.cs)
         if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
         if (craftOpen)
-            for (int i = 0; i < CraftList.Length && i < 10; i++)
-                if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(CraftList[i]);
+        {
+            var view = CraftView();
+            for (int i = 0; i < view.Count && i < 10; i++)
+                if (kb[i < 9 ? (Key)((int)Key.Digit1 + i) : Key.Digit0].wasPressedThisFrame) Craft(view[i]);
+            if (kb.leftBracketKey.wasPressedThisFrame) { CurrentTab = (CurrentTab + CraftTabs.Length - 1) % CraftTabs.Length; craftScroll = Vector2.zero; }
+            if (kb.rightBracketKey.wasPressedThisFrame) { CurrentTab = (CurrentTab + 1) % CraftTabs.Length; craftScroll = Vector2.zero; }
+        }
         if (skillsOpen)
             for (int i = 0; i < skills.Length && i < 9; i++)
                 if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)i);
@@ -199,8 +207,8 @@ public partial class IslandGame
         }
 
         // attacks: one per AttackInterval whether you tap or hold (max 3 a second)
-        if (enemyTarget != null) { if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; player.PlayAction(PixelArt.AttackAnim, 16f); Attack(enemyTarget); } }
-        else if (villagerTarget != null) { if (pressed && since > 0.15f) OpenDialog(villagerTarget); }
+        if (enemyTarget != null) { if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; FaceTarget(); player.PlayAction(PixelArt.AttackAnim, 16f); Attack(enemyTarget); } }
+        else if (villagerTarget != null) { if (pressed && since > 0.15f) { FaceTarget(); OpenDialog(villagerTarget); } }
         else if (target != null)
         {
             bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost
@@ -208,6 +216,7 @@ public partial class IslandGame
             if (once ? (pressed && since > 0.15f) : Trigger(0.3f))
             {
                 lastInteract = Time.time;
+                FaceTarget();
                 if (!once) player.PlayAction(PixelArt.AttackAnim, 16f); // chop / mine / pick: same swing
                 Interact(target);
             }
@@ -219,6 +228,7 @@ public partial class IslandGame
             else if (HasSpear) { if (Trigger(0.8f)) FishAt(GridToWorld(seaSpot.Value)); }
             else if (pressed) Hint("น้ำทะเลเค็มเกินไป ดื่มไม่ได้ ทำหอกเพื่อแทงปลาตรงนี้", 3f);
         }
+        else if (pressed && since > 0.15f) { lastInteract = Time.time; MissedInteract(); } // nothing in reach: say so (IslandGame.Feel.cs)
     }
 
     // ------------------------------------------------------------------ targeting
@@ -249,6 +259,7 @@ public partial class IslandGame
         if (enemyTarget == null && villagerTarget == null)
         {
             float best = float.MaxValue;
+            var tutFind = TutorialFind;
             foreach (var n in nodes)
             {
                 if (!n.CanTarget) continue;
@@ -256,6 +267,7 @@ public partial class IslandGame
                 float dist = d.magnitude;
                 if (dist > InteractRange + (n.Blocking ? Mathf.Max(0f, n.BlockRadius - 0.25f) : 0f)) continue; // big things: reach their edge
                 float score = dist - (dist > 0.01f ? Vector2.Dot(d / dist, player.facing) * 0.35f : 0f); // prefer what we face
+                if (n.kind == tutFind) score -= 0.6f; // the first-steps guide asks for this kind (IslandGame.Feel.cs)
                 if (score < best) { best = score; target = n; }
             }
 
@@ -287,7 +299,9 @@ public partial class IslandGame
         if (at != null)
         {
             cursor.transform.position = at.Value;
-            cursor.color = enemyTarget != null ? new Color(1f, 0.4f, 0.4f, 0.9f) : new Color(1f, 1f, 1f, 0.55f + 0.45f * Mathf.Sin(Time.time * 6f));
+            cursor.color = enemyTarget != null ? new Color(1f, 0.4f, 0.4f, 0.95f) : new Color(1f, 0.92f, 0.55f, 0.75f + 0.25f * Mathf.Sin(Time.time * 6f));
+            float pulse = 1f + 0.08f * Mathf.Sin(Time.time * 6f); // the ring breathes so the eye finds it
+            cursor.transform.localScale = new Vector3(pulse, pulse, 1f);
         }
     }
 
@@ -892,6 +906,7 @@ public partial class IslandGame
     public bool CanCraft(Recipe r, out string why)
     {
         why = null;
+        if (!inHouse && System.Array.IndexOf(BenchRecipes, r) >= 0) { why = "ทำได้ที่โต๊ะช่างในบ้านเท่านั้น"; return false; } // home goods stay home
         if (r.learn && r.output != null && !learned.Contains(r.output.Value)) { why = r.output == Item.Antidote || r.output == Item.MushroomLantern ? "ต้องเรียนจากหมอโมรา (เกาะเห็ด)"
                 : r.output == Item.CanvasSail ? "ต้องเรียนจากยายชบา (เกาะเต่ายักษ์)"
                 : r.output == Item.Balloon ? "ต้องเรียนจากปู่ลมพัด (เกาะลอยฟ้า)"

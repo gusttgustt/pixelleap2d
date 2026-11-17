@@ -23,11 +23,27 @@ public class PlayerController : MonoBehaviour
     {
         grid = g;
         sr = gameObject.AddComponent<SpriteRenderer>();
+        GroundShadow.Attach(sr); // IslandGame.Feel.cs
         height = IslandGame.I.HeightAt(g);
         Apply(0);
     }
 
-    public void Flash() { hurtT = 0.2f; PlayAction(PixelArt.HurtAnim, 14f); }
+    public void Flash() { hurtT = 0.2f; PlayAction(PixelArt.HurtAnim, 14f); Squash(0.85f, 1.12f); }
+
+    /// Look at a spot on the grid (the thing you're using or hitting).
+    public void FaceToward(Vector2 g)
+    {
+        Vector3 w = IslandGame.GridToWorld(g) - IslandGame.GridToWorld(grid);
+        if (w.sqrMagnitude < 0.0001f) return;
+        facing = (g - grid).normalized;
+        if (Mathf.Abs(w.y) > 0.05f) dir = w.y > 0 ? 1 : 0;
+        if (Mathf.Abs(w.x) > 0.02f) sr.flipX = w.x < 0;
+        idleT = 0f; // stand up to do it
+    }
+
+    // A quick squash and stretch that settles back: swings, hits and landings get some weight.
+    Vector2 squash = Vector2.one;
+    public void Squash(float x, float y) => squash = new Vector2(x, y);
 
     // Action poses (ready-made characters only; the build-your-own look has none and skips them).
     int action = -1, actionFrames;
@@ -39,6 +55,7 @@ public class PlayerController : MonoBehaviour
         int n = PixelArt.ActionFrames(IslandGame.I.lookCode, anim);
         if (n == 0) return;
         action = anim; actionFrames = n; actionFps = fps; actionT = 0f;
+        if (anim == PixelArt.AttackAnim) Squash(1.12f, 0.9f);
     }
 
     const float SitDelay = 2.5f; // seconds standing still before sitting down to rest
@@ -172,7 +189,11 @@ public class PlayerController : MonoBehaviour
         // Smoothly step up/down terrain levels.
         height = Mathf.Lerp(height, IslandGame.I.HeightAt(grid), 1f - Mathf.Exp(-14f * Time.deltaTime));
         Vector3 flat = IslandGame.GridToWorld(grid);
-        transform.position = flat + Vector3.up * height;
+        // walking: a one-pixel bounce on each step, so the feet land
+        float bob = frame >= 1 && frame < PixelArt.IdleAnim && animT > 0f ? Mathf.Abs(Mathf.Sin(animT * Mathf.PI * 0.5f)) * (1f / PixelArt.PPU) : 0f;
+        transform.position = flat + Vector3.up * (height + Mathf.Round(bob * PixelArt.PPU) / PixelArt.PPU);
+        squash = Vector2.Lerp(squash, Vector2.one, 1f - Mathf.Exp(-18f * Time.deltaTime));
+        transform.localScale = new Vector3(squash.x, squash.y, 1f);
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         sr.sprite = PixelArt.Player(dir, frame, IslandGame.I.hat, IslandGame.I.outfit, IslandGame.I.lookCode);
         var col = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : IslandGame.I.Bubbled ? new Color(0.75f, 0.95f, 1f) : Color.white;

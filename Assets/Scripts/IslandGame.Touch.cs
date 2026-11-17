@@ -113,7 +113,7 @@ public partial class IslandGame
         if (touchTapped.Contains(TouchBtn.Bag)) ToggleBag();
         if (touchTapped.Contains(TouchBtn.Eat)) EatBest();
         if (touchTapped.Contains(TouchBtn.Drink)) DrinkFlask();
-        if (touchTapped.Contains(TouchBtn.Craft)) { craftOpen = !craftOpen; skillsOpen = false; bagOpen = false; }
+        if (touchTapped.Contains(TouchBtn.Craft)) ToggleCraft();
         if (touchTapped.Contains(TouchBtn.Skills)) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
     }
 

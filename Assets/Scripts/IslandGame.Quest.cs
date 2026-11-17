@@ -581,7 +581,7 @@ public partial class IslandGame
     void DrawQuestTracker(float W)
     {
         if (voyage != null || craftOpen) return;
-        float y = 80f;
+        float y = hudButtonsBottom + 8f; // under the menu buttons in the top right corner
         var st = new GUIStyle(small) { alignment = TextAnchor.UpperRight };
         foreach (var v in villagers)
         {
@@ -589,11 +589,11 @@ public partial class IslandGame
             var q = QuestOf(v);
             if (q == null || !Accepted(q)) continue;
             ShadowLabel(new Rect(W - 330, y, 316, 18), $"<b>{q.title}</b>{(QuestReady(q) ? "  <color=#ffd84d>ส่งได้แล้ว!</color>" : "")}", st, new Color(1f, 0.9f, 0.6f));
-            y += 16f;
+            y += 19f;
             foreach (var line in QuestLines(q))
             {
                 ShadowLabel(new Rect(W - 330, y, 316, 18), line, st, line.StartsWith("✓") ? new Color(0.7f, 1f, 0.7f) : Color.white);
-                y += 15f;
+                y += 18f;
             }
             y += 6f;
         }

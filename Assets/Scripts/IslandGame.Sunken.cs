@@ -86,7 +86,7 @@ public partial class IslandGame
     float DrawSunkenHud(float y)
     {
         if (!Sunken) return y;
-        if (CurrentFlowing) { ShadowLabel(new Rect(14, y, 360, 18), "กระแสน้ำกำลังพัด!", small, new Color(0.7f, 0.9f, 1f)); y += 16f; }
+        if (CurrentFlowing) { ShadowLabel(new Rect(14, y, 360, 18), "กระแสน้ำกำลังพัด!", small, new Color(0.7f, 0.9f, 1f)); y += 19f; }
         return y;
     }
 
