@@ -270,7 +270,8 @@ function onMessage(socket, text) {
     if (socket.pid) return;
     clearTimeout(socket.helloTimer);
     socket.pid = nextId++;
-    socket.name = String(m.name || "Islander").slice(0, 16);
+    socket.baseName = String(m.name || "Islander").trim().slice(0, 16) || "Islander";
+    nameCheck(socket);
     clients.set(socket.pid, socket);
     send(socket, { t: "welcome", id: socket.pid, worldSeed: WORLD_SEED });
     log("+ " + socket.name + " #" + socket.pid + " (" + clients.size + " online)");
@@ -278,6 +279,8 @@ function onMessage(socket, text) {
   }
   if (!socket.pid) return;      // must say hello first
   m.from = socket.pid;          // no one can speak for someone else
+  const named = m.t !== "register" && m.t !== "login" && m.t !== "token";
+  if (named && m.name !== undefined) m.name = socket.name; // nor go by another name than the one checked at hello
 
   switch (m.t) {
     case "join": {
@@ -310,6 +313,7 @@ function onMessage(socket, text) {
       const acc = socket.acct && accounts[socket.acct];
       if (acc && m.ev) { acc.tokens = (acc.tokens || []).filter(t => t !== hashToken(m.ev)); saveAccountsSoon(); }
       socket.acct = null;
+      nameCheck(socket);
       return;
     }
     case "home":
@@ -366,6 +370,15 @@ function onMessage(socket, text) {
   }
 }
 
+/// The name others see. A player's name is free to choose, but the name of an account
+/// belongs to that account: anyone else using it gets a "?" after it (e.g. "Gust?"), so
+/// nobody can pass as someone else in chat. Logging in to that account takes the "?" away.
+function nameCheck(socket) {
+  const base = socket.baseName || "Islander", key = keyOf(base);
+  const name = accounts[key] && socket.acct !== key ? base.slice(0, 15) + "?" : base;
+  socket.name = name; // the others see the change with this player's next update
+}
+
 /// Is this player on that owner's private island (outside or in the house)?
 function onHomeOf(socket, owner) {
   return socket.island === -(owner * 2) || socket.island === -(owner * 2 + 1);
@@ -420,6 +433,7 @@ function authOk(socket, acc) {
   acc.at = Date.now();
   saveAccountsSoon();
   socket.acct = keyOf(acc.name);
+  nameCheck(socket);
   const data = readSave(socket.acct);
   send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "" });
   log("  " + socket.name + " logged in as " + acc.name);
