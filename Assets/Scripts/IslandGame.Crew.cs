@@ -36,7 +36,11 @@ public partial class IslandGame
     // either
     bool crewOpen;
     (int id, string name, string ev) crewAsk;          // someone asking (apply / invite), id 0 = none
-    readonly HashSet<int> crewAsked = new HashSet<int>(); // asked this session (don't spam)
+    readonly Dictionary<int, float> crewAsked = new Dictionary<int, float>(); // asked, waiting for an answer (when): no spamming
+    const float CrewAskWait = 20f;   // no answer this long: the button comes back
+
+    /// Asked this player and still waiting for their answer.
+    bool CrewAskPending(int id) => crewAsked.TryGetValue(id, out float at) && Time.time - at < CrewAskWait;
 
     const float BoardReach = 2.5f;   // tiles from the captain to climb aboard
     const float AboardLeash = 8f;    // walk further than this from the captain and you're off the boat
@@ -55,6 +59,7 @@ public partial class IslandGame
     void OnCrew(NetMsg m)
     {
         string who = string.IsNullOrEmpty(m.name) ? "ผู้เล่น" : m.name;
+        if (m.ev is "added" or "accepted" or "no" or "leave" or "kick") crewAsked.Remove(m.from); // answered: they can be asked again later
         switch (m.ev)
         {
             case "apply": // someone wants to join my crew
@@ -391,18 +396,20 @@ public partial class IslandGame
             string tag = isCap ? " <color=#ffe27a>(กัปตัน)</color>" : mate ? (crewAboard.Contains(id) ? " <color=#9dff9d>(ลูกเรือ · บนเรือ)</color>" : " <color=#bfe4ff>(ลูกเรือ)</color>") : "";
             CrispGUI.Label(new Rect(box.x + 10, y + 4, 200, 18), rp.playerName + tag, line);
             var br = new Rect(box.xMax - 130, y, 120, 22);
-            if (mate) { if (CrispGUI.Button(br, "ให้ออกจากลูกเรือ", btn)) { RemoveMate(id); SendCrew(id, "kick"); } }
-            else if (isCap) { if (CrispGUI.Button(br, "ออกจากลูกเรือ", btn)) { SendCrew(id, "leave"); LeaveCrewLocal(); } }
+            if (mate) { if (CrispGUI.Button(br, "ให้ออกจากลูกเรือ", btn)) { RemoveMate(id); crewAsked.Remove(id); SendCrew(id, "kick"); } }
+            else if (isCap) { if (CrispGUI.Button(br, "ออกจากลูกเรือ", btn)) { SendCrew(id, "leave"); crewAsked.Remove(id); LeaveCrewLocal(); } }
             else if (!InCrew && raftLevel > 0)
             {
-                GUI.enabled = !crewAsked.Contains(id);
-                if (CrispGUI.Button(br, crewAsked.Contains(id) ? "ชวนแล้ว" : "ชวนเป็นลูกเรือ", btn)) { crewAsked.Add(id); SendCrew(id, "invite"); Hint($"ชวน {rp.playerName} แล้ว รอตอบรับ", 2.5f); }
+                bool wait = CrewAskPending(id);
+                GUI.enabled = !wait;
+                if (CrispGUI.Button(br, wait ? "ชวนแล้ว รอตอบ..." : "ชวนเป็นลูกเรือ", btn)) { crewAsked[id] = Time.time; SendCrew(id, "invite"); Hint($"ชวน {rp.playerName} แล้ว รอตอบรับ", 2.5f); }
                 GUI.enabled = true;
             }
             else if (!InCrew && !IsCaptain)
             {
-                GUI.enabled = !crewAsked.Contains(id);
-                if (CrispGUI.Button(br, crewAsked.Contains(id) ? "สมัครแล้ว" : "สมัครเป็นลูกเรือ", btn)) { crewAsked.Add(id); SendCrew(id, "apply"); Hint($"สมัครเป็นลูกเรือของ {rp.playerName} แล้ว รอตอบรับ", 2.5f); }
+                bool wait = CrewAskPending(id);
+                GUI.enabled = !wait;
+                if (CrispGUI.Button(br, wait ? "สมัครแล้ว รอตอบ..." : "สมัครเป็นลูกเรือ", btn)) { crewAsked[id] = Time.time; SendCrew(id, "apply"); Hint($"สมัครเป็นลูกเรือของ {rp.playerName} แล้ว รอตอบรับ", 2.5f); }
                 GUI.enabled = true;
             }
             y += 28f;
