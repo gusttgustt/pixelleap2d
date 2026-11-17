@@ -582,16 +582,20 @@ public partial class IslandGame
     {
         if (voyage != null || craftOpen) return;
         float y = hudButtonsBottom + 8f; // under the menu buttons in the top right corner
+        // stop above the power buttons (touch or mouse) so they never sit on the words
+        float maxY = ShowTouch ? GuiH - 250f : power != Power.None ? GuiH - 200f : GuiH - 100f;
         var st = new GUIStyle(small) { alignment = TextAnchor.UpperRight };
         foreach (var v in villagers)
         {
             if (v == null) continue;
             var q = QuestOf(v);
             if (q == null || !Accepted(q)) continue;
+            if (y > maxY - 18f) { ShadowLabel(new Rect(W - 330, y, 316, 18), "...", st); break; }
             ShadowLabel(new Rect(W - 330, y, 316, 18), $"<b>{q.title}</b>{(QuestReady(q) ? "  <color=#ffd84d>ส่งได้แล้ว!</color>" : "")}", st, new Color(1f, 0.9f, 0.6f));
             y += 19f;
             foreach (var line in QuestLines(q))
             {
+                if (y > maxY - 18f) break;
                 ShadowLabel(new Rect(W - 330, y, 316, 18), line, st, line.StartsWith("✓") ? new Color(0.7f, 1f, 0.7f) : Color.white);
                 y += 18f;
             }

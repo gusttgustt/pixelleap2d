@@ -25,6 +25,27 @@ public partial class IslandGame
     /// on the island's west shore, so the sea is to the screen left).
     public Vector3 BoatShoreOffset => new Vector3(-(PixelArt.BoatWidth(BoatLookNow) - 40) * 0.4f / PixelArt.PPU, 0f, 0f);
 
+    /// The same, for a boat beached at g on any shore: pushed out towards the open water there.
+    public Vector3 BoatShoreOffsetAt(Vector2 g)
+    {
+        float len = (PixelArt.BoatWidth(BoatLookNow) - 40) * 0.4f / PixelArt.PPU;
+        return len > 0f ? SeaSide(g) * len : Vector3.zero;
+    }
+
+    /// Screen direction (unit length) from g towards the nearby sea; screen-left if it can't tell.
+    public Vector3 SeaSide(Vector2 g)
+    {
+        if (tiles == null) return Vector3.left;
+        var t = Tile(g);
+        var sum = Vector2.zero;
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dy = -2; dy <= 2; dy++)
+                if ((dx != 0 || dy != 0) && IsSea(t.x + dx, t.y + dy)) sum += new Vector2(dx, dy);
+        if (sum.sqrMagnitude < 0.01f) return Vector3.left;
+        Vector3 w = GridToWorld(sum); // GridToWorld is linear: grid direction -> screen direction
+        return w.sqrMagnitude > 0.0001f ? w.normalized : Vector3.left;
+    }
+
     public float BoatPromptHeight => Mathf.Max(1.05f, PixelArt.BoatHeight(BoatLookNow) * 0.75f);
 
     /// The shipwright's list of every look the boat has had, each with its picture.

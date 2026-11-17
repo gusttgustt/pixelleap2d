@@ -63,6 +63,7 @@ public partial class IslandGame
             }
             if (TickSurvival(dt)) return;
             UpdateVoyage(dt, kb);
+            if (voyage != null) { NetTick(dt); HandleChatKeys(kb); } // other boats see mine; chat at sea
             return;
         }
 

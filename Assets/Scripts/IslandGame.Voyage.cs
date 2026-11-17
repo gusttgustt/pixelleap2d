@@ -41,7 +41,7 @@ public partial class IslandGame
 
     void StartVoyage()
     {
-        LeaveRoom(); // online: you're alone at sea until you reach the next island
+        LeaveRoom(); // online: leave the island's room; at sea you share the waters with the other boats (JoinRoom below)
         if (!atHome) RememberIsland(); // so you can sail back to it later (from home: sailing to a friend)
         if (world != null) Destroy(world.gameObject);
         world = new GameObject("Voyage").transform;
@@ -90,6 +90,7 @@ public partial class IslandGame
         PlanNavy(voyage); // government warships hunting wanted sailors (IslandGame.Navy.cs)
 
         camPos = voyage.raft;
+        JoinRoom(); // online: everyone at sea on these waters sees each other's boats (IslandGame.Net.cs)
         Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!" + (power != Power.None ? " (ใช้พลัง R / ท่าพิเศษ T ได้)" : ""), 6f);
     }
 

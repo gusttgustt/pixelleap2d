@@ -173,6 +173,8 @@
 
     // Keyboard goes to the game after any click/tap on it.
     canvas.addEventListener("pointerdown", function () { canvas.focus(); });
+    // right click is the special power in the game: no browser menu over it
+    canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 
     // Which server to play on. The PC running Server/start-online.bat writes its current address
     // into server.txt next to this page (the free tunnel address changes every time it starts).

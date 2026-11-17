@@ -311,20 +311,6 @@ public partial class IslandGame
         }
     }
 
-    void DrawWeatherFxButton(Rect r)
-    {
-        if (title) return;
-        bool on = WeatherFx;
-        var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
-        st.normal.textColor = on ? new Color(0.7f, 1f, 0.7f) : new Color(1f, 0.6f, 0.55f);
-        st.hover.textColor = st.normal.textColor;
-        if (CrispGUI.Button(r, on ? "เอฟเฟกต์อากาศ: เปิด" : "เอฟเฟกต์อากาศ: ปิด", st))
-        {
-            WeatherFx = !on;
-            Hint(on ? "ปิดเอฟเฟกต์สภาพอากาศแล้ว (อากาศยังมีผลกับตัวละครเหมือนเดิม)" : "เปิดเอฟเฟกต์สภาพอากาศแล้ว", 2.5f);
-        }
-    }
-
     /// Season and weather under the little sky window at the top of the screen.
     void DrawSeasonInfo(Rect r)
     {

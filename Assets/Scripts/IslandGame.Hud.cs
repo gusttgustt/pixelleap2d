@@ -332,7 +332,7 @@ public partial class IslandGame
 
     static readonly (string key, string what)[] AllKeys =
     {
-        ("WASD", "เดิน"), ("E / Space", "ใช้ เก็บ คุย โจมตี"), ("Tab / C", "ประดิษฐ์"), ("B", "กระเป๋า"),
+        ("WASD", "เดิน"), ("E / Space", "ใช้ เก็บ คุย โจมตี"), ("คลิกซ้าย", "เหมือนกด E"), ("คลิกขวา", "ใช้พลังผลไม้ (เหมือน R)"), ("Tab / C", "ประดิษฐ์"), ("B", "กระเป๋า"),
         ("1-8", "ช่องลัด"), ("F", "กินอาหาร"), ("Q", "ดื่มจากกระบอกน้ำ"), ("X", "ดับกองไฟ"),
         ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("K", "สกิล"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
         ("H", "เกาะส่วนตัว / กลับไปผจญภัย"), ("G", "สร้าง / รื้อ"), ("V", "เยี่ยมบ้านเพื่อน"), ("Enter", "แชท"),
@@ -345,7 +345,7 @@ public partial class IslandGame
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb != null && kb.f1Key.wasPressedThisFrame && Event.current.type == EventType.Repaint) helpOpen = !helpOpen;
         string[] keys = buildOpen ? new[] { "WASD เดิน", "E วาง/รื้อ", "Z X เลือกของ", "R หมุน", "G ออก" }
-                      : new[] { "WASD เดิน", "E ใช้/เก็บ", "Tab ประดิษฐ์", "B กระเป๋า", "F กิน", "Q ดื่ม", "F1 ปุ่มทั้งหมด" };
+                      : new[] { "WASD เดิน", "E/คลิกซ้าย ใช้/เก็บ", "คลิกขวา พลัง", "Tab ประดิษฐ์", "B กระเป๋า", "F กิน", "Q ดื่ม", "F1 ปุ่มทั้งหมด" };
         var st = new GUIStyle(small) { fontSize = 13, alignment = TextAnchor.MiddleCenter };
         float x = 10f, y = H - 24f;
         foreach (var k in keys)
@@ -390,20 +390,23 @@ public partial class IslandGame
         float W = Screen.width / s, H = Screen.height / s;
         CrispGUI.Reset();
         if (!title) { DrawTimeOfDayWash(W, H); DrawWeatherOverlay(W, H); } // under every button and panel
-        DrawSoundButton(W);
-        if (!title) DrawHomeButton(W); // private island <-> adventure (IslandGame.Home.cs)
+        DrawGearButton(W); // every setting lives behind the gear icon, top right
+        if (!title && !settingsOpen) DrawHomeButton(W); // private island <-> adventure (IslandGame.Home.cs)
         if (title)
         {
             // keep the creator box in the middle of tall screens (phones held upright, tall windows)
             Fill(new Rect(0, 0, W, H), new Color(0.02f, 0.08f, 0.15f, 0.55f));
+            var keep = GUI.matrix;
             GUI.matrix *= Matrix4x4.Translate(new Vector3(0f, (H - 540f) / 2f, 0f));
             DrawTitle(W, 540f);
+            GUI.matrix = keep;
+            DrawSettingsPanel(W, H); // the gear's panel, on top (IslandGame.Settings.cs)
             return;
         }
-        if (player != null) DrawPlayerTags(s);
+        if (player != null || voyage != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
-        DrawQuestTracker(W);
-        DrawCrewPanel(W, H); // crews (IslandGame.Crew.cs)
+        if (!settingsOpen) DrawQuestTracker(W); // the settings panel covers that corner
+        if (!settingsOpen) DrawCrewPanel(W, H); // crews (IslandGame.Crew.cs)
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
         DrawWarnings(W, H);
@@ -506,11 +509,11 @@ public partial class IslandGame
         if (wantedOpen) DrawWanted(W, H); // IslandGame.Bounty.cs (over the "!" marks)
         if (dialog != null) DrawDialog(W, H);
 
-        if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
+        if (Time.time < hintUntil) DrawHint(W, H);
         if (!touchUsed) DrawKeyBar(W, H);
         float sinceSave = Time.time - savedAt;
-        if (sinceSave < 1.5f)
-            ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
+        if (sinceSave < 1.5f) // under the online status, left of the gear: clear of the buttons below
+            ShadowLabel(new Rect(W - 170, 30, 124, 18), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
         DrawStormOverlay(W, H);
         DrawScreenFlash(W, H);
@@ -562,18 +565,19 @@ public partial class IslandGame
         DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
         DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
         DrawTouchControls();
+        DrawSettingsPanel(W, H); // the gear's panel, on top of everything (IslandGame.Settings.cs)
+        MouseWorldClick(); // a click on no button: left = E, right = power (IslandGame.Settings.cs)
     }
 
-    /// Sound on/off button in the top-right corner (also the M key in game).
-    void DrawSoundButton(float W)
+    /// The hint line above the hotbar. It wraps inside the space between the controls on the
+    /// sides (touch joystick and buttons, the mouse's power buttons), so nothing covers the words.
+    void DrawHint(float W, float H)
     {
-        bool muted = Sfx.Muted;
-        var r = new Rect(W - 122, 6, 112, 20);
-        var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
-        st.normal.textColor = muted ? new Color(1f, 0.6f, 0.55f) : new Color(0.7f, 1f, 0.7f);
-        st.hover.textColor = st.normal.textColor;
-        if (CrispGUI.Button(r, muted ? "เสียง: ปิด (M)" : "เสียง: เปิด (M)", st)) Sfx.ToggleMute();
-        DrawWeatherFxButton(new Rect(r.x - 112, r.y, 106, r.height)); // weather effects on / off (IslandGame.Seasons.cs)
+        float side = ShowTouch ? 232f : power != Power.None ? 196f : 10f;
+        float w = Mathf.Max(280f, W - side * 2f);
+        var st = new GUIStyle(labelCenter) { wordWrap = true };
+        float h = Mathf.Max(22f, st.CalcHeight(new GUIContent(hint), w));
+        ShadowLabel(new Rect(W / 2f - w / 2f, H - 90f - h, w, h), hint, st, new Color(1f, 0.92f, 0.5f));
     }
 
     // ------------------------------------------------------------------ online UI
@@ -723,7 +727,7 @@ public partial class IslandGame
     {
         foreach (var r in remotes.Values)
         {
-            if (r == null) continue;
+            if (r == null || r.hidden) continue;
             var gp = ToGui(r.transform.position + Vector3.up * 0.85f, s);
             ShadowLabel(new Rect(gp.x - 70, gp.y - 18, 140, 18), $"{r.playerName}  <size=10>Lv {r.level}</size>", smallCenter, new Color(0.7f, 0.9f, 1f));
             if (r.downed) DrawReviveTag(r, gp); // knocked out: a friend can bring them back (IslandGame.Revive.cs)
@@ -811,10 +815,10 @@ public partial class IslandGame
     void DrawOnlineInfo(float W, float H)
     {
         string state = !Online ? "ออฟไลน์"
-                     : voyage != null ? "ออนไลน์ - กลางทะเล"
+                     : voyage != null ? (inRoom && remotes.Count > 0 ? $"ออนไลน์ - กลางทะเล เห็นเรือ {remotes.Count} ลำ" : "ออนไลน์ - กลางทะเล")
                      : !inRoom ? "ออนไลน์ - กำลังเข้าเกาะ..."
                      : $"ออนไลน์ - บนเกาะนี้ {remotes.Count + 1} คน{(IsHost && remotes.Count > 0 ? " (โฮสต์)" : "")}";
-        ShadowLabel(new Rect(W - 330, 30, 316, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight },
+        ShadowLabel(new Rect(W - 376, 12, 330, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight }, // left of the gear
             Online ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.5f));
 
         DrawChat(W, H); // chat log + typing box, laid out for mouse or touch (IslandGame.ChatMobile.cs)
@@ -837,7 +841,8 @@ public partial class IslandGame
         var d = dialog;
         if (d.shop != null) { DrawShop(W, H, d); return; } // market stalls (IslandGame.Shop.cs)
         if (d.chart) { DrawChart(W, H); return; } // the sea chart (IslandGame.Chart.cs)
-        float pw = Mathf.Min(620f, W - 20f);
+        // with touch controls, keep clear of the E button on the right (the rest hide while talking)
+        float pw = Mathf.Min(620f, ShowTouch ? W - 290f : W - 20f);
         float optH = d.icons != null ? 40f : 26f;
         var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
         // the box grows with the text (quest objectives can take a few lines)

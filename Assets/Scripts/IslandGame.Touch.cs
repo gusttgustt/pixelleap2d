@@ -31,12 +31,14 @@ public partial class IslandGame
         TouchBtn.Drink => new Vector2(GuiW - 180f, GuiH - 140f),
         TouchBtn.Power => new Vector2(GuiW - 120f, GuiH - 200f),
         TouchBtn.PowerAtk => new Vector2(GuiW - 52f, GuiH - 212f),
-        TouchBtn.Bag => new Vector2(192f, GuiH - 262f),
-        // menus on the left, above the stick: the crafting panel opens on the right
-        TouchBtn.Craft => new Vector2(56f, GuiH - 240f),
-        TouchBtn.Chat => new Vector2(56f, GuiH - 306f), // online only (IslandGame.ChatMobile.cs)
-        TouchBtn.Sticker => new Vector2(56f, GuiH - 366f), // online only (IslandGame.Sticker.cs)
-        _ => new Vector2(124f, GuiH - 252f), // Skills
+        // menus in an arc just above-right of the stick: the left side of the screen above them
+        // stays free for the status text and the quest steps (they used to cover it)
+        TouchBtn.Bag => new Vector2(198f, GuiH - 152f),
+        TouchBtn.Craft => new Vector2(176f, GuiH - 212f),
+        // online only, on the right between the E side and the hotbar (IslandGame.ChatMobile.cs / Sticker.cs)
+        TouchBtn.Chat => new Vector2(GuiW - 196f, GuiH - 210f),
+        TouchBtn.Sticker => new Vector2(GuiW - 254f, GuiH - 164f),
+        _ => new Vector2(112f, GuiH - 240f), // Skills
     };
 
     TouchBtn HitTest(Vector2 p)
@@ -47,12 +49,14 @@ public partial class IslandGame
             if (downed && Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
             return TouchBtn.None;
         }
-        if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
         if ((p - ActionCenter).magnitude < ActionR * 1.15f) return TouchBtn.Action;
+        if (dialog != null) return TouchBtn.None; // talking: only E (it closes / goes on); taps reach the dialog's own buttons
+        // the small buttons first: the menu arc sits close to the stick's grab area
         foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills, TouchBtn.Power, TouchBtn.PowerAtk, TouchBtn.Bag })
-            if ((p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
+            if ((b != TouchBtn.Power && b != TouchBtn.PowerAtk || power != Power.None) && (p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
         if (Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
         if (Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
+        if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
         return TouchBtn.None;
     }
 
@@ -64,7 +68,7 @@ public partial class IslandGame
         touchTapped.Clear();
         bool actionNow = false;
         var ts = Touchscreen.current;
-        if (ts == null) { touchActionHeld = false; fingerOn.Clear(); return; }
+        if (ts == null) { touchActionHeld = false; fingerOn.Clear(); ApplyMouseInput(); return; }
 
         var seen = new HashSet<int>();
         float s = HudScale;
@@ -102,6 +106,7 @@ public partial class IslandGame
             fingerOn.Remove(id);
         }
         touchActionHeld = actionNow;
+        ApplyMouseInput(); // left click = E, right click = power (IslandGame.Settings.cs)
 
         PollMobileChat(); // the phone's chat box was sent / cancelled (IslandGame.ChatMobile.cs)
         if (touchTapped.Contains(TouchBtn.Sticker) && !title) ToggleStickers(); // also while typing or knocked out (IslandGame.Sticker.cs)
@@ -131,6 +136,11 @@ public partial class IslandGame
     void DrawTouchControls()
     {
         if (!ShowTouch) return;
+        if (dialog != null && !dead) // talking: only the E button, so the dialog's choices aren't covered
+        {
+            TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
+            return;
+        }
         if (Shared && (!dead || downed) && sailT <= 0f) // chat with friends on the island (IslandGame.ChatMobile.cs)
         {
             TouchCircle(SmallCenter(TouchBtn.Chat), SmallR, "แชต", new Color(0.7f, 0.9f, 1f), chatOpen, 12);

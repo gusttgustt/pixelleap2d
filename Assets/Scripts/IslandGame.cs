@@ -535,10 +535,31 @@ public partial class IslandGame : MonoBehaviour
 
     public WorldNode RaftNode => nodes.Find(n => n != null && n.kind == NodeKind.Raft);
 
-    /// Puts the raft on the shore tile facing the way we came (screen-left / west) and returns
-    /// a spot next to it for the player.
+    /// Puts the raft on a random free spot of the shore and returns a spot next to it for the
+    /// player: every landing is somewhere else. Only spots that are already clear are picked, so
+    /// nothing has to be cleared away (online, everyone keeps seeing the same island).
     Vector2 BeachRaft()
     {
+        var spots = new List<(Vector2 raft, Vector2 stand)>();
+        for (int x = 1; x < Size - 1; x++)
+            for (int y = 1; y < Size - 1; y++)
+            {
+                if (tiles[x, y] != 1 && tiles[x, y] != 2) continue;
+                var g = new Vector2(x, y);
+                if (!TouchesSea(g) || !FreeSpot(g, 0.75f)) continue;
+                Vector2 toward = (Center - g).normalized;
+                Vector2 standAt = g + toward * 1.3f;
+                if (!IsLand(standAt) || !CanWalk(standAt, 0.18f)) continue;
+                spots.Add((g, standAt));
+            }
+        if (spots.Count > 0)
+        {
+            var pick = spots[Random.Range(0, spots.Count)];
+            Spawn(NodeKind.Raft, pick.raft, false);
+            return pick.stand;
+        }
+
+        // nowhere clear (a crowded island): the old way, on the west shore
         Vector2? best = null;
         float bestScore = float.MaxValue;
         for (int x = 0; x < Size; x++)

@@ -159,7 +159,7 @@ public partial class IslandGame
         ClearRemotes();
         inRoom = false;
         hostId = 0;
-        if (atHome && !serverHomes) { if (Online) Send(new NetMsg { t = "leave" }); return; } // an older server has no rooms for private islands: you're alone at home
+        if (atHome && !serverHomes && voyage == null) { if (Online) Send(new NetMsg { t = "leave" }); return; } // an older server has no rooms for private islands: you're alone at home
         if (Online) Send(new NetMsg { t = "join", island = RoomKey }); // a private island has a room of its own (IslandGame.Visit.cs)
     }
 
@@ -176,12 +176,12 @@ public partial class IslandGame
         remotes.Clear();
     }
 
-    RemotePlayer AddRemote(int id, string name)
+    RemotePlayer AddRemote(int id, string name, bool atSea = false)
     {
         if (remotes.TryGetValue(id, out var r) && r != null) return r;
         r = new GameObject("Remote " + name).AddComponent<RemotePlayer>();
         r.transform.SetParent(world);
-        r.Init(id, name);
+        r.Init(id, name, atSea);
         remotes[id] = r;
         return r;
     }
@@ -212,20 +212,35 @@ public partial class IslandGame
                 break;
 
             case "room":
-                if (m.island != RoomKey || voyage != null) break;
+                if (m.island != RoomKey) break;
                 inRoom = true;
+                if (voyage != null) // at sea: the other boats sailing these waters (no creatures or world to share)
+                {
+                    if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name, true);
+                    int boats = m.players?.Length ?? 0;
+                    if (boats > 0) Hint($"มีเรือลำอื่นแล่นอยู่ในทะเลนี้ {boats} ลำ! กด Enter เพื่อแชต", 4f);
+                    break;
+                }
                 SetHost(m.host);
+                if (!IsHost)
+                {
+                    // Bosses and pack leaders were made while loading, before we knew who runs this
+                    // island's creatures. Someone else does: drop our copies and show theirs.
+                    foreach (var e in enemies) if (e != null && !e.puppet) Destroy(e.gameObject);
+                    enemies.RemoveAll(e => e == null || !e.puppet);
+                }
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
                 if (m.events != null) foreach (var e in m.events) ApplyEvent(e);
                 int others = m.players?.Length ?? 0;
                 if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! กด Enter เพื่อแชต", 5f);
-                if (others > 0 && atHome && !visiting) SendFullHome(0); // friends already here see my island as it is now
+                if (others > 0 && atHome && !visiting && voyage == null) SendFullHome(0); // friends already here see my island as it is now
                 break;
 
             case "joined":
                 if (!inRoom) break;
-                AddRemote(m.from, m.name);
-                AddChat("", $"{m.name} มาถึงเกาะแล้ว");
+                AddRemote(m.from, m.name, voyage != null);
+                AddChat("", voyage != null ? $"เรือของ {m.name} แล่นเข้ามาในทะเลนี้" : $"{m.name} มาถึงเกาะแล้ว");
+                if (voyage != null) break;
                 if (IsHost) { clockSendT = 0f; enemySendT = 0f; }
                 if (atHome && !visiting) SendFullHome(m.from); // a visitor: show them my island exactly as it is
                 break;
@@ -233,7 +248,7 @@ public partial class IslandGame
             case "left":
                 if (remotes.TryGetValue(m.from, out var gone))
                 {
-                    AddChat("", $"{gone.playerName} ออกจากเกาะไปแล้ว");
+                    AddChat("", voyage != null ? $"เรือของ {gone.playerName} แล่นออกไปแล้ว" : $"{gone.playerName} ออกจากเกาะไปแล้ว");
                     if (gone != null) Destroy(gone.gameObject);
                     remotes.Remove(m.from);
                 }
@@ -254,7 +269,17 @@ public partial class IslandGame
             case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)
 
             case "p":
-                if (inRoom) AddRemote(m.from, m.name).Apply(m);
+                if (inRoom && voyage == null) AddRemote(m.from, m.name).Apply(m);
+                break;
+
+            case "sp": // a boat at sea: x = how far along its crossing (0..1), y = across
+                if (inRoom && voyage != null)
+                {
+                    bool hide = m.hits == 1                                  // a passenger: they're on their captain's deck
+                             || (crewRide && m.from == crewCaptain)          // my captain's boat is the one I'm on
+                             || (IsCaptain && crewAboard.Contains(m.from));  // my crew stand on my deck
+                    AddRemote(m.from, m.name, true).ApplySea(m, voyage.length, hide);
+                }
                 break;
 
             case "node":
@@ -322,7 +347,9 @@ public partial class IslandGame
     // ------------------------------------------------------------------ messages out (every frame on an island)
     void NetTick(float dt)
     {
-        if (!Shared || player == null) return;
+        if (!Shared) return;
+        if (voyage != null) { SeaTick(dt); return; }
+        if (player == null) return;
         netSendT -= dt;
         if (netSendT <= 0f)
         {
@@ -352,6 +379,23 @@ public partial class IslandGame
             clockSendT = 3f;
             Send(new NetMsg { t = "clock", clock = clock });
         }
+    }
+
+    /// At sea: tell the other boats in these waters where mine is (as a share of the crossing,
+    /// so routes of different lengths still line up) and what it looks like.
+    void SeaTick(float dt)
+    {
+        var v = voyage;
+        netSendT -= dt;
+        if (netSendT > 0f || v.raftSr == null) return;
+        netSendT = 0.1f;
+        Send(new NetMsg
+        {
+            t = "sp", x = v.length > 0f ? v.raft.x / v.length : 0f, y = v.raft.y, d = v.dir, f = v.vel.magnitude > 0.2f ? 1 + ((int)v.animT & 1) : 0,
+            fl = v.playerSr != null && v.playerSr.flipX ? 1 : 0, kind = crewRide ? crewBoatLook : BoatLookNow, hits = crewRide ? 1 : 0,
+            hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
+            lv = level, name = playerName, look = lookCode,
+        });
     }
 
     // ------------------------------------------------------------------ shared world changes

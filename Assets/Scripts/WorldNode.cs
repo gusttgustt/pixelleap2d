@@ -407,7 +407,11 @@ public class WorldNode : MonoBehaviour
 
         if (IsAnimal) Wander(game);
         Vector3 p = basePos;
-        if (kind == NodeKind.Raft) p += game.BoatShoreOffset; // big ships lie out in the water, not up the beach
+        if (kind == NodeKind.Raft) // big ships lie out in the water, not up the beach (on whichever shore it's on)
+        {
+            p += game.BoatShoreOffsetAt(grid);
+            if (sr != null) sr.flipX = game.SeaSide(grid).x > 0.3f; // sea to the right: face the other way
+        }
         if (shakeT > 0f)
         {
             shakeT -= Time.deltaTime;
