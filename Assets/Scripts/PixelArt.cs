@@ -2252,7 +2252,73 @@ public static partial class PixelArt
         return c.ToSprite(4, 1.5f);
     });
 
-    public static Sprite SeaCreature(SeaKind kind, int frame) => kind == SeaKind.Shark ? Shark(frame) : Jellyfish(frame);
+    public static Sprite SeaCreature(SeaKind kind, int frame) => kind switch
+    {
+        SeaKind.Shark => Shark(frame), SeaKind.Serpent => Serpent(frame), _ => Jellyfish(frame),
+    };
+
+    /// งูทะเลยักษ์ on the surface: two coils out of the water behind a tall neck and a
+    /// horned, finned head (facing right). frame 0/1 = the coils roll and the jaw opens.
+    static Sprite Serpent(int frame) => Get("serpent_" + frame, () =>
+    {
+        var c = new Canvas(44, 34);
+        c.Ellipse(22, 29, 20, 4, new Color(0.03f, 0.12f, 0.25f, 0.5f)); // the bulk under the water
+        Color d = Hex("#1d4d4a"), m = Hex("#2f7d6e"), l = Hex("#5fbf9c"), belly = Hex("#d9e7a8"), fin = Hex("#c8476a"), finD = Hex("#8a2a48");
+        int roll = frame;
+        // two coils arching out of the water
+        for (int i = 0; i < 2; i++)
+        {
+            float cx = 6 + i * 9 + roll, top = 19 - i * 2 - roll;
+            for (int a = 0; a <= 18; a++)
+            {
+                float t = a / 18f * Mathf.PI;
+                float x = cx - Mathf.Cos(t) * 3.8f, y = 28 - Mathf.Sin(t) * (28 - top);
+                c.Ball(x, y, 1.9f, 1.9f, d, m, l);
+            }
+            c.Set((int)cx, (int)top + 1, fin); c.Set((int)cx - 1, (int)top, finD); c.Set((int)cx + 1, (int)top, fin); // spines
+        }
+        // the neck rising up to the head
+        for (int a = 0; a <= 22; a++)
+        {
+            float t = a / 22f;
+            float x = 24 + t * 8 + Mathf.Sin(t * 3f) * 1.2f, y = 28 - t * 18;
+            c.Ball(x, y, 2.6f - t * 0.4f, 2.4f, d, m, l);
+            if (a % 3 == 0) c.Set(Mathf.RoundToInt(x) + 1, Mathf.RoundToInt(y), belly);
+            if (a % 4 == 1) c.Set(Mathf.RoundToInt(x) - 2, Mathf.RoundToInt(y), fin); // a frill down its back
+        }
+        // head
+        c.Ball(35, 8, 5f, 3.6f, d, m, l);
+        c.Ball(40, 9 + roll * 0.5f, 3.2f, 1.8f, d, m, l);            // snout / upper jaw
+        c.Rect(37, 11 + roll, 6, 1, d); c.Rect(37, 12 + roll, 5, 1, belly); // lower jaw drops open on frame 1
+        if (roll == 1) { c.Set(39, 11, Hex("#7a1626")); c.Set(40, 11, Hex("#7a1626")); }
+        c.Set(38, 10, Color.white); c.Set(41, 10, Color.white);      // fangs
+        c.Set(36, 6, Hex("#ffdd44")); c.Set(37, 6, Hex("#ff7a2a")); c.Set(36, 5, d); // glaring eye
+        c.Line(32, 5, 29, 1, Hex("#e8e0c0")); c.Line(33, 5, 31, 2, Hex("#e8e0c0")); // horns
+        c.Line(31, 7, 28, 6, fin); c.Line(31, 9, 28, 10, finD);      // ear fins
+        // foam where it breaks the water
+        var foam = new Color(1f, 1f, 1f, 0.85f);
+        for (int x = 1; x < 43; x += 3) c.Set(x + roll, 29 + ((x / 3 + roll) % 2), foam);
+        c.Line(20, 28, 28, 28, foam);
+        return c.ToSprite(22, 29);
+    });
+
+    /// The serpent under the water: a long dark shape and a line of ripples.
+    public static Sprite SerpentUnder(int frame) => Get("serpent_under_" + frame, () =>
+    {
+        var c = new Canvas(44, 14);
+        c.Rim = false;
+        var dark = new Color(0.02f, 0.08f, 0.18f, 0.55f);
+        for (int x = 2; x < 42; x++)
+        {
+            float y = 7 + Mathf.Sin((x + frame * 4) * 0.35f) * 2f;
+            float r = x > 34 ? 2.6f : 1.4f + x / 34f * 1.2f;
+            c.Ellipse(x, y, 1.2f, r, dark);
+        }
+        var foam = new Color(1f, 1f, 1f, 0.75f);
+        for (int x = 4; x < 42; x += 5) c.Set(x + frame * 2 - 1, 4 + (x / 5 + frame) % 2, foam);
+        c.Set(38, 3, foam); c.Set(40, 3, foam); c.Set(39, 2, foam);
+        return c.ToSprite(22, 7);
+    });
 
     static Sprite Shark(int frame) => Get("shark_" + frame, () =>
     {

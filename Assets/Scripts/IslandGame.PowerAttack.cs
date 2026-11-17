@@ -38,7 +38,8 @@ public partial class IslandGame
     void UsePowerAttack()
     {
         if (power == Power.None) { Hint("ยังไม่มีพลัง กินผลไม้พิเศษจากต้นไม้เรืองแสงก่อน", 3f); return; }
-        if (powerAtkCd > 0f || player == null || dead || Busy) return;
+        if (powerAtkCd > 0f || (player == null && voyage == null) || dead || Busy) return;
+        if (voyage != null) { UseSeaPowerAttack(); return; } // on the raft (IslandGame.SeaPower.cs)
         float radius = PowerAttackRadius;
         int dmg = PowerAttackDamage;
         Color col = PowerColor(power);
@@ -148,7 +149,7 @@ public partial class IslandGame
     /// Particles around a circle on the ground (radius in tiles).
     void Ring(float radius, Color col, int points)
     {
-        Vector2 me = player.grid;
+        Vector2 me = MeGrid;
         for (int i = 0; i < points; i++)
         {
             float a = i * Mathf.PI * 2f / points;

@@ -14,8 +14,10 @@ public partial class IslandGame
         public readonly List<SeaCreature> creatures = new List<SeaCreature>();
         public readonly List<(SpriteRenderer sr, float phase)> waves = new List<(SpriteRenderer, float)>();
         public SeaCreature target;
-        public float spawnT = 3f, foamT, animT, hurtT;
+        public float spawnT = 3f, foamT, animT, hurtT, dashT;
         public int dir;
+        public float monsterAt = -1f;       // the sea monster surfaces when the raft gets this far (-1: not this trip)
+        public SeaCreature monster;
     }
 
     /// Non-null while paddling between islands.
@@ -74,8 +76,13 @@ public partial class IslandGame
         for (int i = 0; i < jellies; i++)
             SpawnSea(SeaKind.Jellyfish, new Vector2(Random.Range(6f, voyage.length - 3f), Random.Range(-5f, 5f)));
 
+        // Some crossings have a sea monster lurking: likelier further out, at night and across the ocean.
+        float monsterChance = voyageVisit != null ? 0.15f
+            : 0.25f + 0.04f * Mathf.Min(island, 10) + (IsNight ? 0.1f : 0f) + (destContinent != continent ? 0.15f : 0f);
+        if (Random.value < Mathf.Min(0.75f, monsterChance)) voyage.monsterAt = voyage.length * Random.Range(0.3f, 0.6f);
+
         camPos = voyage.raft;
-        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!", 6f);
+        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!" + (power != Power.None ? " (ใช้พลัง R / ท่าพิเศษ T ได้)" : ""), 6f);
     }
 
     void EndVoyage() => voyage = null; // the world itself is replaced by StartGame
@@ -121,7 +128,12 @@ public partial class IslandGame
     {
         var v = voyage;
         v.creatures.RemoveAll(c => c == null);
-        if (kb != null) HandleCommonKeys(kb);
+        if (kb != null && !chatOpen)
+        {
+            HandleCommonKeys(kb);
+            if (kb.rKey.wasPressedThisFrame) UsePower();        // powers work on the raft too (IslandGame.SeaPower.cs)
+            if (kb.tKey.wasPressedThisFrame) UsePowerAttack();
+        }
 
         // Paddling: the raft has some momentum, so it drifts a little.
         Vector2 input = PlayerController.ReadInput();
@@ -139,6 +151,7 @@ public partial class IslandGame
             if (Mathf.Abs(input.x) > 0.2f) v.playerSr.flipX = input.x < 0;
         }
         v.hurtT -= dt;
+        v.dashT -= dt;
 
         // Foam trail
         if (v.vel.magnitude > 0.4f)
@@ -158,17 +171,19 @@ public partial class IslandGame
         v.playerSr.transform.position = (Vector3)v.raft + Vector3.up * (0.2f + bob);
         v.playerSr.sortingOrder = v.raftSr.sortingOrder + 1;
         v.playerSr.sprite = PixelArt.Player(v.dir, moving ? 1 + ((int)v.animT & 1) : 0, hat, outfit, lookCode);
-        v.playerSr.color = v.hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Color.white;
+        v.playerSr.color = v.hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Invisible ? new Color(0.7f, 0.65f, 1f, 0.35f) : Color.white; // see-through while invisible
 
         UpdateWaves();
         SpawnSeaCreatures(dt);
+        if (v.monsterAt > 0f && v.raft.x >= v.monsterAt) SpawnMonster();
 
-        // Target the closest creature in reach
+        // Target the closest creature in reach (big ones reach further; the monster only while it's up)
         v.target = null;
         float best = 1.4f;
         foreach (var c in v.creatures)
         {
-            float d = (c.pos - v.raft).magnitude;
+            if (!c.Hittable) continue;
+            float d = (c.pos - v.raft).magnitude - c.Reach;
             if (d < best) { best = d; v.target = c; }
         }
 
@@ -215,8 +230,9 @@ public partial class IslandGame
         if (v.spawnT > 0f) return;
         v.spawnT = 4f;
         int sharks = 0, jellies = 0;
-        foreach (var c in v.creatures) { if (c.kind == SeaKind.Shark) sharks++; else jellies++; }
+        foreach (var c in v.creatures) { if (c.kind == SeaKind.Shark) sharks++; else if (c.kind == SeaKind.Jellyfish) jellies++; }
         int sharkCap = Mathf.Min(4, 1 + tier + (IsNight ? 1 : 0) + (island - 1) / 2);
+        if (v.monster != null) sharkCap = Mathf.Max(0, sharkCap - 2); // the sharks keep clear of it
         bool openSea = v.raft.x > 4f && v.raft.x < v.length - 6f; // no sharks right at the shores
         if (openSea && sharks < sharkCap)
             SpawnSea(SeaKind.Shark, v.raft + new Vector2(Random.Range(9f, 12f), Random.Range(-5f, 5f)));
@@ -226,14 +242,60 @@ public partial class IslandGame
 
     void AttackSea(SeaCreature c)
     {
-        int dmg = WeaponDamage;
         Sfx.Play("hit", 0.6f);
+        HitSea(c, WeaponDamage, Color.white);
+    }
+
+    /// Hit a sea creature (weapon or power). Returns true if it died.
+    bool HitSea(SeaCreature c, int dmg, Color popupCol)
+    {
+        if (c == null || !c.Hittable) return false;
         Vector3 at = c.transform.position;
-        if (c.Hit(dmg, voyage.raft))
-        {
-            voyage.creatures.Remove(c);
-            Reward(at, c.kind == SeaKind.Shark ? Item.RawMeat : (Item?)null, 2, c.xp);
-        }
-        else Popup($"-{dmg}", at + Vector3.up * 0.5f, Color.white);
+        if (!c.Hit(dmg, voyage.raft)) { Popup($"-{dmg}", at + Vector3.up * (c.IsMonster ? 1.4f : 0.5f), popupCol); return false; }
+        voyage.creatures.Remove(c);
+        if (c.IsMonster) MonsterSlain(c, at);
+        else Reward(at, c.kind == SeaKind.Shark ? Item.RawMeat : (Item?)null, 2, c.xp);
+        return true;
+    }
+
+    // ------------------------------------------------------------------ the sea monster
+    void SpawnMonster()
+    {
+        var v = voyage;
+        v.monsterAt = -1f;
+        if (v.raft.x > v.length - 8f) return; // too close to shore now
+        var p = v.raft + new Vector2(Random.Range(4.5f, 6f), Random.Range(-1f, 1f) * 2.5f);
+        p.y = Mathf.Clamp(p.y, -6f, 6f);
+        var c = new GameObject("SeaMonster").AddComponent<SeaCreature>();
+        c.transform.SetParent(world);
+        c.Init(SeaKind.Serpent, p, tier);
+        v.creatures.Add(c);
+        v.monster = c;
+        Hint("น้ำทะเลปั่นป่วน... งูทะเลยักษ์โผล่ขึ้นมาแล้ว! ตีมันตอนโผล่พ้นน้ำ หรือพายหนีไปให้ถึงฝั่ง", 7f);
+        Sfx.Play("splash", 1f);
+        Shake(0.1f, 0.6f);
+        ScreenFlash(new Color(0.05f, 0.15f, 0.35f, 0.45f), 0.8f);
+        Fx.Burst((Vector3)p, new Color(0.85f, 0.95f, 1f), 30, 2.2f, 3f, 0.9f, 4f);
+    }
+
+    void MonsterSlain(SeaCreature c, Vector3 at)
+    {
+        voyage.monster = null;
+        Sfx.Play("levelup", 0.8f);
+        Shake(0.15f, 0.5f);
+        ScreenFlash(new Color(1f, 0.95f, 0.7f, 0.35f), 0.5f);
+        Fx.Burst(at + Vector3.up * 0.8f, new Color(0.4f, 0.85f, 0.7f), 40, 2.5f, 3f, 1.1f, 3f, 2f);
+        Fx.Burst(at, new Color(0.85f, 0.95f, 1f), 30, 2.5f, 2.5f, 0.8f, 4f);
+        Reward(at, Item.Pearl, 2 + tier, c.xp);
+        Loot(Item.GoldCoin, 5 + 3 * tier, at + Vector3.up * 0.9f);
+        Loot(Item.RawFish, 3, at + Vector3.up * 1.3f);
+        if (Random.value < 0.25f) Loot(RandomPowerFruit(new System.Random()), 1, at + Vector3.up * 1.7f);
+        Hint("ปราบงูทะเลยักษ์ได้แล้ว! ได้ไข่มุกกับเหรียญทองมาเพียบ", 5f);
+    }
+
+    void Loot(Item it, int n, Vector3 at)
+    {
+        inv[it] = Count(it) + n;
+        Popup($"+{n} {Name(it)}", at, new Color(1f, 0.95f, 0.6f));
     }
 }

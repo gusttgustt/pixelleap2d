@@ -163,7 +163,7 @@ public partial class IslandGame
     /// special power (R) and the special move (T), dimmed with a countdown while recharging.
     void DrawMousePowerButtons(float W, float H)
     {
-        if (ShowTouch || title || dead || player == null || voyage != null || power == Power.None) return;
+        if (ShowTouch || title || dead || (player == null && voyage == null) || power == Power.None) return;
         if (sailT > 0f || sleepT > 0f || homeT > 0f || dialog != null || craftOpen || skillsOpen || bagOpen || buildOpen) return;
         var atk = new Vector2(W - 64f, H - 150f);
         var pow = new Vector2(W - 152f, H - 132f);

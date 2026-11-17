@@ -130,12 +130,12 @@ public partial class IslandGame
             powerLv++;
             Popup($"พลัง{PowerName(power)} Lv {powerLv}!", PlayerPos + Vector3.up * 1.3f, new Color(1f, 0.9f, 0.4f));
             Sfx.Play("levelup", 0.6f);
-            if (player != null) // a power level-up is a moment: a ring of its colour and a fountain of sparks
+            if (player != null || voyage != null) // a power level-up is a moment: a ring of its colour and a fountain of sparks
             {
                 var c = PowerColor(power);
-                Shockwave(player.grid, 1.5f + 0.4f * powerLv, c, 0.7f);
+                Shockwave(MeGrid, 1.5f + 0.4f * powerLv, c, 0.7f);
                 Fx.Rise(PlayerPos, Color.Lerp(c, Color.white, 0.3f), 20 + powerLv * 6, 0.5f, 2.2f, 0.9f, 2f, 0.8f);
-                if (powerLv >= 5) { Shockwave(player.grid, 3.5f, Color.white, 0.8f, 0.15f); ScreenFlash(new Color(c.r, c.g, c.b, 0.3f), 0.5f); Shake(0.08f, 0.35f); }
+                if (powerLv >= 5) { Shockwave(MeGrid, 3.5f, Color.white, 0.8f, 0.15f); ScreenFlash(new Color(c.r, c.g, c.b, 0.3f), 0.5f); Shake(0.08f, 0.35f); }
             }
             if (powerLv == 5 && power == Power.Dash) Hint("ฟ้าแลบ Lv 5! สายฟ้าฟาด (T) ผ่าลงรอบตัวคุณด้วยแล้ว", 5f);
         }
@@ -154,8 +154,8 @@ public partial class IslandGame
     void UsePower()
     {
         if (power == Power.None) { Hint("ยังไม่มีพลัง หาต้นไม้เรืองแสงบนเกาะ แล้วกินผลไม้พิเศษ", 3f); return; }
-        if (powerCd > 0f || player == null || dead || Busy) return;
-        bool used = power switch
+        if (powerCd > 0f || (player == null && voyage == null) || dead || Busy) return;
+        bool used = voyage != null ? UseSeaPower() : power switch
         {
             Power.Dash => DoDash(),
             Power.Shadow => DoShadow(),
@@ -253,7 +253,7 @@ public partial class IslandGame
     /// Bubble and dash soak up a hit. Returns true if the hit is blocked.
     bool PowerBlocks()
     {
-        if (player != null && player.Dashing) return true;
+        if ((player != null && player.Dashing) || (voyage != null && voyage.dashT > 0f)) return true;
         if (!Bubbled) return false;
         bubbleHits--;
         if (bubbleHits <= 0) bubbleT = 0f;

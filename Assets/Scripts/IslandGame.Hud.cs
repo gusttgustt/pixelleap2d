@@ -716,6 +716,13 @@ public partial class IslandGame
         ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 120, 20), voyageVisit != null ? $"บ้าน{visitNameOf(voyageVisit)}" : $"เกาะ {destIsland}", small);
         float left = Mathf.Max(0f, voyage.length - voyage.raft.x);
         ShadowLabel(new Rect(bar.x, bar.y + 10, bar.width, 18), $"เหลืออีก {left * 10f:0} ม.", smallCenter);
+
+        var m = voyage.monster; // the sea monster's health, boss style
+        if (m == null) return;
+        var hb = new Rect(W / 2f - 140f, 66f, 280f, 10f);
+        ShadowLabel(new Rect(hb.x, hb.y - 18, hb.width, 18), m.Hittable ? m.DisplayName : $"{m.DisplayName} (ดำน้ำอยู่)", smallCenter, new Color(1f, 0.75f, 0.7f));
+        Fill(new Rect(hb.x - 2, hb.y - 2, hb.width + 4, hb.height + 4), new Color(0f, 0f, 0f, 0.6f));
+        Fill(new Rect(hb.x, hb.y, hb.width * Mathf.Clamp01((float)m.hp / m.maxHp), hb.height), m.Hittable ? new Color(0.85f, 0.25f, 0.3f) : new Color(0.45f, 0.3f, 0.35f));
     }
 
     void DrawSkills(float W, float H)

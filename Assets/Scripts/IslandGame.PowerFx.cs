@@ -16,10 +16,10 @@ public partial class IslandGame
     static bool DevMode => devMode ??= Application.isEditor || (Application.absoluteURL ?? "").Contains("dev=1");
 
     /// Dev keys: F1 next fruit, F2 power level up (wraps 5 -> 1), F3 creatures around you,
-    /// F4 slow motion on / off (to look at the effects).
+    /// F4 slow motion on / off (to look at the effects). At sea F3 calls up the sea monster.
     void DevKeys(UnityEngine.InputSystem.Keyboard kb)
     {
-        if (!DevMode || kb == null || player == null || chatOpen) return;
+        if (!DevMode || kb == null || (player == null && voyage == null) || chatOpen) return;
         if (kb.f1Key.wasPressedThisFrame)
         {
             power = power == Power.Bubble || power == Power.None ? Power.Dash : power + 1;
@@ -34,7 +34,8 @@ public partial class IslandGame
             powerCd = 0f; powerAtkCd = 0f;
             Hint($"[dev] พลัง{PowerName(power)} Lv {powerLv}", 2f);
         }
-        if (kb.f3Key.wasPressedThisFrame)
+        if (kb.f3Key.wasPressedThisFrame && voyage != null) { if (voyage.monster == null) SpawnMonster(); } // at sea: call up the sea monster
+        else if (kb.f3Key.wasPressedThisFrame)
             for (int i = 0, n = kb.shiftKey.isPressed ? 1 : 8; i < n; i++) // shift: just one (catching pets)
             {
                 float a = i * Mathf.PI * 2f / 8f;
@@ -88,7 +89,9 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ building blocks
-    Vector3 GroundAt(Vector2 g) => GridToWorld(g) + Vector3.up * HeightAt(g);
+    Vector3 GroundAt(Vector2 g) => GridToWorld(g) + (voyage != null ? Vector3.zero : Vector3.up * HeightAt(g)); // at sea: the water's surface
+    /// Where you are on the tile grid - on the raft at sea (GridToWorld is linear, so this maps points).
+    Vector2 MeGrid => voyage != null ? WorldDeltaToGrid(voyage.raft) : player != null ? player.grid : Vector2.zero;
     int GroundOrder(Vector2 g) => SortOrder(GridToWorld(g).y) - 2;
 
     /// A ring racing out across the ground to `radius` tiles.
@@ -124,15 +127,15 @@ public partial class IslandGame
     // ------------------------------------------------------------------ R powers
     /// Dash: speed lines and a trail of after-images; lightning along the path from Lv 3;
     /// at Lv 5 a thunderbolt strikes where you land.
-    void DashFx(Vector2 start, float dist)
+    void DashFx(Vector2 start, float dist) => DashFx(start, start + player.facing.normalized * dist, player.Renderer);
+
+    void DashFx(Vector2 start, Vector2 end, SpriteRenderer body)
     {
         Color col = PowerColor(Power.Dash);
-        Vector2 end = start + player.facing.normalized * dist;
         Vector3 a = GroundAt(start), b = GroundAt(end);
         Vector3 back = (a - b).normalized;
 
         // after-images of the player along the path
-        var body = player.Renderer;
         if (body != null && body.sprite != null)
         {
             int ghosts = 2 + powerLv;
@@ -174,7 +177,7 @@ public partial class IslandGame
         Fx.Radial(at + Vector3.up * 0.4f, col, 14 + powerLv * 6, -2f - 0.4f * powerLv, 0.4f, powerLv >= 3 ? 2f : 1f);
         Fx.Rise(at + Vector3.up * 0.1f, dark, 10 + powerLv * 4, 0.5f, 0.8f, 0.9f, 2f, -0.3f);
         Fx.Burst(at + Vector3.up * 0.4f, Color.Lerp(col, Color.white, 0.3f), 8 + powerLv * 3, 1f, 1.2f, 0.7f, 0.5f);
-        if (powerLv >= 3) { Implode(player.grid, 2f + 0.4f * powerLv, col, 0.35f); GroundGlow(player.grid, 1f, dark, 0.8f, 0.8f); }
+        if (powerLv >= 3) { Implode(MeGrid, 2f + 0.4f * powerLv, col, 0.35f); GroundGlow(MeGrid, 1f, dark, 0.8f, 0.8f); }
         if (powerLv >= 5) ScreenFlash(new Color(0.12f, 0.03f, 0.22f, 0.45f), 0.6f);
         PowerClimax(col, 0.4f);
     }
@@ -209,9 +212,9 @@ public partial class IslandGame
         int n = 12 + powerLv * 6;
         Fx.Radial(at, red, n, -range * 0.7f / 0.45f, 0.45f, powerLv >= 3 ? 2f : 1f);
         Fx.Radial(at, blue, n, -range * 0.55f / 0.45f, 0.45f, 1f);
-        Implode(player.grid, range, red, 0.45f, 0.7f);
-        if (powerLv >= 3) Implode(player.grid, range * 0.75f, blue, 0.4f, 0.6f);
-        if (powerLv >= 5) GroundGlow(player.grid, 1.2f, Color.Lerp(red, blue, 0.5f), 0.5f);
+        Implode(MeGrid, range, red, 0.45f, 0.7f);
+        if (powerLv >= 3) Implode(MeGrid, range * 0.75f, blue, 0.4f, 0.6f);
+        if (powerLv >= 5) GroundGlow(MeGrid, 1.2f, Color.Lerp(red, blue, 0.5f), 0.5f);
         PowerClimax(red, 0.5f);
     }
 
@@ -231,8 +234,8 @@ public partial class IslandGame
         Vector3 at = PlayerPos;
         Fx.Rise(at + Vector3.up * 0.2f, Color.Lerp(col, Color.white, 0.4f), 10 + powerLv * 5, 0.6f, 1f, 1f, 2f, -0.6f);
         Fx.Radial(at + Vector3.up * 0.4f, col, 10 + powerLv * 3, 1.5f, 0.4f);
-        Shockwave(player.grid, 1.4f + 0.2f * powerLv, col, 0.4f, 0f, 0.7f);
-        if (powerLv >= 3) Shockwave(player.grid, 1f + 0.2f * powerLv, Color.white, 0.4f, 0.1f, 0.5f);
+        Shockwave(MeGrid, 1.4f + 0.2f * powerLv, col, 0.4f, 0f, 0.7f);
+        if (powerLv >= 3) Shockwave(MeGrid, 1f + 0.2f * powerLv, Color.white, 0.4f, 0.1f, 0.5f);
         if (powerLv >= 5)
             for (int i = 0; i < 14; i++)
                 Fx.Spark(at + Vector3.up * 0.4f + (Vector3)(Random.insideUnitCircle * 0.5f), new Vector3(0f, 0.6f, 0f), Rainbow(i / 14f), 0.8f, 2f);
@@ -242,7 +245,7 @@ public partial class IslandGame
     /// While a power is running (and always, faintly, once it's mastered): its colour around you.
     void PowerAura(float dt)
     {
-        if (player == null || dead || power == Power.None) return;
+        if ((player == null && voyage == null) || dead || power == Power.None) return;
         float rate = Invisible ? 6f + 3f * powerLv : Bubbled ? 5f + 3f * powerLv : powerLv >= 5 ? 4f : 0f;
         if (rate <= 0f) return;
         auraT -= dt;
