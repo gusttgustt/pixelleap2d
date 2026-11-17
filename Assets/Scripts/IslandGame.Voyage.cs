@@ -77,9 +77,12 @@ public partial class IslandGame
             SpawnSea(SeaKind.Jellyfish, new Vector2(Random.Range(6f, voyage.length - 3f), Random.Range(-5f, 5f)));
 
         // Some crossings have a sea monster lurking: likelier further out, at night and across the ocean.
-        float monsterChance = voyageVisit != null ? 0.15f
-            : 0.25f + 0.04f * Mathf.Min(island, 10) + (IsNight ? 0.1f : 0f) + (destContinent != continent ? 0.15f : 0f);
-        if (Random.value < Mathf.Min(0.75f, monsterChance)) voyage.monsterAt = voyage.length * Random.Range(0.3f, 0.6f);
+        // The sea monster lives in deep water: almost always met crossing the ocean to another
+        // continent, and sometimes on the way between islands from island 7 on. Never nearer home.
+        float monsterChance = voyageVisit != null ? 0f
+            : destContinent != continent ? 0.9f
+            : Mathf.Max(island, destIsland) >= 7 ? 0.3f + (IsNight ? 0.1f : 0f) : 0f;
+        if (Random.value < monsterChance) voyage.monsterAt = voyage.length * Random.Range(0.3f, 0.6f);
 
         camPos = voyage.raft;
         Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!" + (power != Power.None ? " (ใช้พลัง R / ท่าพิเศษ T ได้)" : ""), 6f);
