@@ -38,7 +38,13 @@ mergeInto(LibraryManager.library, {
   },
 
   IS_ReloadPage: function () {
-    window.location.reload();
+    // a fresh address, so the browser fetches the new page (and with it the new build files)
+    // instead of a cached copy of the old one
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.set("v", Date.now().toString());
+      window.location.replace(u.toString());
+    } catch (e) { window.location.reload(); }
   },
 
   // ---- chat box for phones (IslandGame.ChatMobile.cs): a real HTML input so the phone's own

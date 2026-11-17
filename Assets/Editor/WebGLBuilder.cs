@@ -51,7 +51,7 @@ public static class WebGLBuilder
         // GitHub Pages runs Jekyll by default, which hides folders starting with "_". Turn it off.
         File.WriteAllText(Path.Combine(OutputDir, ".nojekyll"), "");
         File.WriteAllText(Path.Combine(OutputDir, "version.txt"), version);
-        WritePage();
+        WritePage(version);
         foreach (var k in kept) File.WriteAllBytes(Path.Combine(OutputDir, k.Key), k.Value);
 
         var s = report.summary;
@@ -61,18 +61,23 @@ public static class WebGLBuilder
 
     /// Our own page (Assets/WebGLTemplates/Island/index.html) in place of Unity's default one:
     /// the game fills the browser window at any size. Fills in the template's {{{ ... }}} values.
-    static void WritePage()
+    /// The build files keep the same names every build and GitHub Pages lets browsers cache them
+    /// for 10 minutes, so a reload right after a deploy could mix an old file with a new one (the
+    /// game then shows the wrong words in the wrong places). "?v=<version>" makes every build's
+    /// files new addresses: a page always loads one matching set.
+    static void WritePage(string version)
     {
+        string v = "?v=" + version;
         string name = PlayerSettings.productName;
         string page = File.ReadAllText("Assets/WebGLTemplates/Island/index.html")
             .Replace("{{{ JSON.stringify(COMPANY_NAME) }}}", Quote(PlayerSettings.companyName))
             .Replace("{{{ JSON.stringify(PRODUCT_NAME) }}}", Quote(name))
             .Replace("{{{ JSON.stringify(PRODUCT_VERSION) }}}", Quote(PlayerSettings.bundleVersion))
             .Replace("{{{ PRODUCT_NAME }}}", name)
-            .Replace("{{{ LOADER_FILENAME }}}", "docs.loader.js")
-            .Replace("{{{ DATA_FILENAME }}}", "docs.data.unityweb")
-            .Replace("{{{ FRAMEWORK_FILENAME }}}", "docs.framework.js.unityweb")
-            .Replace("{{{ CODE_FILENAME }}}", "docs.wasm.unityweb");
+            .Replace("{{{ LOADER_FILENAME }}}", "docs.loader.js" + v)
+            .Replace("{{{ DATA_FILENAME }}}", "docs.data.unityweb" + v)
+            .Replace("{{{ FRAMEWORK_FILENAME }}}", "docs.framework.js.unityweb" + v)
+            .Replace("{{{ CODE_FILENAME }}}", "docs.wasm.unityweb" + v);
         File.WriteAllText(Path.Combine(OutputDir, "index.html"), page);
         string unused = Path.Combine(OutputDir, "TemplateData"); // the default page's images
         if (Directory.Exists(unused)) Directory.Delete(unused, true);
