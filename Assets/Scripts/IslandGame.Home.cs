@@ -388,35 +388,16 @@ public partial class IslandGame
     };
 
     // ------------------------------------------------------------------ HUD
-    float hudButtonsBottom = 72f; // where the top-right buttons end (the quest list goes below)
+    float hudButtonsBottom = 40f; // where the top-right buttons end (the quest list goes below)
 
+    /// The menu buttons (H, G, V, P, J, L) live in the hamburger menu, bottom right
+    /// (IslandGame.Menu.cs). Up here stays only the crew's "climb aboard" while it matters.
     void DrawHomeButton(float W)
     {
-        hudButtonsBottom = 72f;
+        hudButtonsBottom = 40f;
         if (player == null || voyage != null || dead || homeT > 0f) return;
-        var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
-        st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
-        st.hover.textColor = Color.white;
-        if (CrispGUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
-        if (craftOpen || skillsOpen || bagOpen || wantedOpen || dialog != null) return; // a panel covers this corner: its buttons must get the clicks
-        float y = 76f;
-        if (atHome && !buildOpen && !visiting)
-        {
-            var bst = new GUIStyle(st); bst.normal.textColor = new Color(0.75f, 1f, 0.7f);
-            if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
-            y += 26f;
-            hudButtonsBottom = y;
-        }
-        if (buildOpen) return;
-        var pst = new GUIStyle(st); pst.normal.textColor = new Color(1f, 0.72f, 0.82f);
-        if (Online && serverHomes && CrispGUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
-        if (Online && serverHomes) y += 26f;
-        if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
-        y += 26f;
-        var wst = new GUIStyle(st); wst.normal.textColor = new Color(1f, 0.8f, 0.35f);
-        if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), "ป้ายประกาศค่าหัว (J)", wst)) ToggleWanted(); // IslandGame.Bounty.cs
-        hudButtonsBottom = y + 22f;
-        DrawCrewButton(W); // IslandGame.Crew.cs
+        if (craftOpen || skillsOpen || bagOpen || wantedOpen || dialog != null || buildOpen) return; // a panel covers this corner
+        DrawCrewButton(W); // only while boarding / aboard (IslandGame.Crew.cs)
     }
 
     void DrawHomeWarp(float W, float H)

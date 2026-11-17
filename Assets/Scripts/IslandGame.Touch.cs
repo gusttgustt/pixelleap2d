@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Multi-touch comes from the Input System's Touchscreen, so you can walk and act at once.
 public partial class IslandGame
 {
-    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker, Awaken, Who }
+    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker, Awaken, Who, Menu }
 
     /// Joystick direction (length 0..1), read by PlayerController.ReadInput.
     public static Vector2 TouchMove;
@@ -47,6 +47,8 @@ public partial class IslandGame
 
     TouchBtn HitTest(Vector2 p)
     {
+        if (MenuShown && (p - MenuCenter(GuiW, GuiH)).magnitude < MenuR * 1.3f) return TouchBtn.Menu; // ☰ (IslandGame.Menu.cs)
+        if (menuOpen) return TouchBtn.None; // taps go to the menu's buttons
         if (WhoTouchShown && (p - SmallCenter(TouchBtn.Who)).magnitude < SmallR * 1.3f) return TouchBtn.Who;
         if (whoOpen) return TouchBtn.None; // the list is open: taps go to its buttons, not the controls under it
         if (dead)
@@ -118,6 +120,7 @@ public partial class IslandGame
         PollMobileChat(); // the phone's chat box was sent / cancelled (IslandGame.ChatMobile.cs)
         if (touchTapped.Contains(TouchBtn.Sticker) && !title) ToggleStickers(); // also while typing or knocked out (IslandGame.Sticker.cs)
         if (chatOpen || title) return;
+        if (touchTapped.Contains(TouchBtn.Menu)) { ToggleMenu(); return; } // the ☰ menu (IslandGame.Menu.cs)
         if (touchTapped.Contains(TouchBtn.Who)) { ToggleWho(); return; } // who's online and the channel buttons
         if (touchTapped.Contains(TouchBtn.Chat)) { OpenMobileChat(); return; } // works while knocked out too
         if (dead || Busy) return;
@@ -145,6 +148,8 @@ public partial class IslandGame
     void DrawTouchControls()
     {
         if (!ShowTouch) return;
+        if (MenuShown) DrawBurger(MenuCenter(GuiW, GuiH), menuOpen); // ☰ (IslandGame.Menu.cs)
+        if (menuOpen) return; // the open menu: keep the other controls out of its way
         if (WhoTouchShown && (dialog == null || dead))
             TouchCircle(SmallCenter(TouchBtn.Who), SmallR, $"CH{channel}", new Color(0.6f, 1f, 0.65f), whoOpen, 12);
         if (whoOpen) return; // the list covers the middle: keep the controls out of its way

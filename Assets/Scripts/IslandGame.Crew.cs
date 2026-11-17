@@ -356,6 +356,7 @@ public partial class IslandGame
         st.normal.textColor = aboard ? new Color(0.6f, 1f, 0.7f) : new Color(0.7f, 0.9f, 1f);
         st.hover.textColor = Color.white;
         bool canBoard = InCrew && !aboard && NearCaptainOrBoat(BoardReach);
+        if (!canBoard && !aboard) return; // otherwise the crew button is in the menu (IslandGame.Menu.cs)
         string label = InCrew ? (aboard ? $"บนเรือ {crewCaptainName} (L)" : canBoard ? "ขึ้นเรือกัปตัน (L)" : $"ลูกเรือของ {crewCaptainName} (L)")
                      : IsCaptain ? $"ลูกเรือ {crewAboard.Count}/{crewMates.Count} บนเรือ (L)" : "ลูกเรือ (L)";
         var r = new Rect(W - 182, hudButtonsBottom + 4f, 172, 22);

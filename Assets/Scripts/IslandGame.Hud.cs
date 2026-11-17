@@ -566,7 +566,9 @@ public partial class IslandGame
         }
         DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
         DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
+        DrawMouseWhoButton(W, H);    // the CH button: who's online and channels (IslandGame.Who.cs)
         DrawTouchControls();
+        DrawMenu(W, H); // the ☰ menu, bottom right (IslandGame.Menu.cs)
         DrawSettingsPanel(W, H); // the gear's panel, on top of everything (IslandGame.Settings.cs)
         MouseWorldClick(); // a click on no button: left = E, right = power (IslandGame.Settings.cs)
     }
