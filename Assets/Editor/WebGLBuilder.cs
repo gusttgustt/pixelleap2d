@@ -10,6 +10,7 @@ public static class WebGLBuilder
 {
     const string OutputDir = "docs";
     const string VersionAsset = "Assets/Resources/BuildVersion.txt";
+    static readonly string[] KeepFiles = { "server.txt" };
 
     [MenuItem("Island/Build WebGL (docs folder)")]
     public static void Build()
@@ -29,6 +30,14 @@ public static class WebGLBuilder
         AssetDatabase.ImportAsset(VersionAsset, ImportAssetOptions.ForceUpdate);
 
         var scenes = new[] { "Assets/Scenes/SampleScene.unity" };
+        // Files in docs/ that are not part of the build survive it (server.txt = the online server's
+        // address, written by Server/online.js; without it the game on GitHub Pages can't connect).
+        var kept = new System.Collections.Generic.Dictionary<string, byte[]>();
+        foreach (var f in KeepFiles)
+        {
+            string p = Path.Combine(OutputDir, f);
+            if (File.Exists(p)) kept[f] = File.ReadAllBytes(p);
+        }
         if (Directory.Exists(OutputDir)) Directory.Delete(OutputDir, true);
 
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -43,6 +52,7 @@ public static class WebGLBuilder
         File.WriteAllText(Path.Combine(OutputDir, ".nojekyll"), "");
         File.WriteAllText(Path.Combine(OutputDir, "version.txt"), version);
         WritePage();
+        foreach (var k in kept) File.WriteAllBytes(Path.Combine(OutputDir, k.Key), k.Value);
 
         var s = report.summary;
         Debug.Log($"[WebGLBuilder] {s.result} (version {version}): {s.totalSize / (1024f * 1024f):0.0} MB, {s.totalErrors} errors, {s.totalTime}");
