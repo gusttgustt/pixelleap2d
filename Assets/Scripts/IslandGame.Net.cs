@@ -267,6 +267,7 @@ public partial class IslandGame
             case "hnode": OnHomeNodes(m); break;   // private island changes (IslandGame.HomeSync.cs)
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
             case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)
+            case "who": OnWho(m); break;           // everyone online and where (IslandGame.Who.cs)
 
             case "p":
                 if (inRoom && voyage == null) AddRemote(m.from, m.name).Apply(m);

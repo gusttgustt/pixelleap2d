@@ -336,7 +336,7 @@ public partial class IslandGame
         ("1-8", "ช่องลัด"), ("F", "กินอาหาร"), ("Q", "ดื่มจากกระบอกน้ำ"), ("X", "ดับกองไฟ"),
         ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("Y", "ปลุกพลังผลไม้ (เลเวล 60)"), ("K", "สกิล"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
         ("H", "เกาะส่วนตัว / กลับไปผจญภัย"), ("G", "สร้าง / รื้อ"), ("V", "เยี่ยมบ้านเพื่อน"), ("Enter", "แชท"),
-        ("J", "ป้ายประกาศค่าหัว"), ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
+        ("J", "ป้ายประกาศค่าหัว"), ("O", "ใครออนไลน์อยู่ที่ไหน"), ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
     };
 
     /// A short line of the keys you need right now, with F1 for the rest.
@@ -508,6 +508,7 @@ public partial class IslandGame
                 ShadowLabel(new Rect(gp.x - 10, gp.y - 22 + bounce, 20, 22), "!", titleCenter, new Color(1f, 0.85f, 0.3f));
             }
         if (wantedOpen) DrawWanted(W, H); // IslandGame.Bounty.cs (over the "!" marks)
+        if (whoOpen) DrawWho(W, H);       // who's online and where (IslandGame.Who.cs)
         if (dialog != null) DrawDialog(W, H);
 
         if (Time.time < hintUntil) DrawHint(W, H);
@@ -819,8 +820,12 @@ public partial class IslandGame
                      : voyage != null ? (inRoom && remotes.Count > 0 ? $"ออนไลน์ - กลางทะเล เห็นเรือ {remotes.Count} ลำ" : "ออนไลน์ - กลางทะเล")
                      : !inRoom ? "ออนไลน์ - กำลังเข้าเกาะ..."
                      : $"ออนไลน์ - บนเกาะนี้ {remotes.Count + 1} คน{(IsHost && remotes.Count > 0 ? " (โฮสต์)" : "")}";
-        ShadowLabel(new Rect(W - 376, 12, 330, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight }, // left of the gear
+        AskWho(); // how many are online in all (IslandGame.Who.cs)
+        if (Online && onlineTotal >= 0) state += $" · ทั้งหมด {onlineTotal} คน (O)";
+        var onlineRect = new Rect(W - 436, 12, 390, 18);
+        ShadowLabel(onlineRect, state, new GUIStyle(small) { alignment = TextAnchor.UpperRight }, // left of the gear
             Online ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.5f));
+        if (Online && CrispGUI.Button(onlineRect, GUIContent.none, GUIStyle.none)) ToggleWho(); // click: who's online and where
 
         DrawChat(W, H); // chat log + typing box, laid out for mouse or touch (IslandGame.ChatMobile.cs)
     }

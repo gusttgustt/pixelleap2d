@@ -28,6 +28,7 @@
 //   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
 //                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
 //                        {t:"wanted"}                 -> {t:"wanted", players: [{name, b, lk, c}]}  highest first (c:1 = you)
+//                        {t:"who"}                    -> {t:"who", hits: online, players: [{id, name, isl, c}]}  everyone online and their room (c:1 = you)
 //   Accounts live in DATA_DIR (default Server/data): accounts.json + one file per player's save.
 //   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
@@ -325,6 +326,13 @@ function onMessage(socket, text) {
     case "wanted":
       send(socket, { t: "wanted", players: wantedFor(socket) });
       return;
+    case "who": {
+      // everyone online and where they are (isl = their room: island key, sea, or private island)
+      const players = [];
+      for (const [id, s] of clients) players.push({ id, name: s.name, isl: s.island | 0, c: id === socket.pid ? 1 : 0 });
+      send(socket, { t: "who", hits: clients.size, players: players.slice(0, 100) });
+      return;
+    }
     case "home":
       socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000), c: Math.max(0, Math.min(3, m.island | 0)) };
       return;

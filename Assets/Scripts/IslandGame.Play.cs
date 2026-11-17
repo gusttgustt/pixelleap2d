@@ -135,7 +135,8 @@ public partial class IslandGame
     {
         if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) ToggleCraft(); // adventure list, or the home list inside your house (IslandGame.House.cs)
         if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
-        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; }
+        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; }
+        if (kb.oKey.wasPressedThisFrame) ToggleWho(); // O: who is online and where (IslandGame.Who.cs)
         HandleWantedKeys(kb); // J: the board of wanted posters (IslandGame.Bounty.cs)
         HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
         if (kb.fKey.wasPressedThisFrame) EatBest();
