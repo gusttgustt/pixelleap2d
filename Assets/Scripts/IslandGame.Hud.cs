@@ -736,6 +736,7 @@ public partial class IslandGame
             else if (Time.time < r.chatUntil) ChatBubble(gp, r.chat);
         }
         if (Time.time < myChatUntil && player != null) ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat);
+        DrawCaptainBoatTag(s); // crew: the captain's boat (IslandGame.Crew.cs)
     }
 
     static Texture2D bubbleTex, bubbleTailTex;

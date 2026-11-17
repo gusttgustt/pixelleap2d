@@ -9,7 +9,8 @@ using UnityEngine;
 ///
 /// Messages go through the server's "crew" relay (Server/server.js), which reaches a player
 /// wherever they are, at sea too: ev = apply / invite / added / accepted / no / leave / kick /
-/// board / unboard / sail / pos / land.
+/// board / unboard / sail / pos / land / boat. Every player's boat is moored at a spot of their
+/// own, so the captain tells the crew on the island where it is ("boat") and they see it there.
 public partial class IslandGame
 {
     // as a crew member
@@ -21,11 +22,15 @@ public partial class IslandGame
     Vector2 crewCaptainRaft;         // where the captain's boat is (passenger)
     float crewPosAt;                 // when it was last heard
     int crewCaptainLook;
+    Vector2 capBoatGrid;             // where the captain's boat is moored on this island
+    int capBoatLook, capBoatRoom;
+    float capBoatAt = -100f;         // when the captain last told us
+    SpriteRenderer capBoatSr;        // the captain's boat, drawn on our copy of the island
     // as a captain
     readonly List<(int id, string name)> crewMates = new List<(int, string)>();
     readonly HashSet<int> crewAboard = new HashSet<int>();
     readonly Dictionary<int, int> crewLooks = new Dictionary<int, int>();
-    float crewPosT;
+    float crewPosT, crewBoatT;
     bool crewLandSent;
     readonly List<SpriteRenderer> crewDeck = new List<SpriteRenderer>();
     // either
@@ -62,8 +67,8 @@ public partial class IslandGame
                 break;
             case "added": // the captain took me on
             case "accepted": // the player I invited said yes
-                if (m.ev == "added") { JoinCrew(m.from, who); Hint($"เป็นลูกเรือของ {who} แล้ว! เดินไปหากัปตันแล้วกดขึ้นเรือ (L)", 5f); }
-                else { AddMate(m.from, who); Hint($"{who} มาเป็นลูกเรือแล้ว", 4f); }
+                if (m.ev == "added") { JoinCrew(m.from, who); Hint($"เป็นลูกเรือของ {who} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้วกด L เพื่อขึ้นเรือ", 5f); }
+                else { AddMate(m.from, who); crewBoatT = 0f; Hint($"{who} มาเป็นลูกเรือแล้ว", 4f); }
                 break;
             case "no":
                 Hint($"{who} ไม่รับคำขอลูกเรือ", 3f);
@@ -112,6 +117,13 @@ public partial class IslandGame
                 if (m.from != crewCaptain || !crewRide || voyage == null || arriving) return;
                 BeginSailFade(true);
                 break;
+            case "boat": // where my captain's boat is moored on the island we're both on
+                if (m.from != crewCaptain || voyage != null) return;
+                capBoatGrid = new Vector2(m.x, m.y);
+                capBoatLook = m.lv;
+                capBoatRoom = m.island;
+                capBoatAt = Time.time;
+                break;
         }
     }
 
@@ -136,6 +148,18 @@ public partial class IslandGame
     void LeaveCrewLocal()
     {
         crewCaptain = 0; crewCaptainName = ""; aboard = false;
+        capBoatAt = -100f;
+    }
+
+    /// The captain's boat is known and on this island.
+    bool CapBoatHere => InCrew && voyage == null && player != null && Time.time - capBoatAt < 8f && capBoatRoom == RoomKey;
+
+    /// Close enough to climb aboard: next to the captain, or next to the captain's boat.
+    bool NearCaptainOrBoat(float reach)
+    {
+        if (player == null) return false;
+        if (remotes.TryGetValue(crewCaptain, out var cap) && cap != null && (cap.grid - player.grid).magnitude <= reach) return true;
+        return CapBoatHere && (capBoatGrid - player.grid).magnitude <= reach + 0.6f;
     }
 
     /// Stepping on and off the boat (L next to the captain).
@@ -155,9 +179,10 @@ public partial class IslandGame
             Hint($"กัปตัน {crewCaptainName} ไม่ได้อยู่บนเกาะนี้ ต้องรอให้กัปตันมารับ", 3.5f);
             return;
         }
-        if ((cap.grid - player.grid).magnitude > BoardReach)
+        if (!NearCaptainOrBoat(BoardReach))
         {
-            Hint($"เดินไปให้ใกล้กัปตัน {crewCaptainName} ก่อน แล้วกด L เพื่อขึ้นเรือ", 3f);
+            Hint(CapBoatHere ? $"เดินไปที่เรือของ {crewCaptainName} (มีป้ายบอกอยู่) หรือไปหาตัวกัปตัน แล้วกด L เพื่อขึ้นเรือ"
+                             : $"เดินไปให้ใกล้กัปตัน {crewCaptainName} ก่อน แล้วกด L เพื่อขึ้นเรือ", 3f);
             return;
         }
         aboard = true;
@@ -184,15 +209,59 @@ public partial class IslandGame
     /// who left the island are no longer aboard.
     void TickCrew()
     {
-        if (!Online) { if (InCrew || IsCaptain) { LeaveCrewLocal(); crewMates.Clear(); crewAboard.Clear(); } return; }
+        if (!Online) { if (InCrew || IsCaptain) { LeaveCrewLocal(); crewMates.Clear(); crewAboard.Clear(); } ShowCapBoat(); return; }
         if (voyage != null || player == null) return;
         if (crewRide) crewRide = false; // landed
         if (aboard)
         {
             if (!remotes.TryGetValue(crewCaptain, out var cap) || cap == null) { aboard = false; Hint("กัปตันออกจากเกาะไปแล้ว รอให้กัปตันกลับมารับ", 4f); }
-            else if ((cap.grid - player.grid).magnitude > AboardLeash) { aboard = false; SendCrew(crewCaptain, "unboard"); Hint("เดินห่างกัปตันเกินไป ลงจากเรือแล้ว (กลับไปกด L เพื่อขึ้นเรือ)", 4f); }
+            else if (!NearCaptainOrBoat(AboardLeash)) { aboard = false; SendCrew(crewCaptain, "unboard"); Hint("เดินห่างกัปตันและเรือเกินไป ลงจากเรือแล้ว (กลับไปกด L เพื่อขึ้นเรือ)", 4f); }
         }
         if (crewAboard.Count > 0) crewAboard.RemoveWhere(id => !remotes.ContainsKey(id));
+        // captain: tell the crew on this island where my boat is moored
+        crewBoatT -= Time.deltaTime;
+        if (IsCaptain && crewBoatT <= 0f)
+        {
+            crewBoatT = 2f;
+            var raft = RaftNode;
+            if (raft != null && raftLevel > 0 && !atHome)
+                foreach (var c in crewMates)
+                    if (remotes.ContainsKey(c.id)) SendCrew(c.id, "boat", RoomKey, x: raft.grid.x, y: raft.grid.y);
+        }
+        ShowCapBoat();
+    }
+
+    /// Crew member: draw the captain's boat where it's moored on our copy of the island.
+    void ShowCapBoat()
+    {
+        bool show = CapBoatHere && world != null;
+        if (!show) { if (capBoatSr != null) capBoatSr.enabled = false; return; }
+        if (capBoatSr == null) // made fresh on each island (the old one went with the old island)
+        {
+            capBoatSr = new GameObject("CaptainBoat").AddComponent<SpriteRenderer>();
+            capBoatSr.transform.SetParent(world);
+        }
+        capBoatSr.enabled = true;
+        capBoatSr.sprite = PixelArt.Boat(capBoatLook);
+        Vector3 flat = GridToWorld(capBoatGrid);
+        float bob = Mathf.Sin(Time.time * 2f) * 0.03f;
+        capBoatSr.transform.position = flat + Vector3.up * (HeightAt(capBoatGrid) + bob);
+        capBoatSr.sortingOrder = SortOrder(flat.y);
+        // if my own boat is moored on the same spot, step the captain's aside so both show
+        var mine = RaftNode;
+        if (mine != null && (mine.grid - capBoatGrid).magnitude < 1.2f) capBoatSr.transform.position += new Vector3(0.9f, 0f, 0f);
+    }
+
+    /// A sign over the captain's boat (crew members only).
+    void DrawCaptainBoatTag(float s)
+    {
+        if (capBoatSr == null || !capBoatSr.enabled || !CapBoatHere) return;
+        var gp = ToGui(capBoatSr.transform.position + Vector3.up * (PixelArt.BoatHeight(capBoatLook) * 0.8f + 0.2f), s);
+        string text = aboard ? $"เรือของ {crewCaptainName} <color=#9dff9d>(คุณอยู่บนเรือ)</color>"
+                    : NearCaptainOrBoat(BoardReach) ? $"เรือของ {crewCaptainName} <color=#ffe27a>กด L ขึ้นเรือ</color>"
+                    : $"เรือของ {crewCaptainName}";
+        float bounce = aboard ? 0f : Mathf.Sin(Time.time * 3f) * 2f;
+        ShadowLabel(new Rect(gp.x - 120, gp.y - 20 + bounce, 240, 18), text, smallCenter, new Color(0.75f, 0.95f, 1f));
     }
 
     /// At sea, every frame after the boat moved. A passenger's boat goes where the captain's is;
@@ -291,7 +360,7 @@ public partial class IslandGame
         ShadowLabel(new Rect(box.x + 10, box.y + 6, 260, 20), "ลูกเรือ", titleSt, new Color(0.7f, 0.9f, 1f));
         if (CrispGUI.Button(new Rect(box.xMax - 62, box.y + 6, 54, 20), "ปิด", btn)) { crewOpen = false; return; }
 
-        string status = InCrew ? $"ลูกเรือของ <b>{crewCaptainName}</b> · {(aboard ? "<color=#9dff9d>อยู่บนเรือ</color>" : "ยังไม่ขึ้นเรือ (เข้าใกล้กัปตันแล้วกด L)")}"
+        string status = InCrew ? $"ลูกเรือของ <b>{crewCaptainName}</b> · {(aboard ? "<color=#9dff9d>อยู่บนเรือ</color>" : "ยังไม่ขึ้นเรือ (ไปที่เรือหรือตัวกัปตันแล้วกด L)")}"
                       : IsCaptain ? $"คุณเป็นกัปตัน · ลูกเรือ {crewMates.Count} คน ขึ้นเรือแล้ว {crewAboard.Count} คน"
                       : raftLevel > 0 ? "ชวนคนบนเกาะนี้มาเป็นลูกเรือของคุณ" : "สมัครเป็นลูกเรือของคนที่มีเรือ";
         CrispGUI.Label(new Rect(box.x + 10, box.y + 30, box.width - 20, 18), status, line);
@@ -336,8 +405,8 @@ public partial class IslandGame
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 12 };
         if (CrispGUI.Button(new Rect(box.x + 30, box.y + 38, 130, 26), crewAsk.ev == "apply" ? "รับเป็นลูกเรือ" : "ตกลง", btn))
         {
-            if (crewAsk.ev == "apply") { AddMate(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "added"); Hint($"{crewAsk.name} เป็นลูกเรือของคุณแล้ว", 3f); }
-            else { JoinCrew(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "accepted"); Hint($"เป็นลูกเรือของ {crewAsk.name} แล้ว! เดินไปหากัปตันแล้วกด L เพื่อขึ้นเรือ", 5f); }
+            if (crewAsk.ev == "apply") { AddMate(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "added"); crewBoatT = 0.5f; Hint($"{crewAsk.name} เป็นลูกเรือของคุณแล้ว", 3f); }
+            else { JoinCrew(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "accepted"); Hint($"เป็นลูกเรือของ {crewAsk.name} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้วกด L เพื่อขึ้นเรือ", 5f); }
             crewAsk = (0, "", "");
         }
         if (CrispGUI.Button(new Rect(box.xMax - 160, box.y + 38, 130, 26), "ไม่", btn))
