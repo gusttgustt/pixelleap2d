@@ -19,7 +19,9 @@ public partial class IslandGame
         return x >= 0 && y >= 0 && x < Size && y < Size ? tiles[x, y] : 0;
     }
     /// Seconds for full warmth to run out in the open (night is colder).
-    float ColdSeconds => (Flag("warm" + island) ? 300f : 150f) * (IsNight ? 0.6f : 1f);
+    float ColdSeconds => (OnIceIsland ? (Flag("warm" + island) ? 300f : 150f) : 260f) * (IsNight ? 0.6f : 1f) * WeatherCold;
+    /// Cold here: the Ice island, or snow and blizzards anywhere (IslandGame.Seasons.cs).
+    bool Cold => OnIceIsland || ColdWeather;
     bool NearWarmth => player != null && (DistanceToFire(player.grid) < 3f
         || nodes.Exists(n => n != null && n.kind == NodeKind.HotSpring && (n.grid - player.grid).magnitude < 1.8f));
 
@@ -39,8 +41,8 @@ public partial class IslandGame
 
     void UpdateIce(float dt)
     {
-        if (!OnIceIsland || player == null) { warmth = 100f; coldWarned = false; return; }
-        if (Random.value < dt * 12f) // snowfall drifting across the screen
+        if (!Cold || player == null) { warmth = Mathf.Min(100f, warmth + dt * 25f); coldWarned = false; return; }
+        if (OnIceIsland && Random.value < dt * 12f) // snowfall drifting across the screen
             Fx.Burst(cam.transform.position + new Vector3(Random.Range(-6f, 6f), 3.5f, 0f), Color.white, 1, 0.1f, 0.3f, 4f, 0.4f);
         if (dead || Busy) return;
         if (NearWarmth)
@@ -55,7 +57,7 @@ public partial class IslandGame
 
     float DrawIceHud(float y)
     {
-        if (!OnIceIsland) return y;
+        if (!Cold && warmth >= 100f) return y;
         Color col = warmth < 25f ? new Color(0.6f, 0.75f, 1f) : new Color(1f, 0.6f, 0.3f);
         Bar(new Rect(14, y + 2, 180, 12), warmth / 100f, col, NearWarmth ? "ความอบอุ่น (กำลังอุ่นขึ้น)" : $"ความอบอุ่น {Mathf.CeilToInt(warmth)}");
         return y + 18f;

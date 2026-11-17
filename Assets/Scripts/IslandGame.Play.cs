@@ -118,12 +118,12 @@ public partial class IslandGame
     {
         float drain = (1f - 0.12f * SkillLv(Skill.IronStomach)) * (atHome ? 0.5f : 1f); // Iron Stomach slows the drain; home is restful
         float sun = hat == Item.StrawHat ? 0.85f : 1f;          // a straw hat keeps the sun off
-        hunger = Mathf.Max(0f, hunger - dt * drain * 100f / StarveSeconds);
-        thirst = Mathf.Max(0f, thirst - dt * drain * sun * 100f / ThirstSeconds);
+        hunger = Mathf.Max(0f, hunger - dt * drain * WeatherHunger * 100f / StarveSeconds);
+        thirst = Mathf.Max(0f, thirst - dt * drain * sun * WeatherThirst * 100f / ThirstSeconds); // heat, rain, ash (IslandGame.Seasons.cs)
         if (hunger <= 0f) health -= dt * 2f;
         if (thirst <= 0f) health -= dt * 2.5f;
         if (poisonT > 0f) { poisonT -= dt; health -= dt * 1.5f; } // spider bites and spore clouds
-        if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f);
+        if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f * WeatherRegen);
         return CheckDeath();
     }
 

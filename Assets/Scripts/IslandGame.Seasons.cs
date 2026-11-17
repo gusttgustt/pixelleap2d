@@ -78,6 +78,35 @@ public partial class IslandGame
         return w;
     }
 
+    // ------------------------------------------------------------------ what the weather does to you
+    bool WeatherHere => voyage == null && !inHouse && player != null;
+    /// Snow and blizzards chill you on any island: stay near a campfire (IslandGame.Ice.cs).
+    bool ColdWeather => WeatherHere && !atHome && nowWeather is Weather.Snow or Weather.Blizzard;
+    float WeatherCold => !WeatherHere ? 1f : nowWeather == Weather.Blizzard ? 0.5f : nowWeather == Weather.Snow ? 0.85f : 1f;
+    float WeatherThirst => !WeatherHere ? 1f : nowWeather switch
+    {
+        Weather.Heat => hat == Item.StrawHat ? 1.3f : 1.7f, // a straw hat keeps the worst of the sun off
+        Weather.Ash => 1.3f,
+        Weather.Rain or Weather.Thunder => 0.5f,             // you can drink the rain
+        _ => CurSeason == Season.Summer ? 1.15f : 1f,
+    };
+    float WeatherHunger => !WeatherHere ? 1f : nowWeather is Weather.Snow or Weather.Blizzard ? 1.3f : CurSeason == Season.Winter ? 1.15f : 1f;
+    float WeatherRegen => !WeatherHere ? 1f : nowWeather switch { Weather.Petals => 3f, Weather.Ash => 0f, _ => 1f };
+    /// Wading through a blizzard is slow, unless you have spiked boots.
+    public float WeatherSpeed => WeatherHere && nowWeather == Weather.Blizzard && Count(Item.SpikedBoots) == 0 ? 0.8f : 1f;
+
+    static string WeatherEffect(Weather w) => w switch
+    {
+        Weather.Heat => "หิวน้ำเร็วขึ้น (หมวกฟางช่วยได้)",
+        Weather.Rain => "หิวน้ำช้าลง",
+        Weather.Thunder => "ระวังฟ้าผ่า! หิวน้ำช้าลง",
+        Weather.Snow => "หนาว อยู่ใกล้กองไฟ หิวเร็วขึ้น",
+        Weather.Blizzard => "หนาวจัด เดินช้า (รองเท้าหนามช่วยได้)",
+        Weather.Ash => "หิวน้ำขึ้น พลังชีวิตไม่ฟื้นเอง",
+        Weather.Petals => "พลังชีวิตฟื้นเร็วขึ้น",
+        _ => null,
+    };
+
     static string WeatherLine(Weather w) => w switch
     {
         Weather.Rain => "ฝนเริ่มตกแล้ว",
@@ -119,8 +148,8 @@ public partial class IslandGame
         {
             nowWeather = w;
             weatherK = 0f;
-            string line = WeatherLine(w);
-            if (line != null && !inHouse && Time.time >= hintUntil) Hint(line, 3f);
+            string line = WeatherLine(w), fx = WeatherEffect(w);
+            if (line != null && !inHouse && Time.time >= hintUntil) Hint(fx != null ? $"{line} · {fx}" : line, 4f);
         }
         weatherK = Mathf.MoveTowards(weatherK, 1f, dt / 4f);
         flashT = Mathf.MoveTowards(flashT, 0f, dt * 3f);
@@ -159,8 +188,21 @@ public partial class IslandGame
                 }
                 if (nowWeather == Weather.Thunder)
                 {
+                    if (strikeT > 0f)
+                    {
+                        strikeT -= dt;
+                        if (strikeT <= 0f) LightningStrike();
+                    }
                     thunderTimer -= dt;
-                    if (thunderTimer <= 0f)
+                    if (thunderTimer <= 0f && !atHome && !visiting && strikeT <= 0f && Random.value < 0.45f)
+                    {
+                        // lightning picks a spot near you: a ring closes in on it, then it hits
+                        thunderTimer = Random.Range(9f, 16f);
+                        strikeAt = PlayerPos + (Vector3)(Random.insideUnitCircle * 1.6f);
+                        strikeT = 1.1f;
+                        Fx.Radial(strikeAt, new Color(1f, 0.95f, 0.5f), 14, -1.2f, 1.1f, 1f, 0.5f);
+                    }
+                    else if (thunderTimer <= 0f)
                     {
                         thunderTimer = Random.Range(5f, 11f);
                         flashT = 0.8f;
@@ -219,6 +261,19 @@ public partial class IslandGame
         }
     }
 
+    float strikeT;
+    Vector3 strikeAt;
+
+    void LightningStrike()
+    {
+        flashT = 1f;
+        Fx.Bolt(strikeAt + new Vector3(Random.Range(-0.6f, 0.6f), 6f, 0f), strikeAt, new Color(0.9f, 0.95f, 1f), 2f, 0.3f, 2, 0.4f);
+        Fx.Radial(strikeAt, new Color(1f, 0.9f, 0.4f), 16, 2.5f, 0.4f);
+        Shake(0.25f, 0.35f);
+        Sfx.Play("hurt", 0.4f);
+        if (player != null && Vector3.Distance(PlayerPos, strikeAt) < 0.7f) DamagePlayer(15f, "ฟ้าผ่า!");
+    }
+
     void DrawWeatherOverlay(float W, float H)
     {
         if (voyage != null || inHouse) return;
@@ -245,5 +300,14 @@ public partial class IslandGame
         int s = (int)CurSeason;
         ShadowLabel(new Rect(r.x, r.y, r.width, 16), $"<color={SeasonColors[s]}><b>{SeasonNames[s]}</b></color> {SeasonDay}/{SeasonDays}", st);
         ShadowLabel(new Rect(r.x, r.y + 15, r.width, 16), WeatherName(nowWeather), st, new Color(0.9f, 0.95f, 1f));
+        string fx = WeatherEffect(nowWeather);
+        if (fx != null && WeatherHere)
+        {
+            var tip = new GUIStyle(smallCenter) { fontSize = 10, richText = true, wordWrap = false };
+            float tw = tip.CalcSize(new GUIContent(fx)).x + 10f;
+            var tr = new Rect(r.xMax + 4f, r.y + 16f, tw, 15f); // beside the weather's name
+            Fill(tr, new Color(0f, 0f, 0f, 0.5f));
+            ShadowLabel(tr, fx, tip, nowWeather is Weather.Petals or Weather.Rain ? new Color(0.7f, 1f, 0.7f) : new Color(1f, 0.8f, 0.5f));
+        }
     }
 }
