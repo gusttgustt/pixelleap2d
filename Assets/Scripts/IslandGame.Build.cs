@@ -527,8 +527,8 @@ public partial class IslandGame
         Fill(new Rect(panel.x, panel.y, panel.width, 2), new Color(0.6f, 1f, 0.6f, 0.8f));
         ShadowLabel(new Rect(panel.x + 10, panel.y + 4, 300, 20), inHouse ? "จัดบ้าน" : atHome ? "โหมดสร้าง" : "ค้อน", label, new Color(0.7f, 1f, 0.7f));
         var bst = new GUIStyle(GUI.skin.button) { fontSize = 11 };
-        if (GUI.Button(new Rect(panel.xMax - 60, panel.y + 4, 52, 20), "ปิด (G)", bst)) { CloseBuild(); return; }
-        if (atHome && GUI.Button(new Rect(panel.xMax - 132, panel.y + 4, 68, 20), buildTurn ? "หมุน (R) ↻" : "หมุน (R)", bst)) buildTurn = !buildTurn;
+        if (CrispGUI.Button(new Rect(panel.xMax - 60, panel.y + 4, 52, 20), "ปิด (G)", bst)) { CloseBuild(); return; }
+        if (atHome && CrispGUI.Button(new Rect(panel.xMax - 132, panel.y + 4, 68, 20), buildTurn ? "หมุน (R) ↻" : "หมุน (R)", bst)) buildTurn = !buildTurn;
 
         for (int i = 0; i < count; i++)
         {
@@ -546,7 +546,7 @@ public partial class IslandGame
             Icon(new Rect(r.x + 4, r.y + 4, cell - 8, cell - 8), b.move ? (carrying != null && carrying.CurrentSprite != null ? carrying.CurrentSprite : PixelArt.Icon(Item.FurnChair)) : b.hammer ? PixelArt.Icon(inHouse ? Item.FurnChair : Item.Hammer) : BuildSprite(b.kind));
             if (b.item != null) ShadowLabel(new Rect(r.x, r.yMax - 16, r.width - 3, 16), Count(b.item.Value).ToString(), smallRight);
             GUI.color = Color.white;
-            if (GUI.Button(r, GUIContent.none, GUIStyle.none)) SelectBuild(i);
+            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) SelectBuild(i);
         }
         var sel = CurrentBuild;
         var cost = new System.Text.StringBuilder();

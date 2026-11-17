@@ -78,7 +78,7 @@ public class UpdateChecker : MonoBehaviour
         var st = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
         st.normal.textColor = new Color(1f, 0.9f, 0.4f);
         st.hover.textColor = Color.white;
-        if (GUI.Button(r, "มีอัปเดตใหม่! คลิกเพื่อโหลดเกมใหม่", st)) Reload();
+        if (CrispGUI.Button(r, "มีอัปเดตใหม่! คลิกเพื่อโหลดเกมใหม่", st)) Reload();
         GUI.color = Color.white;
     }
 

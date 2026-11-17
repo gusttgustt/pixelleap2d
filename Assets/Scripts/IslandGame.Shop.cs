@@ -214,9 +214,9 @@ public partial class IslandGame
         ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 200, 22), v.Title, label, new Color(1f, 0.85f, 0.3f));
         Icon(new Rect(box.xMax - 178, box.y + 8, 20, 20), PixelArt.Icon(Item.GoldCoin));
         ShadowLabel(new Rect(box.xMax - 154, box.y + 8, 80, 22), $"{coins}", label, new Color(1f, 0.85f, 0.3f));
-        if (GUI.Button(new Rect(box.xMax - 72, box.y + 6, 62, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
+        if (CrispGUI.Button(new Rect(box.xMax - 72, box.y + 6, 62, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
         float textH = Mathf.Min(48f, wrap.CalcHeight(new GUIContent(d.text), pw - 28f));
-        GUI.Label(new Rect(box.x + 14, box.y + 32, pw - 28, textH), $"<color=#f0e6d0>{d.text}</color>", wrap);
+        CrispGUI.Label(new Rect(box.x + 14, box.y + 32, pw - 28, textH), $"<color=#f0e6d0>{d.text}</color>", wrap);
         float y = box.y + 36f + textH;
 
         // buy / sell tabs
@@ -232,7 +232,7 @@ public partial class IslandGame
                 string name = t == 0 ? "ซื้อของ" : "ขายของ";
                 var r = new Rect(box.x + 14 + t * tw, y, tw - 4, 28);
                 if (on) Fill(r, new Color(1f, 0.85f, 0.3f, 0.35f));
-                if (GUI.Button(r, on ? $"<b>{name}</b>" : name, btn)) { shopSelling = t == 1; shopScroll = Vector2.zero; }
+                if (CrispGUI.Button(r, on ? $"<b>{name}</b>" : name, btn)) { shopSelling = t == 1; shopScroll = Vector2.zero; }
             }
             y += 32f;
         }
@@ -243,7 +243,7 @@ public partial class IslandGame
             int total = 0, pieces = 0;
             foreach (var it in Produce) { total += Count(it) * SellPrice(it); pieces += Count(it); }
             GUI.enabled = pieces > 0;
-            bool click = GUI.Button(new Rect(box.x + 14, y, pw - 28, 26),
+            bool click = CrispGUI.Button(new Rect(box.x + 14, y, pw - 28, 26),
                 pieces > 0 ? $"ขายผัก ไข่ นม ทั้งหมด ({pieces} ชิ้น) ได้ <color=#ffd84d>{total} เหรียญ</color>" : "ขายผัก ไข่ นม ทั้งหมด (ไม่มีในกระเป๋า)", btn);
             GUI.enabled = true;
             if (click) { SellProduce(v); return; }
@@ -258,14 +258,14 @@ public partial class IslandGame
         string tip = shopSelling ? "ราคาที่ร้านรับซื้อต่อชิ้น · กด \"ขายหมด\" เพื่อขายทั้งกอง"
                    : canSell ? "ราคาแดง = เหรียญไม่พอ · x5 ซื้อทีเดียว 5 ชุด"
                    : "ราคาแดง = เหรียญไม่พอ · x5 ซื้อทีเดียว 5 ชุด · ขายของได้ที่ร้านเจ๊กิมหงวน";
-        GUI.Label(new Rect(box.x + 14, box.yMax - footH, pw - 28, footH - 2), $"<color=#aaaaaa>{tip}</color>", small);
+        CrispGUI.Label(new Rect(box.x + 14, box.yMax - footH, pw - 28, footH - 2), $"<color=#aaaaaa>{tip}</color>", small);
     }
 
     void DrawBuyRows(Villager v, Rect view, float rowH, GUIStyle btn, int coins)
     {
         var wares = WaresOf(v.role);
         var content = new Rect(0, 0, view.width - 18, wares.Length * (rowH + 4f));
-        shopScroll = GUI.BeginScrollView(view, shopScroll, content, false, false);
+        shopScroll = CrispGUI.BeginScrollView(view, shopScroll, content, false, false);
         for (int i = 0; i < wares.Length; i++)
         {
             var w = wares[i];
@@ -277,13 +277,13 @@ public partial class IslandGame
             bool full = w.pet != null && pets.Count >= MaxPets;
             string have = w.pet != null ? $"สัตว์เลี้ยง {pets.Count}/{MaxPets}" : w.animal != null ? "ปล่อยไว้ข้างตัวคุณ" : $"มีอยู่ {Count(w.item.Value)}";
             string priceCol = coins >= w.price ? "#ffd84d" : "#ff8a8a";
-            GUI.Label(new Rect(row.x + 46, row.y + 23, 260, 18), $"<color={priceCol}>{w.price} เหรียญ</color>  <color=#bbbbbb>· {have}</color>", small);
+            CrispGUI.Label(new Rect(row.x + 46, row.y + 23, 260, 18), $"<color={priceCol}>{w.price} เหรียญ</color>  <color=#bbbbbb>· {have}</color>", small);
 
             float bx = row.xMax - 6;
             if (owned || full)
             {
                 GUI.enabled = false;
-                GUI.Button(new Rect(bx - 96, row.y + 9, 96, 28), owned ? "มีแล้ว" : "เต็มแล้ว", btn);
+                CrispGUI.Button(new Rect(bx - 96, row.y + 9, 96, 28), owned ? "มีแล้ว" : "เต็มแล้ว", btn);
                 GUI.enabled = true;
                 continue;
             }
@@ -292,24 +292,24 @@ public partial class IslandGame
             {
                 int five = w.price * 5;
                 GUI.enabled = coins >= five;
-                if (GUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"x5 ({five})", btn)) { Buy(v, w, 5); bought = true; }
+                if (CrispGUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"x5 ({five})", btn)) { Buy(v, w, 5); bought = true; }
                 bx -= 92;
             }
             GUI.enabled = coins >= w.price;
-            if (!bought && GUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"ซื้อ ({w.price})", btn)) { Buy(v, w); bought = true; }
+            if (!bought && CrispGUI.Button(new Rect(bx - 86, row.y + 9, 86, 28), $"ซื้อ ({w.price})", btn)) { Buy(v, w); bought = true; }
             GUI.enabled = true;
             if (bought) break;
         }
-        GUI.EndScrollView();
+        CrispGUI.EndScrollView();
     }
 
     void DrawSellRows(Villager v, Rect view, float rowH, GUIStyle btn)
     {
         var list = SellList(v);
         var content = new Rect(0, 0, view.width - 18, Mathf.Max(30f, list.Count * (rowH + 4f)));
-        shopScroll = GUI.BeginScrollView(view, shopScroll, content, false, false);
+        shopScroll = CrispGUI.BeginScrollView(view, shopScroll, content, false, false);
         if (list.Count == 0)
-            GUI.Label(new Rect(8, 8, content.width - 16, 20), v.role == VillagerRole.Fisher ? "<color=#cccccc>ไม่มีปลาหรือของทะเลในกระเป๋า</color>" : "<color=#cccccc>ไม่มีของที่ขายได้ในกระเป๋า</color>", small);
+            CrispGUI.Label(new Rect(8, 8, content.width - 16, 20), v.role == VillagerRole.Fisher ? "<color=#cccccc>ไม่มีปลาหรือของทะเลในกระเป๋า</color>" : "<color=#cccccc>ไม่มีของที่ขายได้ในกระเป๋า</color>", small);
         for (int i = 0; i < list.Count; i++)
         {
             var it = list[i];
@@ -318,16 +318,16 @@ public partial class IslandGame
             GUI.Box(row, GUIContent.none);
             Icon(new Rect(row.x + 6, row.y + 7, 32, 32), PixelArt.Icon(it));
             ShadowLabel(new Rect(row.x + 46, row.y + 3, 220, 20), $"{Name(it)}  <size=11><color=#bbbbbb>มี {have}</color></size>", label);
-            GUI.Label(new Rect(row.x + 46, row.y + 23, 220, 18), $"<color=#ffd84d>ชิ้นละ {price} เหรียญ</color>", small);
+            CrispGUI.Label(new Rect(row.x + 46, row.y + 23, 220, 18), $"<color=#ffd84d>ชิ้นละ {price} เหรียญ</color>", small);
 
             float bx = row.xMax - 6;
             int sell = 0;
-            if (GUI.Button(new Rect(bx - 116, row.y + 9, 116, 28), $"ขายหมด (+{have * price})", btn)) sell = have;
+            if (CrispGUI.Button(new Rect(bx - 116, row.y + 9, 116, 28), $"ขายหมด (+{have * price})", btn)) sell = have;
             bx -= 122;
-            if (have >= 10) { if (GUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 10", btn)) sell = 10; bx -= 68; }
-            if (have > 1 && GUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 1", btn)) sell = 1;
+            if (have >= 10) { if (CrispGUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 10", btn)) sell = 10; bx -= 68; }
+            if (have > 1 && CrispGUI.Button(new Rect(bx - 62, row.y + 9, 62, 28), "ขาย 1", btn)) sell = 1;
             if (sell > 0) { Sell(v, it, sell); break; }
         }
-        GUI.EndScrollView();
+        CrispGUI.EndScrollView();
     }
 }

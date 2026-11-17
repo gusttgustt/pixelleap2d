@@ -306,9 +306,9 @@ public partial class IslandGame
     {
         Color c = col ?? Color.white;
         style.normal.textColor = new Color(0f, 0f, 0f, 0.75f * c.a);
-        GUI.Label(new Rect(r.x + 1, r.y + 1, r.width, r.height), text, style);
+        CrispGUI.Label(new Rect(r.x + 1, r.y + 1, r.width, r.height), text, style);
         style.normal.textColor = c;
-        GUI.Label(r, text, style);
+        CrispGUI.Label(r, text, style);
         style.normal.textColor = Color.white;
     }
 
@@ -388,6 +388,8 @@ public partial class IslandGame
         float s = HudScale; // the HUD is designed for a virtual screen at least 820 x 540
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
         float W = Screen.width / s, H = Screen.height / s;
+        CrispGUI.Reset();
+        if (!title) { DrawTimeOfDayWash(W, H); DrawWeatherOverlay(W, H); } // under every button and panel
         DrawSoundButton(W);
         if (!title) DrawHomeButton(W); // private island <-> adventure (IslandGame.Home.cs)
         if (title)
@@ -398,7 +400,6 @@ public partial class IslandGame
             DrawTitle(W, 540f);
             return;
         }
-        DrawTimeOfDayWash(W, H);
         if (player != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
         DrawQuestTracker(W);
@@ -507,7 +508,6 @@ public partial class IslandGame
         if (sinceSave < 1.5f)
             ShadowLabel(new Rect(W - 110, 64, 96, 20), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
-        DrawWeatherOverlay(W, H);
         DrawStormOverlay(W, H);
         DrawScreenFlash(W, H);
         DrawInk(W, H);
@@ -553,7 +553,7 @@ public partial class IslandGame
             again.normal.textColor = new Color(1f, 0.85f, 0.3f);
             again.hover.textColor = Color.white;
             string btnText = downed ? "ยอมแพ้ เริ่มการผจญภัยใหม่ (R)" : "เริ่มการผจญภัยใหม่ (R)";
-            if (GUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
+            if (CrispGUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
         }
         DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
         DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
@@ -568,7 +568,7 @@ public partial class IslandGame
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = muted ? new Color(1f, 0.6f, 0.55f) : new Color(0.7f, 1f, 0.7f);
         st.hover.textColor = st.normal.textColor;
-        if (GUI.Button(r, muted ? "เสียง: ปิด (M)" : "เสียง: เปิด (M)", st)) Sfx.ToggleMute();
+        if (CrispGUI.Button(r, muted ? "เสียง: ปิด (M)" : "เสียง: เปิด (M)", st)) Sfx.ToggleMute();
     }
 
     // ------------------------------------------------------------------ online UI
@@ -592,7 +592,7 @@ public partial class IslandGame
         int frame = PixelArt.WalkFrames(look.Code) == 4 ? 1 + (int)(Time.time * 8f) % 4 : walk[(int)(Time.time * 4f) % 4];
         var sprite = PixelArt.Player(previewDir, frame, null, null, look.Code);
         Icon(new Rect(stage.x + 15, stage.y + 15, 140, 230), sprite);
-        if (GUI.Button(new Rect(stage.x, stage.yMax + 8, stage.width, 26), previewDir == 0 ? "หันหลัง" : "หันหน้า"))
+        if (CrispGUI.Button(new Rect(stage.x, stage.yMax + 8, stage.width, 26), previewDir == 0 ? "หันหลัง" : "หันหน้า"))
             previewDir = 1 - previewDir;
 
         // --- choices
@@ -625,20 +625,20 @@ public partial class IslandGame
         look.hair = Chooser(x, y, w, "สีผม", look.hair, CharacterLook.Hairs.Length, CharacterLook.Hairs[look.hair], null); y += 30;
         look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 30;
         look.pants = Chooser(x, y, w, look.gender == 1 ? "กระโปรง" : "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 32;
-        if (GUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
+        if (CrispGUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
         }
         }
 
         // --- play
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
         string acct = acctName ?? (SavedToken.Length > 0 ? SavedUser : "");
-        if (GUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), acct.Length > 0 ? $"เล่นออนไลน์ (บัญชี {acct})" : "เล่นออนไลน์ (เจอผู้เล่นอื่น)", btn)) PlayOnline();
-        if (GUI.Button(new Rect(box.x + 360, box.yMax - 54, 180, 36), "เล่นออฟไลน์", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
+        if (CrispGUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), acct.Length > 0 ? $"เล่นออนไลน์ (บัญชี {acct})" : "เล่นออนไลน์ (เจอผู้เล่นอื่น)", btn)) PlayOnline();
+        if (CrispGUI.Button(new Rect(box.x + 360, box.yMax - 54, 180, 36), "เล่นออฟไลน์", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
         GUI.enabled = true;
 
         var status = new GUIStyle(smallCenter) { wordWrap = true };
         ShadowLabel(new Rect(box.x, box.yMax + 6, box.width, 34), netStatus, status, new Color(1f, 0.9f, 0.6f));
-        if (connecting && GUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "ยกเลิก")) PlayOffline();
+        if (connecting && CrispGUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "ยกเลิก")) PlayOffline();
 
         ShadowLabel(new Rect(0, H - 22, W, 18), "ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น  ·  ล็อกอิน: เล่นตัวเดิมได้จากทุกเครื่อง", smallCenter, new Color(1f, 1f, 1f, 0.6f));
         string built = BuildTimeText();
@@ -687,7 +687,7 @@ public partial class IslandGame
             if (sprite != null) Icon(new Rect(inner.x + 4, inner.y + 3, inner.width - 8, inner.height - 34), sprite);
             ShadowLabel(new Rect(inner.x, inner.yMax - 30, inner.width, 28), CharacterLook.Presets[i], name,
                 picked ? new Color(1f, 0.9f, 0.55f) : new Color(1f, 1f, 1f, 0.8f));
-            if (GUI.Button(r, GUIContent.none, GUIStyle.none) && !picked)
+            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none) && !picked)
             {
                 look = new CharacterLook { preset = i, gender = 1, style = 1 };
                 Sfx.Play("pickup", 0.3f);
@@ -700,7 +700,7 @@ public partial class IslandGame
     {
         ShadowLabel(new Rect(x, y + 4, 100, 20), name, small);
         float cx = x + 110;
-        if (GUI.Button(new Rect(cx, y, 32, 26), "<")) value = (value + count - 1) % count;
+        if (CrispGUI.Button(new Rect(cx, y, 32, 26), "<")) value = (value + count - 1) % count;
         var mid = new Rect(cx + 38, y, w - 110 - 76, 26);
         if (swatchHex != null)
         {
@@ -709,7 +709,7 @@ public partial class IslandGame
             Fill(new Rect(mid.x + 3, mid.y + 3, mid.width - 6, mid.height - 6), col);
         }
         else ShadowLabel(mid, text, labelCenter);
-        if (GUI.Button(new Rect(mid.xMax + 6, y, 32, 26), ">")) value = (value + 1) % count;
+        if (CrispGUI.Button(new Rect(mid.xMax + 6, y, 32, 26), ">")) value = (value + 1) % count;
         return value;
     }
 
@@ -759,7 +759,7 @@ public partial class IslandGame
         GUI.Box(new Rect(r.x + 2f, r.y + 3f, r.width, r.height), GUIContent.none, bubbleShadow);       // shadow
         GUI.Box(r, GUIContent.none, bubbleBox);                                                       // body
         GUI.DrawTexture(new Rect(Mathf.Round(gp.x) - 6f, r.yMax - 2f, 12f, 9f), bubbleTailTex);       // tail
-        GUI.Label(new Rect(r.x + padX, r.y + padY, textW, r.height - padY * 2f), content, st);
+        CrispGUI.Label(new Rect(r.x + padX, r.y + padY, textW, r.height - padY * 2f), content, st);
     }
 
     /// The bubble's 9-sliced rounded box (and its shadow) and the tail, drawn once.
@@ -842,7 +842,7 @@ public partial class IslandGame
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
         Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 28, 20), d.speaker, label, new Color(1f, 0.85f, 0.3f));
-        GUI.Label(new Rect(box.x + 14, box.y + 30, pw - 28, textH), d.text, textStyle);
+        CrispGUI.Label(new Rect(box.x + 14, box.y + 30, pw - 28, textH), d.text, textStyle);
         if (renamePet >= 0) { DrawRenameField(new Rect(box.x + 16, box.y + 30 + textH - 30, Mathf.Min(320f, pw - 32f), 22f)); if (dialog != d) return; } // naming a pet (IslandGame.Pet.cs)
         float optY = box.y + 32f + textH;
         for (int i = 0; i < d.options.Count; i++)
@@ -850,7 +850,7 @@ public partial class IslandGame
             var o = d.options[i];
             GUI.enabled = o.enabled;
             var r = new Rect(box.x + 14, optY + i * (optH + 3f), pw - 28, optH);
-            if (GUI.Button(r, $"{i + 1}.  {o.label}", new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 })) o.act();
+            if (CrispGUI.Button(r, $"{i + 1}.  {o.label}", new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 })) o.act();
             GUI.enabled = true;
             if (d.icons != null && i < d.icons.Length && d.icons[i] != null) Icon(new Rect(r.xMax - 70f, r.y + 2f, 64f, optH - 4f), d.icons[i]);
         }
@@ -904,14 +904,14 @@ public partial class IslandGame
                     info.combat ? new Color(1f, 0.6f, 0.55f) : new Color(0.6f, 1f, 0.6f));
             Color nameCol = info.combat ? new Color(1f, 0.75f, 0.7f) : new Color(0.75f, 1f, 0.75f);
             ShadowLabel(new Rect(row.x + 8, row.y + 2, 200, 20), $"{i + 1}. {info.name}", label, nameCol);
-            GUI.Label(new Rect(row.x + 8, row.y + 20, 290, 18), $"<color=#cccccc>{info.desc}</color>", small);
+            CrispGUI.Label(new Rect(row.x + 8, row.y + 20, 290, 18), $"<color=#cccccc>{info.desc}</color>", small);
 
             var pips = new System.Text.StringBuilder();
             for (int p = 0; p < info.max; p++) pips.Append(p < lv ? "<color=#ffd84d>■</color>" : "<color=#555555>■</color>");
-            GUI.Label(new Rect(row.x + 210, row.y + 3, 100, 18), pips.ToString(), label);
+            CrispGUI.Label(new Rect(row.x + 210, row.y + 3, 100, 18), pips.ToString(), label);
 
             GUI.enabled = skillPoints > 0 && lv < info.max;
-            if (GUI.Button(new Rect(row.xMax - 46, row.y + 8, 40, 24), lv >= info.max ? "เต็ม" : "+")) UpgradeSkill((Skill)i);
+            if (CrispGUI.Button(new Rect(row.xMax - 46, row.y + 8, 40, 24), lv >= info.max ? "เต็ม" : "+")) UpgradeSkill((Skill)i);
             GUI.enabled = true;
         }
     }
@@ -965,10 +965,10 @@ public partial class IslandGame
             string badge = IsWorn(it) ? "<color=#ffd84d>W</color>" : IsTool(it) || IsClothing(it) ? "" : Count(it).ToString();
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
             if (r.Contains(Event.current.mousePosition)) hover = it;
-            if (FoodValue(it) > 0 && GUI.Button(r, GUIContent.none, GUIStyle.none)) Eat(it);
-            else if (it == Item.Antidote && GUI.Button(r, GUIContent.none, GUIStyle.none)) UseAntidote();
-            else if (IsPowerFruit(it) && GUI.Button(r, GUIContent.none, GUIStyle.none)) EatPowerFruit(it);
-            else if (IsClothing(it) && GUI.Button(r, GUIContent.none, GUIStyle.none)) ToggleWear(it);
+            if (FoodValue(it) > 0 && CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) Eat(it);
+            else if (it == Item.Antidote && CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) UseAntidote();
+            else if (IsPowerFruit(it) && CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) EatPowerFruit(it);
+            else if (IsClothing(it) && CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) ToggleWear(it);
         }
         if (hover != null)
         {
@@ -1000,11 +1000,11 @@ public partial class IslandGame
         GUI.Box(panel, GUIContent.none);
         Fill(new Rect(panel.x, panel.y, panel.width, 3), accent);
         ShadowLabel(new Rect(panel.x + 10, panel.y + 6, pw, 22), benchOpen ? "โต๊ะช่าง · ของใช้ในบ้าน" : "ประดิษฐ์ · ของผจญภัย", label, accent);
-        GUI.Label(new Rect(panel.x + 10, panel.y + 26, pw - 20, 16),
+        CrispGUI.Label(new Rect(panel.x + 10, panel.y + 26, pw - 20, 16),
             benchOpen ? "<color=#cccccc>ทำได้ในบ้านเท่านั้น · [ ] เปลี่ยนหมวด · ตัวเลขสร้าง</color>"
                       : "<color=#cccccc>ของใช้ในบ้านทำที่โต๊ะช่างในบ้าน · [ ] เปลี่ยนหมวด</color>", small);
         var fire = benchOpen ? null : FireInReach();
-        if (fire != null && GUI.Button(new Rect(panel.xMax - 92, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
+        if (fire != null && CrispGUI.Button(new Rect(panel.xMax - 92, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
 
         // category tabs
         float tx = panel.x + 6, ty = panel.y + 46, tw = (pw - 12f) / tabs.Length;
@@ -1013,13 +1013,13 @@ public partial class IslandGame
         {
             bool on = t == tab;
             if (on) Fill(new Rect(tx + t * tw, ty, tw - 2, 28), new Color(accent.r, accent.g, accent.b, 0.35f));
-            if (GUI.Button(new Rect(tx + t * tw, ty, tw - 2, 28), on ? $"<b>{tabs[t]}</b>" : tabs[t], tabStyle)) { CurrentTab = t; craftScroll = Vector2.zero; return; }
+            if (CrispGUI.Button(new Rect(tx + t * tw, ty, tw - 2, 28), on ? $"<b>{tabs[t]}</b>" : tabs[t], tabStyle)) { CurrentTab = t; craftScroll = Vector2.zero; return; }
         }
 
         var viewRect = new Rect(panel.x + 4, panel.y + headerH, pw - 8, panel.height - headerH - 4);
         var content = new Rect(0, 0, viewRect.width - 18, contentH);
-        craftScroll = GUI.BeginScrollView(viewRect, craftScroll, content, false, true);
-        if (view.Count == 0) GUI.Label(new Rect(8, 10, content.width - 16, 20), "<color=#cccccc>ยังไม่มีสูตรในหมวดนี้</color>", small);
+        craftScroll = CrispGUI.BeginScrollView(viewRect, craftScroll, content, false, true);
+        if (view.Count == 0) CrispGUI.Label(new Rect(8, 10, content.width - 16, 20), "<color=#cccccc>ยังไม่มีสูตรในหมวดนี้</color>", small);
         float y = 0f;
         for (int i = 0; i < view.Count; i++)
         {
@@ -1056,16 +1056,16 @@ public partial class IslandGame
                 cost.Append(enough ? "<color=#b8f0a0>" : "<color=#ff8a8a>")
                     .Append($"{c.n} {Name(c.item)} ({Count(c.item)})</color>");
             }
-            GUI.Label(new Rect(row.x + 44, row.y + 19, row.width - 110, 18), cost.ToString(), small);
+            CrispGUI.Label(new Rect(row.x + 44, row.y + 19, row.width - 110, 18), cost.ToString(), small);
 
             bool ok = CanCraft(r, out var why);
             string sub = !ok && why != MissingMaterials ? $"<color=#ffcc66>{why}</color>" : $"<color=#cccccc>{r.desc}</color>";
-            GUI.Label(new Rect(row.x + 44, row.y + 34, row.width - 110, 18), sub, small);
+            CrispGUI.Label(new Rect(row.x + 44, row.y + 34, row.width - 110, 18), sub, small);
 
             GUI.enabled = ok;
-            if (GUI.Button(new Rect(row.xMax - 60, row.y + 13, 54, 26), "สร้าง")) Craft(r);
+            if (CrispGUI.Button(new Rect(row.xMax - 60, row.y + 13, 54, 26), "สร้าง")) Craft(r);
             GUI.enabled = true;
         }
-        GUI.EndScrollView();
+        CrispGUI.EndScrollView();
     }
 }

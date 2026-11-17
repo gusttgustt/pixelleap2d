@@ -407,21 +407,21 @@ public partial class IslandGame
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
         st.hover.textColor = Color.white;
-        if (GUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
+        if (CrispGUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
         if (craftOpen || skillsOpen || bagOpen || dialog != null) return; // a panel covers this corner: its buttons must get the clicks
         float y = 76f;
         if (atHome && !buildOpen && !visiting)
         {
             var bst = new GUIStyle(st); bst.normal.textColor = new Color(0.75f, 1f, 0.7f);
-            if (GUI.Button(new Rect(W - 182, y, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
+            if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), inHouse ? "จัดบ้าน (G)" : "สร้าง / รื้อ (G)", bst)) ToggleBuild();
             y += 26f;
             hudButtonsBottom = y;
         }
         if (buildOpen) return;
         var pst = new GUIStyle(st); pst.normal.textColor = new Color(1f, 0.72f, 0.82f);
-        if (Online && serverHomes && GUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
+        if (Online && serverHomes && CrispGUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
         if (Online && serverHomes) y += 26f;
-        if (GUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
+        if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
         hudButtonsBottom = y + 22f;
     }
 

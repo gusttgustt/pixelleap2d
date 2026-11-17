@@ -60,7 +60,7 @@ public partial class IslandGame
     /// Small button with a sticker face on it that opens / closes the panel (mouse layout).
     void StickerButton(Rect r)
     {
-        if (GUI.Button(r, GUIContent.none)) ToggleStickers();
+        if (CrispGUI.Button(r, GUIContent.none)) ToggleStickers();
         var face = StickerTex("aka_laugh");
         if (face != null) GUI.DrawTexture(new Rect(r.x + 3f, r.y + 1f, r.width - 6f, r.height - 2f), face, ScaleMode.ScaleToFit);
     }
@@ -93,11 +93,11 @@ public partial class IslandGame
             tab.normal.textColor = on ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 1f, 1f, 0.6f);
             var tr = new Rect(tx, r.y + pad, 92f, tabH);
             if (on) Fill(new Rect(tr.x, tr.yMax - 3f, tr.width, 3f), new Color(1f, 0.85f, 0.3f));
-            if (GUI.Button(tr, StickerSetNames[s], tab)) stickerSet = s;
+            if (CrispGUI.Button(tr, StickerSetNames[s], tab)) stickerSet = s;
             tx += 98f;
         }
         var close = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-        if (GUI.Button(new Rect(r.xMax - pad - 56f, r.y + pad, 56f, tabH), "ปิด", close)) { stickerOpen = false; return; }
+        if (CrispGUI.Button(new Rect(r.xMax - pad - 56f, r.y + pad, 56f, tabH), "ปิด", close)) { stickerOpen = false; return; }
 
         // grid
         string hover = null;
@@ -112,7 +112,7 @@ public partial class IslandGame
             var tex = StickerTex(key);
             if (tex != null) GUI.DrawTexture(new Rect(c.x + 3f, c.y + 3f, cell - 6f, cell - 6f), tex, ScaleMode.ScaleToFit);
             if (over) hover = StickerLabels[i];
-            if (GUI.Button(c, GUIContent.none, GUIStyle.none)) { SendSticker(key); return; }
+            if (CrispGUI.Button(c, GUIContent.none, GUIStyle.none)) { SendSticker(key); return; }
         }
         ShadowLabel(new Rect(r.x, gy + 2f * cell + gap + 4f, r.width, 20f), hover ?? "แตะสติกเกอร์เพื่อส่งให้เพื่อนบนเกาะ", smallCenter,
             hover != null ? new Color(1f, 0.9f, 0.6f) : new Color(1f, 1f, 1f, 0.55f));

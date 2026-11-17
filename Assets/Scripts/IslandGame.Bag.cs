@@ -222,7 +222,7 @@ public partial class IslandGame
             string badge = IsWorn(it.Value) || weapon == it ? "<color=#ffd84d>E</color>" : IsTool(it.Value) || IsClothing(it.Value) || IsWeapon(it.Value) ? "" : n.ToString();
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
             if (r.Contains(Event.current.mousePosition)) hover = it;
-            if (GUI.Button(r, GUIContent.none, GUIStyle.none)) UseItem(it.Value);
+            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) UseItem(it.Value);
         }
         if (hover != null && !bagOpen)
         {
@@ -243,7 +243,7 @@ public partial class IslandGame
         Fill(panel, new Color(0.08f, 0.06f, 0.04f, 0.92f));
         Fill(new Rect(panel.x, panel.y, panel.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         ShadowLabel(new Rect(panel.x + 12, panel.y + 6, 200, 22), "กระเป๋า", label, new Color(1f, 0.85f, 0.3f));
-        if (GUI.Button(new Rect(panel.xMax - 34, panel.y + 6, 26, 22), "X")) { bagOpen = false; return; }
+        if (CrispGUI.Button(new Rect(panel.xMax - 34, panel.y + 6, 26, 22), "X")) { bagOpen = false; return; }
 
         // --- equipment column on the right
         float ew = 190f;
@@ -260,7 +260,7 @@ public partial class IslandGame
         string stats = $"ดาเมจ {WeaponDamage}\nโจมตี {AttacksPerSecond:0.0} ครั้ง/วิ (สูงสุด 3)\nพลังชีวิตสูงสุด {MaxHealth:0}";
         if (GearArmor > 0f) stats += $"\nรับดาเมจ -{GearArmor * 100f:0}%";
         if (power != Power.None) stats += $"\nพลัง{PowerName(power)} Lv {powerLv}";
-        GUI.Label(new Rect(eq.x + 8, ey, ew - 16, eq.yMax - ey), stats, st);
+        CrispGUI.Label(new Rect(eq.x + 8, ey, ew - 16, eq.yMax - ey), stats, st);
 
         // --- tabs and sort
         float lx = panel.x + 10, lw = pw - ew - 30;
@@ -271,9 +271,9 @@ public partial class IslandGame
         {
             var tst = new GUIStyle(GUI.skin.button) { fontSize = 11 };
             if (tabs[i] == bagTab) tst.normal.textColor = new Color(1f, 0.85f, 0.3f);
-            if (GUI.Button(new Rect(lx + i * tw, ty, tw - 2, 22), TabName(tabs[i]), tst)) { bagTab = tabs[i]; bagSelected = null; }
+            if (CrispGUI.Button(new Rect(lx + i * tw, ty, tw - 2, 22), TabName(tabs[i]), tst)) { bagTab = tabs[i]; bagSelected = null; }
         }
-        if (GUI.Button(new Rect(lx + lw - 66, ty, 66, 22), sortByCount ? "เรียง: จำนวน" : "เรียง: ชนิด", new GUIStyle(GUI.skin.button) { fontSize = 10 })) sortByCount = !sortByCount;
+        if (CrispGUI.Button(new Rect(lx + lw - 66, ty, 66, 22), sortByCount ? "เรียง: จำนวน" : "เรียง: ชนิด", new GUIStyle(GUI.skin.button) { fontSize = 10 })) sortByCount = !sortByCount;
 
         // --- item grid
         var list = new List<Item>();
@@ -287,7 +287,7 @@ public partial class IslandGame
         int cols = Mathf.Max(1, Mathf.FloorToInt(lw / (SlotSize + SlotGap)) - 0);
         int rows = Mathf.CeilToInt(list.Count / (float)cols);
         var content = new Rect(0, 0, gridView.width - 16, Mathf.Max(gridView.height, rows * (SlotSize + SlotGap)));
-        bagScroll = GUI.BeginScrollView(gridView, bagScroll, content, false, false);
+        bagScroll = CrispGUI.BeginScrollView(gridView, bagScroll, content, false, false);
         for (int i = 0; i < list.Count; i++)
         {
             var it = list[i];
@@ -297,10 +297,10 @@ public partial class IslandGame
             Icon(new Rect(r.x + 5, r.y + 5, SlotSize - 10, SlotSize - 10), PixelArt.Icon(it));
             string badge = IsWorn(it) || weapon == it ? "<color=#ffd84d>E</color>" : Count(it).ToString();
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
-            if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { bagSelected = it; confirmDestroy = false; }
+            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) { bagSelected = it; confirmDestroy = false; }
         }
         if (list.Count == 0) ShadowLabel(new Rect(0, 8, content.width, 20), "ไม่มีของในหมวดนี้", smallCenter, new Color(1f, 1f, 1f, 0.5f));
-        GUI.EndScrollView();
+        CrispGUI.EndScrollView();
 
         // --- selected item details and actions
         var det = new Rect(lx, panel.yMax - detailH - 6, lw, detailH);
@@ -324,14 +324,14 @@ public partial class IslandGame
         string useLabel = IsClothing(sel) ? (IsWorn(sel) ? "ถอด" : "สวม") : IsWeapon(sel) ? (weapon == sel ? "เก็บ" : "ถือ")
                         : FoodValue(sel) > 0 ? "กิน" : IsPowerFruit(sel) ? "กิน" : sel == Item.Antidote || sel == Item.Sundial ? "ใช้" : IsSeed(sel) ? "ปลูกก่อน" : "-";
         GUI.enabled = useLabel != "-";
-        if (GUI.Button(new Rect(bx, by, bw, 24), useLabel, bst)) UseItem(sel);
+        if (CrispGUI.Button(new Rect(bx, by, bw, 24), useLabel, bst)) UseItem(sel);
         GUI.enabled = true;
         bool onBar = System.Array.IndexOf(hotbar, (Item?)sel) >= 0;
-        if (GUI.Button(new Rect(bx + (bw + 4), by, bw, 24), onBar ? "เอาออกช่องลัด" : "ใส่ช่องลัด", bst)) ToggleHotbar(sel);
-        if (GUI.Button(new Rect(bx + 2 * (bw + 4), by, bw, 24), "ทิ้ง 1", bst)) DropItem(sel, 1);
-        if (GUI.Button(new Rect(bx + 3 * (bw + 4), by, bw, 24), "ทิ้งทั้งหมด", bst)) DropItem(sel, Count(sel));
+        if (CrispGUI.Button(new Rect(bx + (bw + 4), by, bw, 24), onBar ? "เอาออกช่องลัด" : "ใส่ช่องลัด", bst)) ToggleHotbar(sel);
+        if (CrispGUI.Button(new Rect(bx + 2 * (bw + 4), by, bw, 24), "ทิ้ง 1", bst)) DropItem(sel, 1);
+        if (CrispGUI.Button(new Rect(bx + 3 * (bw + 4), by, bw, 24), "ทิ้งทั้งหมด", bst)) DropItem(sel, Count(sel));
         var dst = new GUIStyle(bst); dst.normal.textColor = new Color(1f, 0.5f, 0.5f);
-        if (GUI.Button(new Rect(bx + 4 * (bw + 4), by, bw, 24), confirmDestroy ? "ยืนยันทำลาย!" : "ทำลาย", dst))
+        if (CrispGUI.Button(new Rect(bx + 4 * (bw + 4), by, bw, 24), confirmDestroy ? "ยืนยันทำลาย!" : "ทำลาย", dst))
         {
             if (confirmDestroy) DestroyItem(sel); else confirmDestroy = true;
         }
@@ -345,6 +345,6 @@ public partial class IslandGame
         if (it == null) { ShadowLabel(new Rect(r.x + 46, r.y + 6, r.width - 50, 18), "-", small, new Color(1f, 1f, 1f, 0.4f)); return; }
         Icon(new Rect(r.x + 46, r.y + 3, 24, 24), PixelArt.Icon(it.Value));
         ShadowLabel(new Rect(r.x + 74, r.y + 6, r.width - 76, 18), Name(it.Value), small);
-        if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { takeOff(); }
+        if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) { takeOff(); }
     }
 }

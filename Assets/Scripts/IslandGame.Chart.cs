@@ -107,7 +107,7 @@ public partial class IslandGame
         Fill(new Rect(box.x, box.y, box.width, 3), new Color(1f, 0.85f, 0.3f, 0.9f));
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 13, richText = true };
         ShadowLabel(new Rect(box.x + 14, box.y + 6, pw - 120, 22), dialog.speaker, label, new Color(1f, 0.85f, 0.3f));
-        if (GUI.Button(new Rect(box.xMax - 82, box.y + 5, 72, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
+        if (CrispGUI.Button(new Rect(box.xMax - 82, box.y + 5, 72, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
 
         // ---- continents: a pixel-art picture of each, with its weather (IslandGame.ChartArt.cs)
         float tabY = box.y + 34f, tabW = (pw - 20f) / Continents, tabH = Mathf.Clamp(ph * 0.2f, 56f, 96f);
@@ -140,7 +140,7 @@ public partial class IslandGame
         chartScrollGoal = Mathf.Clamp(chartScrollGoal, 0f, maxScroll);
         chartScroll = Mathf.Lerp(chartScroll, chartScrollGoal, 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime));
 
-        GUI.BeginGroup(map);
+        CrispGUI.BeginGroup(map);
         Fill(new Rect(0, 0, map.width, map.height), Color.Lerp(new Color(0.13f, 0.36f, 0.55f), ContinentColor[chartC], 0.12f));
         for (int i = 0; i < 60; i++) // waves drifting slowly
         {
@@ -206,15 +206,15 @@ public partial class IslandGame
             }
             ShadowLabel(new Rect(c.x - 60, r.yMax + 1, 120, 17), line1, tag);
             ShadowLabel(new Rect(c.x - 60, r.yMax + 16, 120, 17), line2, tag);
-            if (GUI.Button(new Rect(r.x - 8, r.y - 6, r.width + 16, r.height + 42), GUIContent.none, GUIStyle.none))
+            if (CrispGUI.Button(new Rect(r.x - 8, r.y - 6, r.width + 16, r.height + 42), GUIContent.none, GUIStyle.none))
             {
-                if (chartFriend == null && chartSel == n && e.clickCount >= 2) { GUI.EndGroup(); ChartGo(); return; }
+                if (chartFriend == null && chartSel == n && e.clickCount >= 2) { CrispGUI.EndGroup(); ChartGo(); return; }
                 ChartSelect(n);
             }
         }
-        GUI.EndGroup();
-        if (GUI.Button(new Rect(map.x + 4, map.y + map.height / 2 - 18, 28, 36), "◀", btn)) chartScrollGoal -= visible - 1;
-        if (GUI.Button(new Rect(map.xMax - 32, map.y + map.height / 2 - 18, 28, 36), "▶", btn)) chartScrollGoal += visible - 1;
+        CrispGUI.EndGroup();
+        if (CrispGUI.Button(new Rect(map.x + 4, map.y + map.height / 2 - 18, 28, 36), "◀", btn)) chartScrollGoal -= visible - 1;
+        if (CrispGUI.Button(new Rect(map.xMax - 32, map.y + map.height / 2 - 18, 28, 36), "▶", btn)) chartScrollGoal += visible - 1;
 
         // ---- friends' islands on this continent
         var fr = new Rect(box.x + 10, map.yMax + 4, pw - 20, friendsH - 6);
@@ -230,7 +230,7 @@ public partial class IslandGame
                 var cr = new Rect(fx, fr.y + 4, 150, fr.height - 8);
                 if (cr.xMax > fr.xMax - 4) break;
                 bool on = chartFriend != null && chartFriend.id == f.id;
-                if (GUI.Button(cr, $"{(on ? "<b><color=#ffe27a>" : "")}บ้าน {f.name}{(on ? "</color></b>" : "")}", btn)) { chartFriend = f; chartSel = -1; Sfx.Play("pickup", 0.2f); }
+                if (CrispGUI.Button(cr, $"{(on ? "<b><color=#ffe27a>" : "")}บ้าน {f.name}{(on ? "</color></b>" : "")}", btn)) { chartFriend = f; chartSel = -1; Sfx.Play("pickup", 0.2f); }
                 fx += 156f;
                 shown++;
             }
@@ -285,11 +285,11 @@ public partial class IslandGame
             }
         }
         ShadowLabel(new Rect(info.x, info.y, info.width - 190, 22), title, new GUIStyle(label) { richText = true }, new Color(1f, 0.9f, 0.6f));
-        GUI.Label(new Rect(info.x, info.y + 24, info.width - 190, infoH - 24), text, wrap);
+        CrispGUI.Label(new Rect(info.x, info.y + 24, info.width - 190, infoH - 24), text, wrap);
         if (action != null)
         {
             GUI.enabled = can;
-            if (GUI.Button(new Rect(info.xMax - 180, info.y + 4, 180, 38), $"<b>{action}</b>", btn)) { GUI.enabled = true; ChartGo(); return; }
+            if (CrispGUI.Button(new Rect(info.xMax - 180, info.y + 4, 180, 38), $"<b>{action}</b>", btn)) { GUI.enabled = true; ChartGo(); return; }
             GUI.enabled = true;
         }
         ShadowLabel(new Rect(info.xMax - 180, info.y + 46, 180, 18), "1-4 ทวีป · ← → เกาะ · ล้อเมาส์เลื่อน", smallCenter, new Color(0.8f, 0.8f, 0.8f));

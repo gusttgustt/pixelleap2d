@@ -267,7 +267,7 @@ public partial class IslandGame
         bool hover = r.Contains(Event.current.mousePosition);
         void Box(float x, float y, float bw, float bh, Color col) => Fill(new Rect(img.x + x * s, img.y + y * s, bw * s, bh * s), col);
 
-        GUI.BeginGroup(r);
+        CrispGUI.BeginGroup(r);
         GUI.DrawTexture(img, tex, ScaleMode.StretchToFill);
         switch (c)
         {
@@ -341,13 +341,13 @@ public partial class IslandGame
         var subSt = new GUIStyle(smallCenter) { fontSize = narrow ? 8 : 10, richText = true, wordWrap = false };
         ShadowLabel(new Rect(2, r.height - lh, r.width - 4, lh * 0.55f), ContinentNames[c], name, on ? new Color(1f, 0.9f, 0.5f) : Color.white);
         ShadowLabel(new Rect(2, r.height - lh * 0.5f, r.width - 4, lh * 0.45f), sub, subSt);
-        GUI.EndGroup();
+        CrispGUI.EndGroup();
 
         if (on)
         {
             Outline(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), new Color(1f, 0.85f, 0.3f, 0.75f + 0.25f * Mathf.Sin(t * 5f)));
             Fill(new Rect(r.x, r.yMax + 2, r.width, 3), ContinentColor[c]);
         }
-        return GUI.Button(r, GUIContent.none, GUIStyle.none);
+        return CrispGUI.Button(r, GUIContent.none, GUIStyle.none);
     }
 }

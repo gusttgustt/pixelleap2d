@@ -133,13 +133,13 @@ public partial class IslandGame
             StickerButton(new Rect(rowRect.xMax - 98f, rowRect.y + 3f, 32f, rowH - 5f)); // IslandGame.Sticker.cs
             var send = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
             send.normal.textColor = new Color(1f, 0.85f, 0.3f);
-            if (GUI.Button(new Rect(rowRect.xMax - 62f, rowRect.y + 3f, 58f, rowH - 5f), "ส่ง", send)) SubmitChat();
+            if (CrispGUI.Button(new Rect(rowRect.xMax - 62f, rowRect.y + 3f, 58f, rowH - 5f), "ส่ง", send)) SubmitChat();
         }
         else if (chatButton)
         {
             var b = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
             b.normal.textColor = new Color(0.7f, 0.9f, 1f);
-            if (GUI.Button(new Rect(rowRect.x, rowRect.y + 2f, 110f, rowH - 4f), "แชต (Enter)", b)) OpenChat();
+            if (CrispGUI.Button(new Rect(rowRect.x, rowRect.y + 2f, 110f, rowH - 4f), "แชต (Enter)", b)) OpenChat();
             StickerButton(new Rect(rowRect.x + 114f, rowRect.y + 2f, 32f, rowH - 4f));
         }
     }

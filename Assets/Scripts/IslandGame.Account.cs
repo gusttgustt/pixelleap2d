@@ -156,7 +156,7 @@ public partial class IslandGame
         {
             string who = acctName ?? SavedUser;
             ShadowLabel(new Rect(x, y + 2, w - 110, 22), $"เข้าสู่ระบบเป็น <b>{who}</b>", label, new Color(0.75f, 1f, 0.75f));
-            if (GUI.Button(new Rect(x + w - 104, y, 104, 24), "ออกจากระบบ")) AccountLogout();
+            if (CrispGUI.Button(new Rect(x + w - 104, y, 104, 24), "ออกจากระบบ")) AccountLogout();
             ShadowLabel(new Rect(x, y + 28, w, 36), "กด \"เล่นออนไลน์\" แล้วจะได้ตัวละครจากบัญชีนี้", note, new Color(1f, 1f, 1f, 0.7f));
             return;
         }
@@ -168,7 +168,7 @@ public partial class IslandGame
         acctPass = GUI.PasswordField(new Rect(x + 72, y, w - 72, 24), acctPass ?? "", '*', 32, field);
         y += 30;
         float bw = (w - 6) / 2f;
-        if (GUI.Button(new Rect(x, y, bw, 26), "เข้าสู่ระบบ")) AccountLogin(false);
-        if (GUI.Button(new Rect(x + bw + 6, y, bw, 26), "สมัครบัญชีใหม่")) AccountLogin(true);
+        if (CrispGUI.Button(new Rect(x, y, bw, 26), "เข้าสู่ระบบ")) AccountLogin(false);
+        if (CrispGUI.Button(new Rect(x + bw + 6, y, bw, 26), "สมัครบัญชีใหม่")) AccountLogin(true);
     }
 }
