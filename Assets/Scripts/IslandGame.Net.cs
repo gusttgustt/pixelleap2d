@@ -359,7 +359,7 @@ public partial class IslandGame
                 t = "p", x = player.grid.x, y = player.grid.y, d = player.Dir, f = player.Frame, fl = player.Flip ? 1 : 0,
                 hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
                 lv = level, name = playerName, look = lookCode, pet = ActivePetSave != null ? ActivePetSave.code + 1 : 0,
-                dn = downed ? 1 : 0,
+                dn = downed ? 1 : 0, aw = Awakened ? (int)power : 0,
             });
         }
         if (!IsHost || remotes.Count == 0) return;
@@ -394,7 +394,7 @@ public partial class IslandGame
             t = "sp", x = v.length > 0f ? v.raft.x / v.length : 0f, y = v.raft.y, d = v.dir, f = v.vel.magnitude > 0.2f ? 1 + ((int)v.animT & 1) : 0,
             fl = v.playerSr != null && v.playerSr.flipX ? 1 : 0, kind = crewRide ? crewBoatLook : BoatLookNow, hits = crewRide ? 1 : 0,
             hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
-            lv = level, name = playerName, look = lookCode,
+            lv = level, name = playerName, look = lookCode, aw = Awakened ? (int)power : 0,
         });
     }
 

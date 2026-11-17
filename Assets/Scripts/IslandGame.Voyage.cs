@@ -142,6 +142,7 @@ public partial class IslandGame
             HandleCommonKeys(kb);
             if (kb.rKey.wasPressedThisFrame) UsePower();        // powers work on the raft too (IslandGame.SeaPower.cs)
             if (kb.tKey.wasPressedThisFrame) UsePowerAttack();
+            if (kb.yKey.wasPressedThisFrame) UseAwaken();
         }
 
         // Paddling: the raft has some momentum, so it drifts a little.
@@ -261,6 +262,7 @@ public partial class IslandGame
     /// Hit a sea creature (weapon or power). Returns true if it died.
     bool HitSea(SeaCreature c, int dmg, Color popupCol)
     {
+        dmg = AwakenDmg(dmg);
         if (c == null || !c.Hittable) return false;
         Vector3 at = c.transform.position;
         bool navy = c.kind == SeaKind.Navy;

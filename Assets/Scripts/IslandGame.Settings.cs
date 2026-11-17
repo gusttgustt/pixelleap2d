@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 /// Settings live behind one gear icon in the top-right corner (title screen and game): sound,
 /// weather effects, full screen, zoom and the list of keys. Also the mouse on a computer:
-/// left click does what E does, right click uses the special power (R).
+/// left click does what E does, right click uses the fruit power (R), or the next move if it's recharging.
 public partial class IslandGame
 {
     bool settingsOpen;
@@ -129,7 +129,7 @@ public partial class IslandGame
         if (mousePowerQueued)
         {
             mousePowerQueued = false;
-            if (!title && !dead && !chatOpen && !Busy && (player != null || voyage != null)) UsePower();
+            if (!title && !dead && !chatOpen && !Busy && (player != null || voyage != null)) UsePowerChain();
         }
     }
 

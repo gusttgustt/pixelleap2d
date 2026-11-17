@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Multi-touch comes from the Input System's Touchscreen, so you can walk and act at once.
 public partial class IslandGame
 {
-    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker }
+    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker, Awaken }
 
     /// Joystick direction (length 0..1), read by PlayerController.ReadInput.
     public static Vector2 TouchMove;
@@ -31,6 +31,7 @@ public partial class IslandGame
         TouchBtn.Drink => new Vector2(GuiW - 180f, GuiH - 140f),
         TouchBtn.Power => new Vector2(GuiW - 120f, GuiH - 200f),
         TouchBtn.PowerAtk => new Vector2(GuiW - 52f, GuiH - 212f),
+        TouchBtn.Awaken => new Vector2(GuiW - 86f, GuiH - 266f), // level 60 (IslandGame.Awaken.cs)
         // menus in an arc just above-right of the stick: the left side of the screen above them
         // stays free for the status text and the quest steps (they used to cover it)
         TouchBtn.Bag => new Vector2(198f, GuiH - 152f),
@@ -54,6 +55,7 @@ public partial class IslandGame
         // the small buttons first: the menu arc sits close to the stick's grab area
         foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills, TouchBtn.Power, TouchBtn.PowerAtk, TouchBtn.Bag })
             if ((b != TouchBtn.Power && b != TouchBtn.PowerAtk || power != Power.None) && (p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
+        if (CanAwaken && (p - SmallCenter(TouchBtn.Awaken)).magnitude < SmallR * 1.3f) return TouchBtn.Awaken;
         if (Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
         if (Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
         if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
@@ -115,6 +117,7 @@ public partial class IslandGame
         if (dead || Busy) return;
         if (touchTapped.Contains(TouchBtn.Power)) UsePower();
         if (touchTapped.Contains(TouchBtn.PowerAtk)) UsePowerAttack();
+        if (touchTapped.Contains(TouchBtn.Awaken)) UseAwaken();
         if (touchTapped.Contains(TouchBtn.Bag)) ToggleBag();
         if (touchTapped.Contains(TouchBtn.Eat)) EatBest();
         if (touchTapped.Contains(TouchBtn.Drink)) DrinkFlask();
@@ -162,6 +165,8 @@ public partial class IslandGame
             TouchCircle(SmallCenter(TouchBtn.Power), SmallR + 3f, "พลัง", new Color(1f, 0.85f, 0.3f, PowerReady >= 1f ? 1f : 0.35f), PowerReady >= 1f, 12);
         if (power != Power.None)
             TouchCircle(SmallCenter(TouchBtn.PowerAtk), SmallR + 3f, "ท่าพิเศษ", new Color(1f, 0.55f, 0.35f, PowerAttackReady >= 1f ? 1f : 0.35f), PowerAttackReady >= 1f, 10);
+        if (CanAwaken)
+            TouchCircle(SmallCenter(TouchBtn.Awaken), SmallR + 3f, Awakened ? $"{awakenT:0}" : "ปลุกพลัง", Color.Lerp(PowerColor(power), Color.white, 0.2f) * new Color(1f, 1f, 1f, AwakenReady >= 1f ? 1f : 0.35f), Awakened, 10);
         TouchCircle(SmallCenter(TouchBtn.Bag), SmallR, "กระเป๋า", new Color(0.95f, 0.85f, 0.6f), bagOpen, 10);
         TouchCircle(SmallCenter(TouchBtn.Eat), SmallR, "กิน", new Color(1f, 0.7f, 0.35f), false, 12);
         TouchCircle(SmallCenter(TouchBtn.Drink), SmallR, "ดื่ม", new Color(0.55f, 0.85f, 1f), false, 12);
@@ -177,8 +182,11 @@ public partial class IslandGame
         if (sailT > 0f || sleepT > 0f || homeT > 0f || dialog != null || craftOpen || skillsOpen || bagOpen || buildOpen) return;
         var atk = new Vector2(W - 64f, H - 150f);
         var pow = new Vector2(W - 152f, H - 132f);
-        MouseRoundButton(pow, 32f, "พลัง", "R", PowerReady, PowerCooldown, new Color(1f, 0.85f, 0.3f), UsePower);
-        MouseRoundButton(atk, 40f, "ท่าพิเศษ", "T", PowerAttackReady, PowerAttackCooldown, new Color(1f, 0.55f, 0.35f), UsePowerAttack);
+        MouseRoundButton(pow, 32f, "พลัง", "R", PowerReady, PowerCooldown, new Color(1f, 0.85f, 0.3f), () => UsePower());
+        MouseRoundButton(atk, 40f, "ท่าพิเศษ", "T", PowerAttackReady, PowerAttackCooldown, new Color(1f, 0.55f, 0.35f), () => UsePowerAttack());
+        if (CanAwaken) // level 60 (IslandGame.Awaken.cs)
+            MouseRoundButton(new Vector2(W - 118f, H - 224f), 30f, Awakened ? $"{awakenT:0} วิ" : "ปลุกพลัง", "Y", AwakenReady, AwakenRecharge,
+                Color.Lerp(PowerColor(power), Color.white, 0.2f), UseAwaken);
     }
 
     void MouseRoundButton(Vector2 c, float r, string text, string key, float ready, float cooldown, Color col, System.Action act)

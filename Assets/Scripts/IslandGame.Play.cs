@@ -195,6 +195,7 @@ public partial class IslandGame
         if (kb != null) HandleCommonKeys(kb);
         if (kb != null && kb.rKey.wasPressedThisFrame) UsePower();
         if (kb != null && kb.tKey.wasPressedThisFrame) UsePowerAttack();
+        if (kb != null && kb.yKey.wasPressedThisFrame) UseAwaken(); // Lv 60 (IslandGame.Awaken.cs)
         if (kb != null && kb.xKey.wasPressedThisFrame) { var f = FireInReach(); if (f != null) PutOutFire(f); }
 
         bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
@@ -224,7 +225,9 @@ public partial class IslandGame
                 lastInteract = Time.time;
                 FaceTarget();
                 if (!once) player.PlayAction(PixelArt.AttackAnim, 16f); // chop / mine / pick: same swing
+                interactPressed = pressed;
                 Interact(target);
+                interactPressed = true;
             }
         }
         else if (pond != null) { if (Trigger(0.5f)) Drink(); }
@@ -313,7 +316,7 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ gathering
     bool HasSpear => Count(Item.Spear) > 0 || Count(Item.ObsidianSpear) > 0 || Count(Item.Trident) > 0;
-    bool HasAxe => Count(Item.StoneAxe) > 0 || Count(Item.ObsidianAxe) > 0;
+    public bool HasAxe => Count(Item.StoneAxe) > 0 || Count(Item.ObsidianAxe) > 0;
     int ChopsNeeded => Mathf.Max(1, 4 - (Count(Item.ObsidianAxe) > 0 ? 2 : 0) - SkillLv(Skill.Lumberjack));
     int WeaponDamage => (weapon != null && Count(weapon.Value) > 0 ? 0 : 1) + GearDamage + SkillLv(Skill.Strength); // bare hands hit for 1
 
@@ -449,6 +452,7 @@ public partial class IslandGame
                 DepleteShared(n, 100f);
                 break;
             case NodeKind.Bush:
+                if (!n.available) { ChopPlant(n, BushChops); break; } // picked clean: chop it down with an axe
                 Give(Item.Berry, rnd.Next(2, 4) + (knife ? 1 : 0) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 0.3f, leaf, 6, 1f, 1.2f, 0.7f, 3f);
                 Fx.Burst(at + Vector3.up * 0.3f, new Color(0.75f, 0.15f, 0.25f), 3);
@@ -456,6 +460,7 @@ public partial class IslandGame
                 DepleteShared(n, 45f);
                 break;
             case NodeKind.FruitTree:
+                if (!n.available) { ChopPlant(n, ChopsNeeded); break; }
                 Give(Item.Fruit, rnd.Next(1, 3) + Bonus(), n);
                 Fx.Burst(at + Vector3.up * 1f, leaf, 8, 1.2f, 0.8f, 1f, 2f);
                 n.Shake();
@@ -518,8 +523,46 @@ public partial class IslandGame
         Hint(tree != null ? "ตัดตอไม้ออกแล้ว! มีต้นไม้ต้นใหม่งอกขึ้นที่อื่นบนเกาะ" : "ตัดตอไม้ออกแล้ว!", 3f);
     }
 
-    /// A new tree on a random free grass spot, away from the player. Shared online.
-    WorldNode PlantTreeElsewhere()
+    bool interactPressed = true; // false while E is only being held down (repeats)
+
+    int BushChops => Count(Item.ObsidianAxe) > 0 ? 1 : 2;
+
+    /// A bush or fruit tree that has been picked clean, chopped down with an axe: some wood
+    /// (a bush a little, a fruit tree about as much as a tree), and a new one of the same kind
+    /// grows somewhere else on the island, so the island never runs out of them.
+    void ChopPlant(WorldNode n, int chops)
+    {
+        Vector3 at = n.transform.position;
+        bool bush = n.kind == NodeKind.Bush;
+        n.Shake();
+        if (n.hits == 0 && !interactPressed) return; // still holding E from picking it: chopping starts with a new press
+        if (!HasAxe) { Hint(bush ? "เก็บเบอร์รี่หมดแล้ว มีขวานถึงจะตัดพุ่มไม้เอาไม้ได้" : "เก็บผลไม้หมดแล้ว มีขวานถึงจะตัดต้นผลไม้เอาไม้ได้", 2.5f); return; }
+        Sfx.Play("chop", bush ? 0.5f : 0.7f);
+        Color leaf = new Color(0.4f, 0.75f, 0.3f), wood = new Color(0.6f, 0.4f, 0.2f);
+        Fx.Burst(at + Vector3.up * (bush ? 0.3f : 0.9f), leaf, 5, 1.1f, 0.9f, 1f, 2f);
+        Fx.Burst(at + Vector3.up * 0.2f, wood, 5, 1f, 1.3f);
+        if (++n.hits < chops) { SendNode(n, "hits"); Popup("ฉับ!", at + Vector3.up * (bush ? 0.6f : 1.1f), Color.white); return; }
+        if (bush)
+        {
+            Give(Item.Wood, 1 + (rnd.NextDouble() < 0.4 ? 1 : 0) + Bonus(), n);
+            Give(Item.Stick, rnd.Next(1, 3), n);
+            if (rnd.NextDouble() < 0.5) Give(Item.Fiber, 1, n);
+        }
+        else
+        {
+            Give(Item.Wood, rnd.Next(2, 4) + Bonus(), n);
+            if (rnd.NextDouble() < 0.5) Give(Item.Stick, 1, n);
+            if (rnd.NextDouble() < 0.35) Give(Item.Fruit, 1, n); // one last fruit hiding in the leaves
+        }
+        Fx.Burst(at + Vector3.up * (bush ? 0.3f : 0.9f), leaf, 14, 1.5f, 1f, 1.2f, 2f);
+        var kind = n.kind;
+        RemoveShared(n);
+        var grown = PlantTreeElsewhere(kind);
+        if (grown != null) Hint(bush ? "ตัดพุ่มไม้แล้ว! มีพุ่มไม้ใหม่งอกขึ้นที่อื่นบนเกาะ" : "ตัดต้นผลไม้แล้ว! มีต้นผลไม้ต้นใหม่งอกขึ้นที่อื่นบนเกาะ", 3f);
+    }
+
+    /// A new tree (or bush / fruit tree) on a random free grass spot, away from the player. Shared online.
+    WorldNode PlantTreeElsewhere(NodeKind kind = NodeKind.Tree)
     {
         if (inHouse || tiles == null) return null;
         for (int attempt = 0; attempt < 60; attempt++)
@@ -531,7 +574,7 @@ public partial class IslandGame
             bool crowded = false;
             foreach (var o in nodes) if (o != null && o.Blocking && (o.grid - g).magnitude < 1.1f) { crowded = true; break; }
             if (crowded) continue;
-            var tree = Spawn(NodeKind.Tree, g, rnd.Next(2) == 0);
+            var tree = Spawn(kind, g, rnd.Next(2) == 0);
             tree.Shake();
             SendSpawn(tree);
             return tree;
@@ -709,6 +752,7 @@ public partial class IslandGame
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
             Sfx.Play("levelup", 0.7f);
             Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม กด K เพื่ออัปสกิล", 5f);
+            if (level == AwakenLevel) AwakenUnlocked();
         }
     }
 
@@ -733,6 +777,7 @@ public partial class IslandGame
             Popup("หลบได้!", PlayerPos + Vector3.up * 0.9f, new Color(0.7f, 1f, 0.7f));
             return;
         }
+        amount *= AwakenArmor; // awakened bubble fruit
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
         amount *= 1f - GearArmor; // hide vest and other armour
         if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves

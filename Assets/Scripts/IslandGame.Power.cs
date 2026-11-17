@@ -57,7 +57,8 @@ public partial class IslandGame
         _ => "",
     };
 
-    float PowerCooldown => power switch
+    float PowerCooldown => Awakened ? AwakenSkillCd : BasePowerCooldown;
+    float BasePowerCooldown => power switch
     {
         Power.Dash => 4f - 0.4f * powerLv,
         Power.Shadow => 16f - 1.5f * powerLv,
@@ -119,6 +120,7 @@ public partial class IslandGame
         Fx.Burst(PlayerPos + Vector3.up * 0.5f, new Color(1f, 0.9f, 0.4f), 24, 1.6f, 2f, 1f, 3f);
         Popup($"ได้พลัง{PowerName(p)}!", PlayerPos + Vector3.up * 1.1f, new Color(1f, 0.9f, 0.4f));
         Hint($"พลัง{PowerName(p)}: {PowerDesc(p)}  กด R (หรือปุ่มพลัง) เพื่อใช้ ยิ่งใช้ยิ่งเก่งขึ้น", 7f);
+        if (level >= AwakenLevel) Hint($"พลัง{PowerName(p)}: {PowerDesc(p)}  เลเวล {AwakenLevel} แล้ว ปลุกพลัง \"{AwakenName(p)}\" ได้ด้วยปุ่ม Y", 7f);
     }
 
     void AddPowerXp(int n)
@@ -149,12 +151,13 @@ public partial class IslandGame
         if (invisibleT > 0f) invisibleT -= dt;
         if (bubbleT > 0f) { bubbleT -= dt; if (bubbleT <= 0f) bubbleHits = 0; }
         PowerAura(dt);
+        TickAwaken(dt); // Lv 60 awakening (IslandGame.Awaken.cs)
     }
 
-    void UsePower()
+    bool UsePower()
     {
-        if (power == Power.None) { Hint("ยังไม่มีพลัง หาต้นไม้เรืองแสงบนเกาะ แล้วกินผลไม้พิเศษ", 3f); return; }
-        if (powerCd > 0f || (player == null && voyage == null) || dead || Busy) return;
+        if (power == Power.None) { Hint("ยังไม่มีพลัง หาต้นไม้เรืองแสงบนเกาะ แล้วกินผลไม้พิเศษ", 3f); return false; }
+        if (powerCd > 0f || (player == null && voyage == null) || dead || Busy) return false;
         bool used = voyage != null ? UseSeaPower() : power switch
         {
             Power.Dash => DoDash(),
@@ -164,14 +167,15 @@ public partial class IslandGame
             Power.Bubble => DoBubble(),
             _ => false,
         };
-        if (!used) return;
+        if (!used) return false;
         powerCd = PowerCooldown;
         AddPowerXp(1);
+        return true;
     }
 
     bool DoDash()
     {
-        float dist = 2.2f + 0.45f * powerLv;
+        float dist = (2.2f + 0.45f * powerLv) * AwakenReach;
         Vector2 start = player.grid;
         player.Dash(dist);
         Sfx.Play("splash", 0.4f);
@@ -199,7 +203,7 @@ public partial class IslandGame
 
     bool DoVine()
     {
-        float range = 4f + powerLv;
+        float range = (4f + powerLv) * AwakenReach;
         Enemy best = null;
         float bd = range;
         foreach (var e in enemies)
@@ -225,14 +229,14 @@ public partial class IslandGame
 
     bool DoMagnet()
     {
-        float range = 2f + powerLv;
+        float range = (2f + powerLv) * AwakenReach;
         int got = 0;
         foreach (var n in nodes.ToArray())
         {
             if (n == null || !IsPickup(n) || (n.grid - player.grid).magnitude > range) continue;
             MagnetPullFx(n.transform.position);
             Interact(n);
-            if (++got >= 4 + powerLv * 2) break;
+            if (++got >= (4 + powerLv * 2) * (Awakened ? 2 : 1)) break;
         }
         if (got == 0) { Hint("ไม่มีของรอบตัวให้ดูด", 1.5f); return false; }
         MagnetFx(range);
@@ -264,6 +268,7 @@ public partial class IslandGame
 
     void HitWithPower(Enemy e, int dmg)
     {
+        dmg = AwakenDmg(dmg);
         Vector3 at = e.transform.position;
         if (e.puppet) { e.Hit(dmg, player.grid); Send(new NetMsg { t = "hit", to = hostId, id = e.netId, dmg = dmg }); return; }
         if (e.Hit(dmg, player.grid))
@@ -316,6 +321,7 @@ public partial class IslandGame
         y += 19f;
         if (Invisible) { ShadowLabel(new Rect(14, y, 300, 18), $"ล่องหนอยู่ {invisibleT:0.0} วิ", small, new Color(0.75f, 0.7f, 1f)); y += 19f; }
         if (Bubbled) { ShadowLabel(new Rect(14, y, 300, 18), $"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง", small, new Color(0.6f, 0.9f, 1f)); y += 19f; }
+        y = DrawAwakenHud(y);
         return y;
     }
 

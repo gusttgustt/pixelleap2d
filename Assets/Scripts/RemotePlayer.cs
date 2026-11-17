@@ -52,6 +52,7 @@ public class RemotePlayer : MonoBehaviour
         if (!seen || (target - grid).magnitude > 6f) grid = target;
         seen = true;
         hidden = hide;
+        awaken = hide ? Power.None : (Power)m.aw;
         sr.enabled = !hide;
         boatSr.enabled = !hide;
         dir = m.d;
@@ -61,6 +62,7 @@ public class RemotePlayer : MonoBehaviour
         outfit = m.outfit > 0 ? (Item)(m.outfit - 1) : (Item?)null;
         level = Mathf.Max(1, m.lv);
         look = Mathf.Max(0, m.look);
+        awaken = (Power)m.aw;
         boatLook = Mathf.Max(0, m.kind);
         if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
     }
@@ -102,9 +104,18 @@ public class RemotePlayer : MonoBehaviour
         if (pet != null) Destroy(pet.gameObject);
     }
 
+    // Their fruit power, while it's awakened (IslandGame.Awaken.cs): the aura shows on them here too.
+    Power awaken;
+    float auraT;
+
     void Update()
     {
         if (!seen) return;
+        if (awaken != Power.None && sr.enabled)
+        {
+            auraT -= Time.deltaTime;
+            if (auraT <= 0f) { auraT = 1f / 30f; IslandGame.AwakenAuraParticles(transform.position, awaken); }
+        }
         if (atSea)
         {
             grid = Vector2.Lerp(grid, target, 1f - Mathf.Exp(-8f * Time.deltaTime)); // world position on the open sea

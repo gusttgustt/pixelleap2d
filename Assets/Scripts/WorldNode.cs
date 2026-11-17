@@ -101,6 +101,7 @@ public class WorldNode : MonoBehaviour
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
         NodeKind.Tree or NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft => true,
+        NodeKind.Bush or NodeKind.FruitTree => available || IslandGame.I.HasAxe, // picked clean: chop it down
         _ => available,
     };
 
@@ -401,6 +402,7 @@ public class WorldNode : MonoBehaviour
                 regrowAt = 0f;
                 available = true;
                 if (kind == NodeKind.Stump) { kind = NodeKind.Tree; hits = 0; }
+                else if (kind is NodeKind.Bush or NodeKind.FruitTree) hits = 0; // fruit again: a half-chopped one heals
                 Refresh();
             }
         }

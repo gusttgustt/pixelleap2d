@@ -200,7 +200,7 @@ public partial class IslandGame : MonoBehaviour
     public bool IsNight => daylight < 0.35f;
     public int SkillLv(Skill s) => skills[(int)s];
     public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + (outfit == Item.LeafTunic ? 15f : 0f) + (outfit == Item.CrystalArmor ? 20f : 0f);
-    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + (Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed;
+    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + (Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed;
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
     public string BiomeName => BiomeNameOf(biome);

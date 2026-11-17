@@ -196,6 +196,7 @@ public class NetMsg
     public float x, y, clock, dur, dmg;
     public int d, f, fl, hat, outfit, lv, hits, kind, by, hp, look, pet;
     public int dn;                 // 1 = this player is knocked out, waiting to be revived (IslandGame.Revive.cs)
+    public int aw;                 // awakened fruit power (IslandGame.Awaken.cs): 0 = none, else (int)Power
     public NetEnemy[] en;
     public NetEvent[] events;
     public NetPeer[] players;

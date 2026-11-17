@@ -23,9 +23,10 @@ public partial class IslandGame
         Power.Magnet => new Color(1f, 0.45f, 0.45f), Power.Bubble => new Color(0.6f, 0.9f, 1f), _ => Color.white,
     };
 
-    float PowerAttackCooldown => Mathf.Max(2.5f, 8f - 0.8f * powerLv);
+    float PowerAttackCooldown => Awakened ? AwakenSkillCd : Mathf.Max(2.5f, 8f - 0.8f * powerLv);
     /// Reach of the attack in tiles: grows with the power's level.
-    float PowerAttackRadius => power switch
+    float PowerAttackRadius => BaseAttackRadius * AwakenReach;
+    float BaseAttackRadius => power switch
     {
         Power.Dash => 3f + 0.8f * powerLv,
         Power.Vine => 2f + 0.5f * powerLv,
@@ -35,11 +36,11 @@ public partial class IslandGame
     int PowerAttackDamage => 2 + powerLv * 2 + SkillLv(Skill.Strength);
     public float PowerAttackReady => power == Power.None ? 0f : 1f - Mathf.Clamp01(powerAtkCd / PowerAttackCooldown);
 
-    void UsePowerAttack()
+    bool UsePowerAttack()
     {
-        if (power == Power.None) { Hint("ยังไม่มีพลัง กินผลไม้พิเศษจากต้นไม้เรืองแสงก่อน", 3f); return; }
-        if (powerAtkCd > 0f || (player == null && voyage == null) || dead || Busy) return;
-        if (voyage != null) { UseSeaPowerAttack(); return; } // on the raft (IslandGame.SeaPower.cs)
+        if (power == Power.None) { Hint("ยังไม่มีพลัง กินผลไม้พิเศษจากต้นไม้เรืองแสงก่อน", 3f); return false; }
+        if (powerAtkCd > 0f || (player == null && voyage == null) || dead || Busy) return false;
+        if (voyage != null) { UseSeaPowerAttack(); return true; } // on the raft (IslandGame.SeaPower.cs)
         float radius = PowerAttackRadius;
         int dmg = PowerAttackDamage;
         Color col = PowerColor(power);
@@ -144,6 +145,7 @@ public partial class IslandGame
         powerAtkCd = PowerAttackCooldown;
         AddPowerXp(1);
         Popup(PowerAttackName(power) + (hits > 0 ? $"! x{hits}" : "!"), PlayerPos + Vector3.up * 1.2f, col);
+        return true;
     }
 
     /// Particles around a circle on the ground (radius in tiles).
