@@ -28,7 +28,7 @@
 //   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
 //                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
 //                        {t:"wanted"}                 -> {t:"wanted", players: [{name, b, lk, c}]}  highest first (c:1 = you)
-//                        {t:"who"}                    -> {t:"who", hits: online, players: [{id, name, isl, c}]}  everyone online and their room (c:1 = you)
+//                        {t:"who"}                    -> {t:"who", hits: online, players: [{id, name, isl, c}]}  everyone in the game and their room (c:1 = you; not those still on the title screen)
 //   Accounts live in DATA_DIR (default Server/data): accounts.json + one file per player's save.
 //   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
@@ -64,6 +64,10 @@ const clients = new Map();            // id -> socket
 const rooms = new Map();              // island -> { order: [ids], events: Map(nodeId -> event) }
 let nextId = 1;
 
+/// Players who have started the game (joined a room at least once). Someone still on the title
+/// screen (choosing a look, logging in) is connected but not counted as online.
+function playingCount() { let n = 0; for (const s of clients.values()) if (s.playing) n++; return n; }
+
 // ---------- static files (web build) ----------
 
 const TYPES = {
@@ -81,7 +85,7 @@ const server = http.createServer((req, res) => {
   try { url = decodeURIComponent((req.url || "/").split("?")[0]); } catch (e) { res.writeHead(400); res.end(); return; }
   if (url === "/status") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ online: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }));
+    res.end(JSON.stringify({ online: playingCount(), connected: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }));
     return;
   }
   const host = (req.headers.host || "").split(":")[0];
@@ -289,6 +293,7 @@ function onMessage(socket, text) {
   switch (m.t) {
     case "join": {
       leaveRoom(socket);
+      socket.playing = true; // in the game now: counts as online
       const island = (m.island | 0) || 1; // below 0: someone's private island (not remembered)
       const r = room(island);
       socket.island = island;
@@ -329,8 +334,8 @@ function onMessage(socket, text) {
     case "who": {
       // everyone online and where they are (isl = their room: island key, sea, or private island)
       const players = [];
-      for (const [id, s] of clients) players.push({ id, name: s.name, isl: s.island | 0, c: id === socket.pid ? 1 : 0 });
-      send(socket, { t: "who", hits: clients.size, players: players.slice(0, 100) });
+      for (const [id, s] of clients) if (s.playing) players.push({ id, name: s.name, isl: s.island | 0, c: id === socket.pid ? 1 : 0 });
+      send(socket, { t: "who", hits: players.length, players: players.slice(0, 100) });
       return;
     }
     case "home":
