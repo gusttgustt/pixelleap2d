@@ -139,7 +139,7 @@ public partial class IslandGame : MonoBehaviour
         new Recipe { name = "ปีกผีเสื้อ", output = Item.ButterflyWings, learn = true, cost = new[] { (Item.Nectar, 4), (Item.Chitin, 4), (Item.Fiber, 6) }, desc = "เดินเร็วขึ้น 15% ทุกที่" },
         // general goods (farm tools, seeds and furniture are made at the workbench inside your house: BenchRecipes)
         new Recipe { name = "แผ่นไม้", output = Item.Plank, count = 2, cost = new[] { (Item.Wood, 2) }, desc = "ไสไม้เป็นแผ่น ใช้สร้างบ้านและม้านั่ง (ได้ 2 แผ่น)" },
-        new Recipe { name = "ตาข่ายจับสัตว์", output = Item.PetNet, count = 2, cost = new[] { (Item.Rope, 2), (Item.Fiber, 4), (Item.Stick, 1) }, desc = "ตีสัตว์ป่าให้เลือดเหลือครึ่ง แล้วกด P จับ" },
+        new Recipe { name = "ตาข่ายจับสัตว์", output = Item.PetNet, count = 2, cost = new[] { (Item.Rope, 2), (Item.Fiber, 4), (Item.Stick, 1) }, desc = "ตีสัตว์ป่าให้เลือดเหลือครึ่ง แล้วกด P (หรือแตะตาข่ายในช่องลัด) จับ" },
         new Recipe { name = "เบ็ดตกปลา", output = Item.FishingRod, cost = new[] { (Item.Stick, 3), (Item.Rope, 2), (Item.Fiber, 2) }, desc = "ตกปลาริมทะเล ได้ปลาหลายชนิด" },
         new Recipe { name = "ไข่ทอด", output = Item.CookedEgg, cost = new[] { (Item.Egg, 1) }, needsFire = true, desc = "อิ่ม +30, พลังชีวิต +10" },
         new Recipe { name = "สลัดผัก", output = Item.Salad, cost = new[] { (Item.Carrot, 1), (Item.Tomato, 1) }, desc = "อิ่ม +45, พลังชีวิต +15" },
@@ -506,7 +506,7 @@ public partial class IslandGame : MonoBehaviour
         else if (atHome) Hint(fresh ? "ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น" : "กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่", 7f);
         else if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
         else if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
-        else if (island == 1) Hint("หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้วกด Tab เพื่อประดิษฐ์", 8f);
+        else if (island == 1) Hint($"หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้ว{KeyOr("กด Tab", "แตะปุ่ม \"สร้าง\"")}เพื่อประดิษฐ์", 8f);
         else Hint($"เห็นฝั่งแล้ว! {T.name} (เกาะที่ {island}, {BiomeName}) {BiomeIntro()}" + (T.alpha ? $" ได้ยินว่ามีจ่าฝูง{EnemyName(T.alphaKind)}อยู่บนเกาะนี้!" : ""), 9f);
         if (fresh || landing != null) SaveGame(); // replaces any old save right away
         JoinRoom();   // online: meet whoever else is on this island (a private island: its owner and visitors)

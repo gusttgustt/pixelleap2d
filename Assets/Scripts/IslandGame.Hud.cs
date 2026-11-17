@@ -950,7 +950,7 @@ public partial class IslandGame
         else if (enemyTarget != null)
         {
             text = $"โจมตี{enemyTarget.DisplayName} (ดาเมจ {WeaponDamage})";
-            if (CatchTarget(enemyTarget) && Count(Item.PetNet) > 0 && enemyTarget.hp * 2 <= enemyTarget.maxHp) text += "  [P] จับมาเลี้ยง!"; // IslandGame.Pet.cs
+            if (CatchTarget(enemyTarget) && Count(Item.PetNet) > 0 && enemyTarget.hp * 2 <= enemyTarget.maxHp) text += KeyOr("  [P] จับมาเลี้ยง!", "  แตะตาข่ายในช่องลัด จับมาเลี้ยง!"); // IslandGame.Pet.cs
             at = enemyTarget.transform.position + Vector3.up * 0.6f;
         }
         else if (villagerTarget != null) { text = $"คุยกับ{villagerTarget.Title}"; at = villagerTarget.transform.position + Vector3.up * 0.95f; }

@@ -219,7 +219,7 @@ public partial class IslandGame
     void TechPopup(Item it)
     {
         Popup($"เทคโนโลยีใหม่: {Name(it)}!", PlayerPos + Vector3.up * 1.1f, new Color(0.6f, 1f, 0.9f));
-        Hint($"เรียนรู้{Name(it)}แล้ว! กด Tab เพื่อประดิษฐ์", 5f);
+        Hint($"เรียนรู้{Name(it)}แล้ว! {KeyOr("กด Tab", "แตะปุ่ม \"สร้าง\"")} เพื่อประดิษฐ์", 5f);
     }
 
     /// The quest this person has for you right now (null = nothing).

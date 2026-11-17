@@ -233,7 +233,7 @@ public partial class IslandGame
         health = MaxHealth; hunger = 100f; thirst = 100f;
         Fx.Burst(n.transform.position + Vector3.up * 0.8f, new Color(1f, 0.95f, 0.6f), 26, 1.6f, 1.6f, 1.2f, 2f);
         Popup("ได้รับพร! +1 แต้มสกิล", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.9f, 0.5f));
-        Hint("พลังจากศาลเจ้าโบราณ: ฟื้นฟูเต็ม และได้แต้มสกิล 1 แต้ม (กด K)", 5f);
+        Hint($"พลังจากศาลเจ้าโบราณ: ฟื้นฟูเต็ม และได้แต้มสกิล 1 แต้ม ({KeyOr("กด K", "แตะปุ่ม \"สกิล\"")})", 5f);
         Sfx.Play("levelup", 0.7f);
     }
 

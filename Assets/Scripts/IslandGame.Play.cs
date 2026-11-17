@@ -55,7 +55,7 @@ public partial class IslandGame
 
         if (voyage != null)
         {
-            if (kb != null && kb.f9Key.wasPressedThisFrame)
+            if (DevMode && kb != null && kb.f9Key.wasPressedThisFrame)
             {
                 var data = SaveSystem.Read();
                 if (data != null) { EndVoyage(); StartGame(data); }
@@ -73,13 +73,15 @@ public partial class IslandGame
         if (kb != null)
         {
             if (kb.f5Key.wasPressedThisFrame) { SaveGame(); Hint("บันทึกเกมแล้ว", 1.5f); }
-            if (kb.f9Key.wasPressedThisFrame)
+            // F9 (back to the last save) and F8 (wipe it and start over) are testing keys: one stray
+            // press must not throw a player's character away, nor roll back what they gave a friend
+            if (DevMode && kb.f9Key.wasPressedThisFrame)
             {
                 var data = SaveSystem.Read();
                 if (data != null) StartGame(data); else Hint("ไม่พบไฟล์เซฟ", 2f);
                 return;
             }
-            if (kb.f8Key.wasPressedThisFrame) { SaveSystem.Delete(); StartGame(null); return; }
+            if (DevMode && kb.f8Key.wasPressedThisFrame) { SaveSystem.Delete(); StartGame(null); return; }
         }
 
         autosaveTimer += dt;
@@ -136,7 +138,7 @@ public partial class IslandGame
     {
         if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) ToggleCraft(); // adventure list, or the home list inside your house (IslandGame.House.cs)
         if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
-        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; }
+        if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; menuOpen = false; crewOpen = false; stickerOpen = false; helpOpen = false; }
         if (kb.oKey.wasPressedThisFrame) ToggleWho(); // O: who is online and where (IslandGame.Who.cs)
         HandleWantedKeys(kb); // J: the board of wanted posters (IslandGame.Bounty.cs)
         HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
@@ -755,7 +757,7 @@ public partial class IslandGame
             Popup($"เลเวล {level}!", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.85f, 0.3f));
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
             Sfx.Play("levelup", 0.7f);
-            Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม กด K เพื่ออัปสกิล", 5f);
+            Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม {KeyOr("กด K", "แตะปุ่ม \"สกิล\"")} เพื่ออัปสกิล", 5f);
             if (level == AwakenLevel) AwakenUnlocked();
         }
     }
@@ -1173,7 +1175,7 @@ public partial class IslandGame
         arriving = landing;
         sailT = 0.0001f;
         sailApplied = false;
-        craftOpen = false; skillsOpen = false;
+        craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; menuOpen = false; crewOpen = false; // the fade covers the screen
         if (cursor != null) cursor.enabled = false;
     }
 

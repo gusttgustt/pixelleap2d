@@ -198,7 +198,7 @@ public partial class IslandGame
     {
         string who = EnemyName(e.kind);
         if (Count(Item.PetNet) == 0) { Hint("ต้องมีตาข่ายจับสัตว์ (ประดิษฐ์ได้ใน Tab หรือซื้อที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)", 3.5f); return; }
-        if (e.hp * 2 > e.maxHp) { Hint($"{who}ยังแรงดีอยู่ ตีให้เลือดเหลือไม่ถึงครึ่งก่อน แล้วค่อยกด P", 3f); return; }
+        if (e.hp * 2 > e.maxHp) { Hint($"{who}ยังแรงดีอยู่ ตีให้เลือดเหลือไม่ถึงครึ่งก่อน แล้วค่อย{KeyOr("กด P", "แตะตาข่ายในช่องลัด")}", 3f); return; }
         if (pets.Count >= MaxPets) { Hint($"มีสัตว์เลี้ยงครบ {MaxPets} ตัวแล้ว ปล่อยบางตัวคืนธรรมชาติก่อน (P)", 3f); return; }
         inv[Item.PetNet]--;
         lastInteract = Time.time;

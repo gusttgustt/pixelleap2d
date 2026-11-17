@@ -18,7 +18,10 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ item kinds and gear stats
     public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear or Item.Trident;
-    static bool IsUsable(Item it) => it == Item.Honey || FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial;
+    static bool IsUsable(Item it) => it == Item.Honey || FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial || it == Item.PetNet; // the net: phones have no P key
+
+    /// How to do something, in this device's words: a key with a keyboard, the on-screen button on a phone.
+    string KeyOr(string key, string touch) => ShowTouch ? touch : key;
 
     static BagTab TabOf(Item it) =>
         FoodValue(it) > 0 ? BagTab.Food
@@ -101,6 +104,7 @@ public partial class IslandGame
         else if (IsWeapon(it)) ToggleWeapon(it);
         else if (it == Item.WaterFlask) DrinkFlask();
         else if (it == Item.Sundial) UseSundial();
+        else if (it == Item.PetNet) { if (CatchTarget(enemyTarget)) TryCatch(enemyTarget); else Hint("เดินไปใกล้สัตว์ป่าที่เลือดเหลือไม่ถึงครึ่ง แล้วใช้ตาข่าย", 2.5f); }
         else if (IsSeed(it)) { preferredSeed = it; Hint($"แปลงผักว่างจะปลูก{Name(it)}ก่อน", 2f); }
         else Hint($"{Name(it)}: ใช้ในการประดิษฐ์ (Tab)", 2f);
     }

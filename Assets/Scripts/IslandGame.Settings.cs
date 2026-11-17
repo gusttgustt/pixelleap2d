@@ -105,7 +105,7 @@ public partial class IslandGame
         if (e.button != 0 && e.button != 1) return;
         if (player == null && voyage == null) return;
         if (dead || chatOpen || Busy || craftOpen || skillsOpen || bagOpen || buildOpen || wantedOpen
-            || settingsOpen || helpOpen || crewOpen || stickerOpen) return;
+            || settingsOpen || helpOpen || crewOpen || stickerOpen || whoOpen || menuOpen) return; // a click on an open panel isn't a click on the world
         if (e.button == 0) mouseActionQueued = true; // like pressing E (held: like holding E)
         else mousePowerQueued = true;                // like pressing R
         e.Use();

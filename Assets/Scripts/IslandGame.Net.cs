@@ -220,7 +220,7 @@ public partial class IslandGame
                 {
                     if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name, true);
                     int boats = m.players?.Length ?? 0;
-                    if (boats > 0) Hint($"มีเรือลำอื่นแล่นอยู่ในทะเลนี้ {boats} ลำ! กด Enter เพื่อแชต", 4f);
+                    if (boats > 0) Hint($"มีเรือลำอื่นแล่นอยู่ในทะเลนี้ {boats} ลำ! {KeyOr("กด Enter", "แตะปุ่ม \"แชต\"")} เพื่อแชต", 4f);
                     break;
                 }
                 SetHost(m.host);
@@ -234,7 +234,7 @@ public partial class IslandGame
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
                 if (m.events != null) foreach (var e in m.events) ApplyEvent(e);
                 int others = m.players?.Length ?? 0;
-                if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! กด Enter เพื่อแชต", 5f);
+                if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! {KeyOr("กด Enter", "แตะปุ่ม \"แชต\"")} เพื่อแชต", 5f);
                 if (others > 0 && atHome && !visiting && voyage == null) SendFullHome(0); // friends already here see my island as it is now
                 break;
 
@@ -450,6 +450,7 @@ public partial class IslandGame
     {
         string f = kind switch
         {
+            EnemyKind.ShroomKing => "king", // the Mushroom shipwright's quest waits on it (IslandGame.Quest.cs)
             EnemyKind.AntQueen => "queen",
             EnemyKind.Thunderbird => "thunderbird",
             EnemyKind.Captain => "captain",
@@ -463,6 +464,7 @@ public partial class IslandGame
             EnemyKind.AntQueen => "ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว",
             EnemyKind.Thunderbird => "นกอัสนีร่วงลงแล้ว! พายุเบาลง",
             EnemyKind.Captain => "กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว",
+            EnemyKind.ShroomKing => "ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ",
             _ => "อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร",
         }, 6f);
     }

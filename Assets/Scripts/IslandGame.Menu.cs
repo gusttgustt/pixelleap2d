@@ -34,7 +34,7 @@ public partial class IslandGame
         {
             var pink = new Color(1f, 0.72f, 0.82f);
             if (Online && serverHomes) items.Add(("เยี่ยมบ้านเพื่อน (V)", pink, AskHomes));
-            items.Add((pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pink, OpenPetMenu));
+            items.Add((pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pink, PetKey)); // catches the weakened creature in reach, else your pets
             items.Add(("ป้ายประกาศค่าหัว (J)", new Color(1f, 0.8f, 0.35f), ToggleWanted));
             if (Online)
             {

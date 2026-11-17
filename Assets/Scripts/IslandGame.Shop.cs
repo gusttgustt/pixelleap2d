@@ -46,7 +46,7 @@ public partial class IslandGame
     {
         new Ware { item = Item.FishingRod, price = 12 },
         new Ware { item = Item.WaterFlask, price = 10 },
-        new Ware { item = Item.CookedFish, n = 2, price = 8 },
+        new Ware { item = Item.CookedFish, n = 2, price = 12 }, // 6 each: more than the 5 she pays back for one
     };
 
     /// What the buyer pays for one (0 = not bought).
@@ -56,7 +56,7 @@ public partial class IslandGame
         Item.CookedEgg => 8, Item.Salad => 18,
         Item.RawFish => 3, Item.CookedFish => 5, Item.Tuna => 14, Item.GoldenFish => 60,
         Item.Berry => 1, Item.Fruit => 2, Item.CookedFruit => 3, Item.RawMeat => 3, Item.CookedMeat => 5, Item.CrabMeat => 2, Item.CookedCrab => 4,
-        Item.Wood => 1, Item.Stone => 1, Item.Plank => 2, Item.Bamboo => 2, Item.Hide => 4, Item.Cloth => 3, Item.Honey => 6,
+        Item.Wood => 1, Item.Stone => 1, Item.Plank => 1, // 2 wood make 2 planks: a plank can't be worth more than the wood bought for it Item.Bamboo => 2, Item.Hide => 4, Item.Cloth => 3, Item.Honey => 6,
         Item.Pearl => 15, Item.Coral => 5, Item.ShellShard => 3, Item.Feather => 3, Item.CrystalShard => 6, Item.Copper => 5,
         Item.Gear => 4, Item.IceShard => 3, Item.Fur => 4, Item.AncientRelic => 25, Item.Obsidian => 4, Item.Chitin => 3, Item.Nectar => 3,
         _ => 0,
@@ -138,7 +138,7 @@ public partial class IslandGame
             var p = AddPet(w.pet.Value);
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.45f, 0.55f), 12, 0.8f, 1.2f, 1f, 2f);
             Sfx.Play("craft", 0.5f);
-            Hint($"ได้{PetSpecies(p.code)}ชื่อ \"{p.name}\"! " + (ActivePetSave == p ? "มันจะเดินตามคุณไปทุกที่" : "มันไปเล่นอยู่แถวบ้านแล้ว") + " (กด P เพื่อตั้งชื่อ)", 5f);
+            Hint($"ได้{PetSpecies(p.code)}ชื่อ \"{p.name}\"! " + (ActivePetSave == p ? "มันจะเดินตามคุณไปทุกที่" : "มันไปเล่นอยู่แถวบ้านแล้ว") + $" ({KeyOr("กด P", "เมนู ☰ > สัตว์เลี้ยง")} เพื่อตั้งชื่อ)", 5f);
             OpenDialog(v, $"ฝาก{p.name}ด้วยนะ เลี้ยงให้ดีๆ ล่ะ!");
             SaveGame();
             return;
