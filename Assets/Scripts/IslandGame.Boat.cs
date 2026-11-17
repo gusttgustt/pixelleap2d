@@ -1,0 +1,66 @@
+using UnityEngine;
+
+/// How the boat looks. Every upgrade gives it a bigger, finer look (PixelArt.Boat.cs); the
+/// shipwright can dress it back up as any earlier look you've had. Only the picture changes:
+/// speed, armour and how far it reaches still come from the real raftLevel.
+/// Your boat is never shown to other players (it isn't shared online), so the choice is only saved.
+public partial class IslandGame
+{
+    /// The look picked at the shipwright, 1-8 (0 = always the newest look the boat has reached).
+    [System.NonSerialized] public int boatLook;
+
+    /// The look the boat shows now: the picked one, as long as the boat has reached it.
+    public int BoatLookNow
+    {
+        get
+        {
+            int newest = PixelArt.BoatLook(Mathf.Max(1, raftLevel));
+            return boatLook > 0 ? Mathf.Min(boatLook, newest) : newest;
+        }
+    }
+
+    public Sprite BoatSprite => PixelArt.Boat(BoatLookNow);
+
+    /// Bigger ships lie further out in the water: shift the picture seawards (the raft is beached
+    /// on the island's west shore, so the sea is to the screen left).
+    public Vector3 BoatShoreOffset => new Vector3(-(PixelArt.BoatWidth(BoatLookNow) - 40) * 0.4f / PixelArt.PPU, 0f, 0f);
+
+    public float BoatPromptHeight => Mathf.Max(1.05f, PixelArt.BoatHeight(BoatLookNow) * 0.75f);
+
+    /// The shipwright's list of every look the boat has had, each with its picture.
+    void BoatLookDialog(Villager v)
+    {
+        int newest = PixelArt.BoatLook(Mathf.Max(1, raftLevel)), now = BoatLookNow;
+        var d = new Dialog
+        {
+            speaker = v.Title,
+            text = $"อยากให้เรือหน้าตาแบบไหนล่ะ? ข้าแต่งให้เป็นแบบที่เจ้าเคยมีมาได้ทุกแบบ แต่ตัวเรือยังเป็น Lv {raftLevel} เหมือนเดิม: ความเร็ว ความทนทาน และระยะเดินทางไม่เปลี่ยน",
+            icons = new Sprite[newest + 1],
+        };
+        for (int t = 1; t <= newest; t++)
+        {
+            int look = t;
+            string name = BoatName(PixelArt.BoatLookLevel(look));
+            string tag = look == now ? "  (ใช้อยู่)" : look == newest ? "  (แบบล่าสุด)" : "";
+            d.options.Add(($"{name}{tag}", () => PickBoatLook(v, look == newest ? 0 : look, name), look != now));
+            d.icons[t - 1] = PixelArt.Boat(look);
+        }
+        d.options.Add(("กลับ", () => OpenDialog(v), true));
+        villagerTarget = v;
+        dialog = d;
+    }
+
+    void PickBoatLook(Villager v, int look, string name)
+    {
+        boatLook = look;
+        var raft = RaftNode;
+        if (raft != null)
+        {
+            raft.Refresh();
+            raft.Shake();
+            Fx.Burst(raft.transform.position + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 12, 1.2f, 1.4f, 1f, 3f);
+        }
+        Sfx.Play("craft", 0.6f);
+        OpenDialog(v, $"เรียบร้อย! ตอนนี้เรือของเจ้าเป็นโฉม{name}แล้ว" + (look == 0 ? " และจะเปลี่ยนเป็นแบบใหม่ทุกครั้งที่อัปเกรด" : ""));
+    }
+}

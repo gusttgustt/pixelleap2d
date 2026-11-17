@@ -409,6 +409,7 @@ public partial class IslandGame : MonoBehaviour
         tier = atHome ? 0 : (island - 1) / 15;
         seed = data.seed;
         raftLevel = data.raftLevel;
+        boatLook = data.boatLook;
         learned.Clear();
         foreach (int l in data.learned) learned.Add((Item)l);
         hat = data.hatId > 0 ? (Item)(data.hatId - 1) : (Item?)null;
@@ -624,7 +625,7 @@ public partial class IslandGame : MonoBehaviour
         {
             seed = seed, island = island, clock = clock, health = health, hunger = hunger, thirst = thirst,
             player = player != null ? player.grid : Center, stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap,
-            level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel,
+            level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel, boatLook = boatLook,
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
             farthest = reach[0],

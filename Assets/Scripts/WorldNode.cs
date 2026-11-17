@@ -107,7 +107,8 @@ public class WorldNode : MonoBehaviour
     public float PromptHeight => kind switch
     {
         NodeKind.Tree or NodeKind.FruitTree or NodeKind.GlowTree => 1.45f,
-        NodeKind.Shelter or NodeKind.Raft => 1.05f,
+        NodeKind.Shelter => 1.05f,
+        NodeKind.Raft => IslandGame.I.BoatPromptHeight,
         NodeKind.Bush => 0.65f,
         NodeKind.Bamboo => 0.95f,
         NodeKind.Campfire => 0.85f,
@@ -202,7 +203,7 @@ public class WorldNode : MonoBehaviour
             NodeKind.Rock => PixelArt.Rock(),
             NodeKind.Stump => PixelArt.Stump(),
             NodeKind.Shelter => PixelArt.Shelter(),
-            NodeKind.Raft => PixelArt.Raft(IslandGame.I.raftLevel),
+            NodeKind.Raft => IslandGame.I.BoatSprite,
             NodeKind.Hut => PixelArt.Hut(),
             NodeKind.Totem => PixelArt.Totem(),
             NodeKind.GlowShroom => PixelArt.GlowShroom(available),
@@ -406,6 +407,7 @@ public class WorldNode : MonoBehaviour
 
         if (IsAnimal) Wander(game);
         Vector3 p = basePos;
+        if (kind == NodeKind.Raft) p += game.BoatShoreOffset; // big ships lie out in the water, not up the beach
         if (shakeT > 0f)
         {
             shakeT -= Time.deltaTime;

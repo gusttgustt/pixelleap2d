@@ -14,6 +14,7 @@ public class SaveData
     public int stickCap, rockCap, obsidianCap; // how many of each respawning material the island keeps
     public int level = 1, xp, skillPoints, flaskWater;
     public int raftLevel;         // 0 = no raft yet. Lv N can reach island N+1.
+    public int boatLook;          // the boat look picked at the shipwright, 1-8 (0 = always the newest; IslandGame.Boat.cs)
     public int biomeId;           // biome + 1 (0 = older save: use the old 3-island cycle)
     public int hatId, outfitId;   // worn item + 1 (0 = nothing)
     public int elderHealDay;

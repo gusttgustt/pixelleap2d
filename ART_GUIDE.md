@@ -38,7 +38,7 @@ You can replace any sprite one at a time, and the rest keep working.
 | `rock` | 16 × 12 | stone on the ground (also icon) |
 | `campfire_{0-1}` | 20 × 26 | campfire, 2 frames |
 | `shelter` | 40 × 34 | leaf shelter |
-| `raft`, `raft_lv2`, `raft_lv3`, `raft_lv4` | 40 × 36 | raft by upgrade level |
+| `raft`, `raft_lv2` … `raft_lv8` | 40 × 34 up to 96 × 90 | the boat's 8 looks: raft, big raft, outrigger canoe, sailboat, two-master, junk, galleon, grand ship (see PixelArt.Boat.cs) |
 | `jungle_grass_tile_*`, `jungle_sand_tile_*` | same as above | Jungle island tiles |
 | `volcanic_grass_tile_*`, `volcanic_sand_tile_*` | same as above | Volcano island tiles (ash / black sand) |
 | `tree_jungle`, `tree_dead` | 32 × 46 | jungle tree, dead volcano tree |

@@ -67,7 +67,7 @@ public partial class IslandGame
 
         voyage.raftSr = new GameObject("Raft").AddComponent<SpriteRenderer>();
         voyage.raftSr.transform.SetParent(world);
-        voyage.raftSr.sprite = PixelArt.Raft(raftLevel);
+        voyage.raftSr.sprite = BoatSprite;
         voyage.playerSr = new GameObject("Player").AddComponent<SpriteRenderer>();
         voyage.playerSr.transform.SetParent(world);
 
@@ -171,7 +171,7 @@ public partial class IslandGame
         float bob = Mathf.Sin(Time.time * 2f) * 0.04f;
         v.raftSr.transform.position = (Vector3)v.raft + Vector3.up * bob;
         v.raftSr.sortingOrder = SortOrder(v.raft.y);
-        v.playerSr.transform.position = (Vector3)v.raft + Vector3.up * (0.2f + bob);
+        v.playerSr.transform.position = (Vector3)v.raft + Vector3.up * (PixelArt.BoatDeck(BoatLookNow) + bob); // standing on the deck
         v.playerSr.sortingOrder = v.raftSr.sortingOrder + 1;
         v.playerSr.sprite = PixelArt.Player(v.dir, moving ? 1 + ((int)v.animT & 1) : 0, hat, outfit, lookCode);
         v.playerSr.color = v.hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : Invisible ? new Color(0.7f, 0.65f, 1f, 0.35f) : Color.white; // see-through while invisible

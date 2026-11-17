@@ -676,7 +676,7 @@ public partial class IslandGame
         if (d.shop != null) { DrawShop(W, H, d); return; } // market stalls (IslandGame.Shop.cs)
         if (d.chart) { DrawChart(W, H); return; } // the sea chart (IslandGame.Chart.cs)
         float pw = Mathf.Min(620f, W - 20f);
-        const float optH = 26f;
+        float optH = d.icons != null ? 40f : 26f;
         var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
         // the box grows with the text (quest objectives can take a few lines)
         float textH = Mathf.Max(40f, textStyle.CalcHeight(new GUIContent(d.text), pw - 28f) + 6f);
@@ -695,6 +695,7 @@ public partial class IslandGame
             var r = new Rect(box.x + 14, optY + i * (optH + 3f), pw - 28, optH);
             if (GUI.Button(r, $"{i + 1}.  {o.label}", new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 })) o.act();
             GUI.enabled = true;
+            if (d.icons != null && i < d.icons.Length && d.icons[i] != null) Icon(new Rect(r.xMax - 70f, r.y + 2f, 64f, optH - 4f), d.icons[i]);
         }
     }
 
@@ -711,7 +712,7 @@ public partial class IslandGame
         var bar = new Rect(W / 2f - 160f, 16f, 320f, 8f);
         Fill(new Rect(bar.x - 2, bar.y - 2, bar.width + 4, bar.height + 4), new Color(0f, 0f, 0f, 0.5f));
         Fill(new Rect(bar.x, bar.y, bar.width * VoyageProgress, bar.height), new Color(0.4f, 0.75f, 1f));
-        Icon(new Rect(bar.x + bar.width * VoyageProgress - 10f, bar.y - 18f, 20f, 20f), PixelArt.Raft(raftLevel));
+        Icon(new Rect(bar.x + bar.width * VoyageProgress - 10f, bar.y - 18f, 20f, 20f), BoatSprite);
         ShadowLabel(new Rect(bar.x - 70, bar.y - 6, 66, 20), atHome ? "บ้าน" : $"เกาะ {island}", new GUIStyle(small) { alignment = TextAnchor.MiddleRight });
         ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 120, 20), voyageVisit != null ? $"บ้าน{visitNameOf(voyageVisit)}" : $"เกาะ {destIsland}", small);
         float left = Mathf.Max(0f, voyage.length - voyage.raft.x);

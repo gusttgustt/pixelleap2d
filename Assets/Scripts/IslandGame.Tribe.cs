@@ -10,6 +10,7 @@ public partial class IslandGame
         public string speaker, text;
         public bool chart;    // the sea chart: drawn as a map of the islands (IslandGame.Chart.cs)
         public Villager shop; // a market stall: drawn as the shop window instead (IslandGame.Shop.cs)
+        public Sprite[] icons; // optional picture beside each option (taller buttons), e.g. the boat looks
         public readonly List<(string label, System.Action act, bool enabled)> options = new List<(string, System.Action, bool)>();
     }
 
@@ -106,6 +107,8 @@ public partial class IslandGame
         var d = new Dialog { speaker = v.Title };
         if (QuestDialog(v, d, text)) // shipwright, doctor, lost child
         {
+            if (v.role == VillagerRole.Shipwright && PixelArt.BoatLook(raftLevel) >= 2)
+                d.options.Add(("เปลี่ยนโฉมเรือ (เลือกแบบที่เคยมีมาแล้ว)", () => BoatLookDialog(v), true)); // IslandGame.Boat.cs
             d.options.Add(("ลาก่อน", CloseDialog, true));
             dialog = d;
             return;

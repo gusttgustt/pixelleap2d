@@ -67,7 +67,7 @@ public static partial class PixelArt
         }
         Cursor(); Dot(); Stump(); Bush(true); Bush(false);
         Grass(); Stick(); Rock(); Shelter(); Bamboo(); Obsidian(); Wave();
-        for (int lv = 1; lv <= 5; lv++) Raft(lv);
+        for (int t = 1; t <= BoatLooks; t++) Boat(t);
         Item?[] hats = { null, Item.StrawHat, Item.TribalHeadband }, outfits = { null, Item.LeafTunic, Item.HideVest };
         for (int d = 0; d < 2; d++)
             for (int f = 0; f < 3; f++)
@@ -725,88 +725,6 @@ public static partial class PixelArt
         c.Rect(19, 12, 3, 1, RopeC);
         return c.ToSprite(20, 30);
     });
-
-    /// The boat by upgrade level: 1 log raft, 2 raft with bamboo rails, 3 canoe, 4 sailboat,
-    /// 5+ two-masted ship with an obsidian prow. (Names: IslandGame.BoatName.)
-    public static Sprite Raft(int level = 1)
-    {
-        int lv = Mathf.Clamp(level, 1, 5);
-        return Get(lv == 1 ? "raft" : $"raft_lv{lv}", () =>
-        {
-            var c = new Canvas(40, 36);
-            c.Ellipse(19, 31, 17, 3, Shadow);
-            Color sail = Hex("#f0e6c8"), sailEdge = Hex("#cbbf9c"), red = Hex("#d9534f");
-            if (lv <= 2)
-            {
-                for (int i = 0; i < 5; i++) // logs
-                {
-                    int x = 6 + i * 5;
-                    c.Rect(x, 19, 4, 12, Bark);
-                    c.Rect(x + 3, 19, 1, 12, BarkD);
-                    c.Ellipse(x + 2f, 19.5f, 2, 1.2f, Hex("#c79a64"));
-                }
-                c.Rect(5, 22, 26, 1, RopeC); c.Rect(5, 28, 26, 1, RopeC);
-                if (lv == 2) // bamboo rails
-                {
-                    Color g = Hex("#6aa84f"), gd = Hex("#4a7f35");
-                    c.Rect(4, 18, 28, 1, g); c.Rect(4, 31, 28, 1, gd);
-                    for (int x = 4; x <= 31; x += 9) c.Rect(x, 16, 1, 3, g);
-                    c.Rect(4, 16, 28, 1, Hex("#a5d17a"));
-                }
-                c.Rect(17, 4, 2, 19, BarkD);
-                for (int y = 5; y <= 18; y++) // small square-ish sail
-                {
-                    int w = Mathf.RoundToInt((y - 5) * 0.8f);
-                    for (int x = 19; x <= 19 + w; x++) c.Set(x, y, x == 19 + w ? sailEdge : sail);
-                }
-                return c.ToSprite(18, 30);
-            }
-
-            // a real hull from level 3 on: rows narrow towards the keel, pointed bow on the right
-            Color h1 = lv >= 4 ? Hex("#6b3f22") : Hex("#9a6a3a");   // hull
-            Color h2 = lv >= 4 ? Hex("#4a2a16") : Hex("#74492a");   // shade
-            Color rim = lv >= 4 ? Hex("#e8e0c8") : Hex("#c79a64");  // gunwale / painted stripe
-            for (int y = 21; y <= 30; y++)
-            {
-                int inset = (y - 21) / 2;
-                int x0 = 3 + inset + (y > 27 ? 1 : 0), x1 = 35 - inset - (y - 21) / 3;
-                for (int x = x0; x <= x1; x++) c.Set(x, y, y >= 27 ? h2 : h1);
-                c.Set(x1, y, h2);
-            }
-            c.Rect(2, 20, 34, 1, rim);          // gunwale
-            for (int x = 36; x <= 38; x++) c.Set(x, 20 - (x - 36), rim); // bow sweeps up
-            if (lv >= 4) c.Rect(5, 24, 28, 1, Hex("#2a6f9a")); // painted waterline stripe
-            else for (int x = 8; x <= 30; x += 6) c.Set(x, 24, h2); // canoe ribs
-
-            if (lv >= 5) // obsidian prow + second, smaller mast at the front
-            {
-                Color o1 = Hex("#120e18"), o2 = Hex("#2e2438"), o3 = Hex("#6a5a88");
-                for (int y = 21; y <= 29; y++)
-                    for (int x = 33 - (y - 21) / 3; x <= 36 - (y - 21) / 2; x++) c.Set(x, y, y < 24 ? o3 : (y > 26 ? o1 : o2));
-                c.Rect(28, 9, 1, 12, BarkD);
-                for (int y = 10; y <= 18; y++)
-                    for (int x = 29; x <= 29 + (y - 10) * 0.7f; x++) c.Set(x, y, (y / 3) % 2 == 0 ? red : sail);
-            }
-
-            // main mast and sail
-            int top = lv >= 4 ? 1 : 5;
-            c.Rect(16, top, 2, 21 - top, BarkD);
-            for (int y = top + 1; y <= 19; y++)
-            {
-                float slope = lv >= 4 ? 0.95f : 0.8f;
-                int w = Mathf.RoundToInt((y - top - 1) * slope);
-                for (int x = 18; x <= 18 + w; x++)
-                {
-                    Color col = x == 18 + w ? sailEdge : sail;
-                    if (lv == 3 && (y / 3) % 2 == 0) col = red;                 // striped woven sail
-                    if (lv >= 4 && y >= top + 8 && y <= top + 9) col = red;    // one bold band
-                    c.Set(x, y, col);
-                }
-            }
-            if (lv >= 4) { c.Rect(13, top, 3, 2, red); c.Set(12, top + 1, red); } // flag
-            return c.ToSprite(18, 30);
-        });
-    }
 
     public static Sprite Bamboo() => Get("bamboo", () =>
     {
