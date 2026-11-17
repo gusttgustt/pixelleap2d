@@ -265,7 +265,6 @@ public partial class IslandGame
     void DrawCrewButton(float W)
     {
         if (!Online || title || voyage != null || player == null || dead) return;
-        if (remotes.Count == 0 && !InCrew && !IsCaptain && crewAsk.id == 0) return;
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = aboard ? new Color(0.6f, 1f, 0.7f) : new Color(0.7f, 0.9f, 1f);
         st.hover.textColor = Color.white;

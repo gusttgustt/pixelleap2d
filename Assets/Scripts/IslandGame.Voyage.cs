@@ -20,6 +20,9 @@ public partial class IslandGame
         public SeaCreature monster;
         public float navyAt = -1f;          // government warships turn up when the raft gets this far (IslandGame.Navy.cs)
         public int navyShips = 1;
+        public bool navyFleet;              // the whole navy: 3-5 warships and a flagship
+        public float swarmAt = -1f;         // a hunting pack of sharks surrounds the raft here (-1: not this trip)
+        public int swarmLeft, swarmTotal;   // pack sharks still alive / how many there were
         public readonly List<NavyShot> shots = new List<NavyShot>();
         public readonly List<Wreck> wrecks = new List<Wreck>();
     }
@@ -87,6 +90,14 @@ public partial class IslandGame
             : destContinent != continent ? 0.9f
             : Mathf.Max(island, destIsland) >= 7 ? 0.3f + (IsNight ? 0.1f : 0f) : 0f;
         if (Random.value < monsterChance) voyage.monsterAt = voyage.length * Random.Range(0.3f, 0.6f);
+        // A big pack of hunting sharks (ฝูงฉลามคลั่ง): rare near home, more common far out, at
+        // night and across the ocean. Never on the way to a friend's home.
+        int farOut = Mathf.Max(island, destIsland);
+        float swarmChance = voyageVisit != null || farOut < 2 ? 0f
+            : destContinent != continent ? 0.3f
+            : 0.05f + 0.012f * Mathf.Min(farOut, 15) + (IsNight ? 0.08f : 0f);
+        if (voyage.monsterAt > 0f) swarmChance *= 0.4f;
+        if (Random.value < swarmChance) voyage.swarmAt = voyage.length * Random.Range(0.2f, 0.55f);
         PlanNavy(voyage); // government warships hunting wanted sailors (IslandGame.Navy.cs)
 
         camPos = voyage.raft;
@@ -187,6 +198,7 @@ public partial class IslandGame
         UpdateWaves();
         SpawnSeaCreatures(dt);
         if (v.monsterAt > 0f && v.raft.x >= v.monsterAt) SpawnMonster();
+        if (v.swarmAt > 0f && v.raft.x >= v.swarmAt) SpawnSwarm();
         UpdateNavy(dt);
 
         // Target the closest creature in reach (big ones reach further; the monster only while it's up)
@@ -267,11 +279,20 @@ public partial class IslandGame
         Vector3 at = c.transform.position;
         bool navy = c.kind == SeaKind.Navy;
         if (navy) AddBounty(NavyHitBounty, null, null); // attacking a government ship: they write it down
+        if (c.shieldHits > 0) // a Bubble officer's shield takes the hit (IslandGame.Navy.cs)
+        {
+            c.shieldHits--;
+            Popup(c.shieldHits > 0 ? $"โล่ฟองกันไว้! (เหลือ {c.shieldHits})" : "โล่ฟองแตกแล้ว!", at + Vector3.up * c.Tall, new Color(0.6f, 0.9f, 1f));
+            Fx.Burst(at + Vector3.up * 0.8f, new Color(0.75f, 0.95f, 1f, 0.8f), 12, 1.2f, 1.6f, 0.6f, 1f);
+            Sfx.Play("splash", 0.35f);
+            return false;
+        }
         if (!c.Hit(dmg, voyage.raft)) { Popup($"-{dmg}", at + Vector3.up * c.Tall, popupCol); return false; }
         voyage.creatures.Remove(c);
         if (c.IsMonster) MonsterSlain(c, at);
         else if (navy) NavySunk(c, at);
         else Reward(at, c.kind == SeaKind.Shark ? Item.RawMeat : (Item?)null, 2, c.xp);
+        if (c.frenzy) PackSharkDown(at);
         return true;
     }
 
@@ -293,6 +314,53 @@ public partial class IslandGame
         Shake(0.1f, 0.6f);
         ScreenFlash(new Color(0.05f, 0.15f, 0.35f, 0.45f), 0.8f);
         Fx.Burst((Vector3)p, new Color(0.85f, 0.95f, 1f), 30, 2.2f, 3f, 0.9f, 4f);
+    }
+
+    // ------------------------------------------------------------------ a pack of sharks
+    void SpawnSwarm()
+    {
+        var v = voyage;
+        v.swarmAt = -1f;
+        if (v.raft.x > v.length - 10f) return; // too close to shore now
+        bool ocean = destContinent != continent;
+        int n = Mathf.Min(14, 6 + 2 * tier + Mathf.Min(Mathf.Max(island, destIsland), 10) / 2 + (ocean ? 3 : 0) + (IsNight ? 1 : 0));
+        for (int i = 0; i < n; i++) // a ring closing in around the raft, thicker ahead
+        {
+            float a = i / (float)n * Mathf.PI * 2f + Random.Range(-0.2f, 0.2f);
+            var p = v.raft + new Vector2(Mathf.Cos(a) * Random.Range(7f, 10f) + 3f, Mathf.Sin(a) * Random.Range(4f, 6f));
+            p.y = Mathf.Clamp(p.y, -6.3f, 6.3f);
+            var c = new GameObject("PackShark").AddComponent<SeaCreature>();
+            c.transform.SetParent(world);
+            c.Init(SeaKind.Shark, p, tier);
+            c.MakeFrenzy();
+            v.creatures.Add(c);
+        }
+        for (int i = 0; i < 6; i++) // a bloom of jellyfish drifts in with them
+            SpawnSea(SeaKind.Jellyfish, new Vector2(v.raft.x + Random.Range(5f, 14f), Random.Range(-6f, 6f)));
+        v.swarmLeft = v.swarmTotal = n;
+        Hint($"ครีบนับสิบโผล่ขึ้นรอบเรือ... ฝูงฉลามคลั่ง {n} ตัวล้อมเข้ามาแล้ว! ปราบให้หมดเพื่อรับรางวัล หรือพายหนีให้ถึงฝั่ง", 7f);
+        Sfx.Play("splash", 1f);
+        Shake(0.08f, 0.5f);
+        ScreenFlash(new Color(0.35f, 0.05f, 0.05f, 0.35f), 0.7f);
+    }
+
+    void PackSharkDown(Vector3 at)
+    {
+        var v = voyage;
+        if (v == null || v.swarmLeft <= 0) return;
+        v.swarmLeft--;
+        if (v.swarmLeft > 0)
+        {
+            if (v.swarmLeft == v.swarmTotal / 2) Hint($"ฝูงฉลามเหลืออีกครึ่งเดียว ({v.swarmLeft} ตัว)!", 3f);
+            return;
+        }
+        Sfx.Play("levelup", 0.8f);
+        ScreenFlash(new Color(1f, 0.95f, 0.7f, 0.3f), 0.5f);
+        Reward(at, Item.RawMeat, 4 + v.swarmTotal / 2, 15 * v.swarmTotal);
+        Loot(Item.GoldCoin, 4 + v.swarmTotal + 3 * tier, at + Vector3.up * 0.9f);
+        if (Random.value < 0.5f) Loot(Item.Pearl, 1 + tier, at + Vector3.up * 1.3f);
+        if (Random.value < 0.08f) Loot(RandomPowerFruit(new System.Random()), 1, at + Vector3.up * 1.7f);
+        Hint($"ปราบฝูงฉลามคลั่งได้ทั้ง {v.swarmTotal} ตัว! ได้รางวัลจากฝูง", 5f);
     }
 
     void MonsterSlain(SeaCreature c, Vector3 at)

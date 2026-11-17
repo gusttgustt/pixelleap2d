@@ -215,6 +215,7 @@ public partial class IslandGame
             var it = hotbar[i];
             if (it == null) continue;
             int n = Count(it.Value);
+            GradeFrame(r, it.Value); // IslandGame.ItemInfo.cs
             GUI.color = n > 0 ? Color.white : new Color(1f, 1f, 1f, 0.3f);
             Icon(new Rect(r.x + 5, r.y + 5, SlotSize - 10, SlotSize - 10), PixelArt.Icon(it.Value));
             GUI.color = Color.white;
@@ -224,12 +225,7 @@ public partial class IslandGame
             if (r.Contains(Event.current.mousePosition)) hover = it;
             if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) UseItem(it.Value);
         }
-        if (hover != null && !bagOpen)
-        {
-            var h = hover.Value;
-            string extra = FoodValue(h) > 0 ? $"  (อิ่ม +{FoodValue(h)})" : IsClothing(h) || IsWeapon(h) ? $"  {GearText(h)}" : "";
-            ShadowLabel(new Rect(0, bar.y - 22, W, 20), Name(h) + extra, labelCenter);
-        }
+        if (hover != null) tipItem = hover; // the details pop up by the mouse (IslandGame.ItemInfo.cs)
         if (!bagOpen) ShadowLabel(new Rect(bar.xMax + 10, bar.y + 12, 120, 18), touchUsed ? "" : "B กระเป๋า", small, new Color(1f, 1f, 1f, 0.6f));
     }
 
@@ -287,13 +283,16 @@ public partial class IslandGame
         int cols = Mathf.Max(1, Mathf.FloorToInt(lw / (SlotSize + SlotGap)) - 0);
         int rows = Mathf.CeilToInt(list.Count / (float)cols);
         var content = new Rect(0, 0, gridView.width - 16, Mathf.Max(gridView.height, rows * (SlotSize + SlotGap)));
+        bool inGrid = gridView.Contains(Event.current.mousePosition);
         bagScroll = CrispGUI.BeginScrollView(gridView, bagScroll, content, false, false);
         for (int i = 0; i < list.Count; i++)
         {
             var it = list[i];
             var r = new Rect((i % cols) * (SlotSize + SlotGap), (i / cols) * (SlotSize + SlotGap), SlotSize, SlotSize);
             GUI.Box(r, GUIContent.none);
-            if (bagSelected == it) { Fill(new Rect(r.x, r.y, r.width, 2), Color.white); Fill(new Rect(r.x, r.yMax - 2, r.width, 2), Color.white); }
+            GradeFrame(r, it);
+            if (bagSelected == it) Outline(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), Color.white);
+            if (inGrid && r.Contains(Event.current.mousePosition)) tipItem = it;
             Icon(new Rect(r.x + 5, r.y + 5, SlotSize - 10, SlotSize - 10), PixelArt.Icon(it));
             string badge = IsWorn(it) || weapon == it ? "<color=#ffd84d>E</color>" : Count(it).ToString();
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
@@ -307,18 +306,13 @@ public partial class IslandGame
         Fill(det, new Color(1f, 1f, 1f, 0.05f));
         if (bagSelected == null || Count(bagSelected.Value) <= 0)
         {
-            ShadowLabel(new Rect(det.x + 8, det.y + 8, det.width - 16, 40), "คลิกของในกระเป๋าเพื่อดูรายละเอียด ใช้งาน ใส่ช่องลัด ทิ้ง หรือทำลาย", small, new Color(1f, 1f, 1f, 0.6f));
+            ShadowLabel(new Rect(det.x + 8, det.y + 8, det.width - 16, 40), "ชี้เมาส์ที่ของเพื่อดูรายละเอียด · คลิกเพื่อใช้งาน ใส่ช่องลัด ทิ้ง หรือทำลาย\nสีกรอบบอกระดับ: <color=#b8b8b8>ธรรมดา</color> <color=#5ce066>ดี</color> <color=#4d9eff>หายาก</color> <color=#c76bff>ยอดเยี่ยม</color> <color=#ffb82e>ตำนาน</color>", small, new Color(1f, 1f, 1f, 0.6f));
             return;
         }
         var sel = bagSelected.Value;
-        string info = FoodValue(sel) > 0 ? $"อาหาร: อิ่ม +{FoodValue(sel)}" + (HealValue(sel) > 0 ? $", พลังชีวิต +{HealValue(sel)}" : "")
-                    : IsClothing(sel) || IsWeapon(sel) ? GearText(sel)
-                    : IsPowerFruit(sel) ? $"กินแล้วได้พลัง{PowerName(PowerOf(sel))}"
-                    : IsSeed(sel) ? "เมล็ดพันธุ์ ปลูกในแปลงผักบนเกาะส่วนตัว"
-                    : SellPrice(sel) > 0 && TabOf(sel) != BagTab.Special ? $"ขายที่ตลาดได้ชิ้นละ {SellPrice(sel)} เหรียญ"
-                    : TabOf(sel) == BagTab.Special ? "ของหายาก ใช้ทำของพิเศษหรือส่งภารกิจ"
-                    : "วัตถุดิบสำหรับประดิษฐ์";
-        ShadowLabel(new Rect(det.x + 8, det.y + 4, det.width - 16, 20), $"<b>{Name(sel)}</b>  x{Count(sel)}   <size=11>{info}</size>", label);
+        int gr = Grade(sel);
+        string info = ItemInfo(sel) + (SellPrice(sel) > 0 ? $" · ขายได้ชิ้นละ {SellPrice(sel)} เหรียญ" : "");
+        ShadowLabel(new Rect(det.x + 8, det.y + 4, det.width - 16, 20), $"<b><color={GradeHex(gr)}>{Name(sel)}</color></b>  x{Count(sel)}  <size=11><color={GradeHex(gr)}>[{GradeName(gr)}]</color> {info}</size>", label);
         float bx = det.x + 8, by = det.y + 30, bw = (det.width - 16 - 4 * 4) / 5f;
         var bst = new GUIStyle(GUI.skin.button) { fontSize = 11 };
         string useLabel = IsClothing(sel) ? (IsWorn(sel) ? "ถอด" : "สวม") : IsWeapon(sel) ? (weapon == sel ? "เก็บ" : "ถือ")
@@ -343,7 +337,9 @@ public partial class IslandGame
         GUI.Box(r, GUIContent.none);
         ShadowLabel(new Rect(r.x + 4, r.y + 6, 44, 18), name, small, new Color(1f, 1f, 1f, 0.7f));
         if (it == null) { ShadowLabel(new Rect(r.x + 46, r.y + 6, r.width - 50, 18), "-", small, new Color(1f, 1f, 1f, 0.4f)); return; }
+        GradeFrame(new Rect(r.x + 44, r.y + 1, 28, 28), it.Value);
         Icon(new Rect(r.x + 46, r.y + 3, 24, 24), PixelArt.Icon(it.Value));
+        if (r.Contains(Event.current.mousePosition)) tipItem = it;
         ShadowLabel(new Rect(r.x + 74, r.y + 6, r.width - 76, 18), Name(it.Value), small);
         if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) { takeOff(); }
     }

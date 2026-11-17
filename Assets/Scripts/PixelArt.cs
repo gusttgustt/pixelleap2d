@@ -2618,6 +2618,30 @@ public static partial class PixelArt
         _ => Get("icon_" + it.ToString().ToLowerInvariant(), () => DrawIcon(it)),
     };
 
+    /// An open hand: the build bar's move / pick-up tool.
+    public static Sprite HandIcon() => Get("icon_hand", () =>
+    {
+        var c = new Canvas(16, 16);
+        Color d = Hex("#c07a50"), m = Hex("#f2bc8c"), l = Hex("#ffe0c0");
+        // fingers (index, middle, ring, pinky), each with a lit left edge and a crease on the right
+        int[] fx = { 4, 6, 8, 10 }, top = { 2, 1, 2, 4 };
+        for (int i = 0; i < 4; i++)
+        {
+            c.Rect(fx[i], top[i], 2, 9 - top[i], m);
+            c.Rect(fx[i], top[i] + 1, 1, 7 - top[i], l);
+            if (i < 3) c.Rect(fx[i] + 1, top[i] + 1, 1, 7 - top[i], Color.Lerp(m, d, 0.45f));
+            c.Set(fx[i], top[i], l); // nail glint
+        }
+        c.Rect(4, 8, 8, 5, m);              // palm
+        c.Rect(5, 13, 6, 1, m);
+        c.Rect(5, 9, 3, 2, l);              // palm light
+        c.Rect(1, 7, 2, 3, m); c.Rect(2, 9, 2, 3, m); c.Set(1, 7, l); // thumb out to the side
+        c.Rect(3, 10, 1, 2, Color.Lerp(m, d, 0.45f));
+        c.Rect(4, 14, 8, 2, Hex("#2e86c1")); // sleeve cuff
+        c.Rect(4, 14, 8, 1, Hex("#5aa8e0"));
+        return c.ToSprite(8, 8);
+    });
+
     static Sprite DrawIcon(Item it)
     {
         var c = new Canvas(16, 16);

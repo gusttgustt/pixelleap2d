@@ -300,11 +300,12 @@ public partial class IslandGame
     {
         if (voyage == null) return;
         int n = 0;
+        float step = NavyAlive > 2 ? 24f : 30f; // a whole fleet: pack the bars tighter
         foreach (var c in voyage.creatures)
         {
             if (c == null || c.kind != SeaKind.Navy) continue;
-            var hb = new Rect(W / 2f - 140f, y + n * 30f, 280f, 9f);
-            ShadowLabel(new Rect(hb.x, hb.y - 17, hb.width, 18), c.DisplayName, smallCenter, new Color(0.7f, 0.85f, 1f));
+            var hb = new Rect(W / 2f - 140f, y + n * step, 280f, NavyAlive > 2 ? 6f : 9f);
+            ShadowLabel(new Rect(hb.x - 60, hb.y - 17, hb.width + 120, 18), c.DisplayName + (c.shieldHits > 0 ? $" [โล่ฟอง {c.shieldHits}]" : ""), smallCenter, c.flagship ? new Color(1f, 0.85f, 0.4f) : c.officer != Power.None ? new Color(1f, 0.75f, 1f) : new Color(0.7f, 0.85f, 1f));
             Fill(new Rect(hb.x - 2, hb.y - 2, hb.width + 4, hb.height + 4), new Color(0f, 0f, 0f, 0.6f));
             Fill(new Rect(hb.x, hb.y, hb.width * Mathf.Clamp01((float)c.hp / c.maxHp), hb.height), new Color(0.3f, 0.5f, 0.95f));
             n++;

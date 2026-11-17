@@ -28,7 +28,10 @@ public partial class IslandGame
         int reachHere = ReachOn(chartC);
         chartSel = atHome ? 0 : CanReachNew(chartC) ? reachHere + 1 : island > 1 ? island - 1 : Mathf.Max(1, reachHere);
         if (!atHome && chartSel == island && chartC == continent) chartSel = reachHere + 1;
-        chartScrollGoal = chartScroll = Mathf.Max(0f, chartSel - 1f);
+        // Keep the island you're on in view: if the next new island is too far along the route
+        // to show both, start on the island you're on instead.
+        if (!atHome && chartC == continent && chartSel - island > 4) chartSel = island;
+        chartScrollGoal = chartScroll = Mathf.Max(0f, (atHome ? chartSel : Mathf.Min(chartSel, island)) - 1f);
         RequestFriends(); // online: whose islands to show (IslandGame.Visit.cs)
         if (friends) Hint(Online ? "บ้านเพื่อนอยู่ด้านล่างแผนที่ เลือกทวีปด้านบนเพื่อดูบ้านเพื่อนที่อื่น" : "การไปบ้านเพื่อนต้องเล่นออนไลน์", 3.5f);
     }
@@ -101,13 +104,21 @@ public partial class IslandGame
     void DrawChart(float W, float H)
     {
         float pw = Mathf.Min(820f, W - 16f);
-        float ph = Mathf.Min(470f, H - 80f - 92f);
+        float ph = Mathf.Min(500f, H - 80f - 60f);
         var box = new Rect(W / 2f - pw / 2f, Mathf.Max(80f, (H - ph) / 2f - 30f), pw, ph);
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.97f));
         Fill(new Rect(box.x, box.y, box.width, 3), new Color(1f, 0.85f, 0.3f, 0.9f));
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 13, richText = true };
-        ShadowLabel(new Rect(box.x + 14, box.y + 6, pw - 120, 22), dialog.speaker, label, new Color(1f, 0.85f, 0.3f));
+        ShadowLabel(new Rect(box.x + 14, box.y + 6, pw - 330, 22), dialog.speaker, label, new Color(1f, 0.85f, 0.3f));
         if (CrispGUI.Button(new Rect(box.xMax - 82, box.y + 5, 72, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
+        string where = atHome ? $"เกาะส่วนตัว ({ContinentNames[homeContinent]})" : $"เกาะที่ {island} {IslandName(island + continent * 31)} ({ContinentNames[continent]})";
+        var hereSt = new GUIStyle(small) { richText = true, alignment = TextAnchor.MiddleRight };
+        if (CrispGUI.Button(new Rect(box.xMax - 300, box.y + 5, 212, 24), $"<color=#9dff9d>ตอนนี้อยู่:</color> {where}", new GUIStyle(btn) { fontSize = 11 }))
+        { // jump the chart back to where you are
+            if (atHome) { ChartContinent(homeContinent); ChartSelect(0); }
+            else { ChartContinent(continent); ChartSelect(island); }
+            chartScrollGoal = Mathf.Max(0f, chartSel - 1f);
+        }
 
         // ---- continents: a pixel-art picture of each, with its weather (IslandGame.ChartArt.cs)
         float tabY = box.y + 34f, tabW = (pw - 20f) / Continents, tabH = Mathf.Clamp(ph * 0.2f, 56f, 96f);
@@ -126,7 +137,7 @@ public partial class IslandGame
         }
 
         // ---- the sea and the route
-        float friendsH = 42f, infoH = 74f, mapY = tabY + tabH + 8f;
+        float friendsH = 42f, infoH = 108f, mapY = tabY + tabH + 8f;
         var map = new Rect(box.x + 10, mapY, pw - 20, ph - (mapY - box.y) - friendsH - infoH - 10f);
         int visible = Mathf.Max(3, Mathf.FloorToInt(map.width / ChartGap));
         float maxScroll = Mathf.Max(0f, ChartLast - visible + 1f);
@@ -184,6 +195,7 @@ public partial class IslandGame
                 bool mine = chartC == homeContinent;
                 GUI.DrawTexture(r, ChartIslandTex(mine ? -3 : -1), ScaleMode.StretchToFill);
                 if (!mine) ShadowLabel(new Rect(c.x - 20, c.y - 20 + bob, 40, 32), "+", titleCenter, new Color(1f, 1f, 1f, 0.7f));
+                if (mine && atHome) ShadowLabel(new Rect(c.x - 60, r.y - 20, 120, 18), "<color=#9dff9d><b>▼ คุณอยู่ที่นี่</b></color>", tag);
                 line1 = mine ? "<b>เกาะส่วนตัว</b>" : "<b>ที่ตั้งเกาะ</b>";
                 line2 = mine ? "<color=#9dff9d>บ้านของคุณ</color>" : "<color=#e6ecf2>ย้ายบ้านมาได้</color>";
             }
@@ -194,7 +206,12 @@ public partial class IslandGame
                 GUI.DrawTexture(r, ChartIslandTex(st == ChartState.Fog ? -1 : st is ChartState.Next or ChartState.Locked ? -2 : (int)BiomeOf(n, chartC)), ScaleMode.StretchToFill);
                 if (fog || st == ChartState.Next)
                     ShadowLabel(new Rect(c.x - 20, c.y - 20 + bob, 40, 32), st == ChartState.Next ? "!" : "?", titleCenter, st == ChartState.Next ? new Color(1f, 0.9f, 0.35f) : new Color(1f, 1f, 1f, 0.8f));
-                if (st == ChartState.Here) ShadowLabel(new Rect(c.x - 60, r.y - 18, 120, 18), "<color=#9dff9d><b>คุณอยู่ที่นี่</b></color>", tag);
+                if (st == ChartState.Here)
+                {
+                    float hb = Mathf.Sin(Time.unscaledTime * 3f) * 2f;
+                    Icon(new Rect(c.x + 14, r.y - 6 + hb, 26, 26), BoatSprite); // your boat moored here
+                    ShadowLabel(new Rect(c.x - 60, r.y - 20 + hb, 120, 18), "<color=#9dff9d><b>▼ คุณอยู่ที่นี่</b></color>", tag);
+                }
                 line1 = $"<b>เกาะ {n}</b>";
                 line2 = st switch
                 {
@@ -277,6 +294,8 @@ public partial class IslandGame
                     : $"<color=#ff9a8a>ยังไม่เคยไป</color> · คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ให้ช่างต่อเรืออัปเกรดเป็น Lv {ReachOn(chartC)} ก่อน",
                 _ => $"<color=#e6ecf2>ยังไม่เคยไป</color> · อยู่ไกลเกินกว่าจะไปถึงตอนนี้ ต้องไปให้ถึงเกาะที่ {chartSel - 1} ก่อน",
             };
+            if (sst is ChartState.Here or ChartState.Visited) text += "\n" + IslandContents(chartSel, chartC); // IslandGame.ItemInfo.cs
+            else if (sst is ChartState.Next or ChartState.Locked) text += "\n<color=#aaaaaa>ยังไม่รู้ว่ามีวัตถุดิบและมอนสเตอร์อะไร ไปสำรวจก่อนแล้วจะบันทึกลงแผนที่</color>";
             if (sst is ChartState.Visited or ChartState.Next)
             {
                 can = CanSailTo(chartSel, chartC, out var why);

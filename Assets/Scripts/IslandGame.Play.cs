@@ -857,25 +857,7 @@ public partial class IslandGame
         _ => 0,
     };
 
-    EnemyKind[] BiomeEnemies() => (biome, tier > 0) switch
-    {
-        (Biome.Jungle, false) => new[] { EnemyKind.Crab, EnemyKind.Snake },
-        (Biome.Jungle, true) => new[] { EnemyKind.Crab, EnemyKind.Snake, EnemyKind.Boar },
-        (Biome.Volcanic, _) => new[] { EnemyKind.Crab, EnemyKind.Boar },
-        (Biome.Mushroom, _) => new[] { EnemyKind.Crab, EnemyKind.Mimic, EnemyKind.SporeSpider },
-        (Biome.Turtle, _) => new[] { EnemyKind.Crab, EnemyKind.Barnacle, EnemyKind.HermitCrab },
-        (Biome.Sky, _) => new[] { EnemyKind.StormCloud, EnemyKind.ChimeBird },
-        (Biome.Bubble, _) => new[] { EnemyKind.LanternFish, EnemyKind.StoneSquid },
-        (Biome.Hourglass, _) => new[] { EnemyKind.WindupDoll, EnemyKind.TimeBeetle },
-        (Biome.Ice, _) => new[] { EnemyKind.Snowman, EnemyKind.FrostBat },
-        (Biome.Sunken, _) => new[] { EnemyKind.Eel, EnemyKind.DeepCrab },
-        (Biome.Pirate, _) => new[] { EnemyKind.Crab, EnemyKind.SkeletonPirate, EnemyKind.PirateMonkey },
-        (Biome.Crystal, _) => new[] { EnemyKind.CrystalGolem, EnemyKind.MirrorWisp },
-        (Biome.Storm, _) => new[] { EnemyKind.ThunderToad, EnemyKind.StormHawk },
-        (Biome.Insect, _) => new[] { EnemyKind.WorkerAnt, EnemyKind.SoldierAnt },
-        (_, true) => new[] { EnemyKind.Crab, EnemyKind.Snake },
-        _ => new[] { EnemyKind.Crab },
-    };
+    EnemyKind[] BiomeEnemies() => EnemiesOf(biome, tier > 0); // IslandGame.ItemInfo.cs
 
     void UpdateEnemies(float dt)
     {

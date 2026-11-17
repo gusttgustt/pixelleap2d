@@ -27,14 +27,32 @@ public class SeaCreature : MonoBehaviour
     bool bit; // this lunge has already landed
     float fireT, ramCd, laneY, laneT; // the warship's next volley / ram, the lane it holds and when it changes lanes
 
-    public string DisplayName => kind switch { SeaKind.Shark => "ฉลาม", SeaKind.Serpent => "งูทะเลยักษ์", SeaKind.Navy => "เรือรัฐบาล", _ => "แมงกะพรุน" };
+    /// A shark from a hunting pack (ฝูงฉลามคลั่ง, IslandGame.Voyage.cs): weaker alone, but many.
+    public bool frenzy;
+    /// A government officer with a fruit power aboard this warship (IslandGame.Navy.cs).
+    public Power officer;
+    public int officerLv;
+    public bool flagship;           // leads a navy fleet (กองทัพเรือรัฐบาล)
+    public int shieldHits;          // Bubble officer: a bubble that soaks up the next hits
+    public int stolen;              // Magnet officer: gold pulled out of your bag (back when it sinks)
+    float powerT, cloakT;
+
+    public string DisplayName => kind switch
+    {
+        SeaKind.Shark => frenzy ? "ฉลามคลั่ง" : "ฉลาม",
+        SeaKind.Serpent => "งูทะเลยักษ์",
+        SeaKind.Navy => (flagship ? "เรือธงกองทัพเรือ" : "เรือรัฐบาล") + (officer != Power.None ? $" · {OfficerTitle}" : ""),
+        _ => "แมงกะพรุน",
+    };
+    public bool Awakened => officerLv >= IslandGame.AwakenLevel;
+    public string OfficerTitle => officer == Power.None ? "" : $"{(flagship ? "พลเรือเอก" : "นายทหาร")}พลัง{IslandGame.PowerName(officer)} Lv {officerLv}{(Awakened ? " (ตื่นแล้ว)" : "")}";
     public bool IsMonster => kind == SeaKind.Serpent;
     /// Too big to pull or shove about (the sea monster and the warships).
     public bool IsBig => kind is SeaKind.Serpent or SeaKind.Navy;
     /// How high above its waterline to show numbers and its health bar (world units).
     public float Tall => kind switch { SeaKind.Serpent => 1.4f, SeaKind.Navy => 2.1f, _ => 0.5f };
     /// Under the water the serpent can't be hit (or targeted).
-    public bool Hittable => kind != SeaKind.Serpent || state is State.Rise or State.Lunge or State.Linger;
+    public bool Hittable => cloakT <= 0f && (kind != SeaKind.Serpent || state is State.Rise or State.Lunge or State.Linger);
     /// Extra reach for big creatures (targeting and power ranges, world units).
     public float Reach => kind == SeaKind.Serpent ? 0.8f : kind == SeaKind.Navy ? 1.1f : 0f;
     bool Enraged => (kind is SeaKind.Serpent or SeaKind.Navy) && hp * 2 <= maxHp;
@@ -75,6 +93,27 @@ public class SeaCreature : MonoBehaviour
 
     public float Damage => damage;
 
+    /// One of a hunting pack: a little weaker and less bold alone, but quicker.
+    public void MakeFrenzy()
+    {
+        frenzy = true;
+        maxHp = hp = Mathf.Max(3, maxHp * 2 / 3);
+        damage *= 0.5f;
+        speed *= 1.25f;
+        stateT = Random.Range(2f, 7f); // they don't all charge at once
+    }
+
+    /// A fruit-power officer aboard: the higher the level, the tougher the ship.
+    public void SetOfficer(Power p, int lv, bool flag)
+    {
+        officer = p; officerLv = lv; flagship = flag;
+        powerT = Random.Range(3.5f, 5.5f);
+        Toughen(1f + lv / 50f + (flag ? 0.6f : 0f), 1f + lv / 120f);
+    }
+
+    /// Shadow officer: the ship fades from sight (can't be hit) for a moment.
+    public void Cloak(float t) => cloakT = Mathf.Max(cloakT, t);
+
     void Update()
     {
         var game = IslandGame.I;
@@ -86,7 +125,8 @@ public class SeaCreature : MonoBehaviour
         Vector2 raft = game.RaftPos;
         Vector2 toRaft = raft - pos;
         float dist = toRaft.magnitude;
-        if (!IsBig && pos.x < raft.x - 18f) { Destroy(gameObject); return; } // left far behind
+        if (!IsBig && !frenzy && pos.x < raft.x - 18f) { Destroy(gameObject); return; } // left far behind (a pack keeps hunting you)
+        if (frenzy && pos.x < raft.x - 14f) pos.x = raft.x - 10f;
 
         if (stunT > 0f) // tangled in vines / knocked silly: just bob there
         {
@@ -122,7 +162,7 @@ public class SeaCreature : MonoBehaviour
                     break;
                 default:
                     pos -= toRaft.normalized * speed * dt;
-                    if (stateT <= 0f) { state = State.Circle; stateT = Random.Range(3f, 5.5f); angle = Mathf.Atan2(-toRaft.y, -toRaft.x); }
+                    if (stateT <= 0f) { state = State.Circle; stateT = frenzy ? Random.Range(4f, 7.5f) : Random.Range(3f, 5.5f); angle = Mathf.Atan2(-toRaft.y, -toRaft.x); }
                     break;
             }
             animT += dt * 4f;
@@ -201,6 +241,16 @@ public class SeaCreature : MonoBehaviour
         float rage = Enraged ? 1.4f : 1f;
         animT += dt * 2f;
         ramCd -= dt;
+        cloakT -= dt;
+        if (officer != Power.None)
+        {
+            powerT -= dt;
+            if (powerT <= 0f)
+            {
+                powerT = Random.Range(6f, 8.5f) * (Awakened ? 0.7f : 1f) / rage;
+                if (dist < 12f && !game.Invisible) game.OfficerPower(this);
+            }
+        }
         // It keeps pace with the raft east-west but holds a lane north-south, so you can paddle up to
         // it; every few seconds (or when you've slipped far off) it picks a new lane beside you.
         angle += dt * 0.5f * rage;
@@ -286,7 +336,10 @@ public class SeaCreature : MonoBehaviour
             Vector2 heading = state == State.Retreat ? pos - game.RaftPos : game.RaftPos - pos;
             if (Mathf.Abs(heading.x) > 0.05f) sr.flipX = heading.x < 0;
         }
-        sr.color = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : stunT > 0f ? new Color(0.8f, 1f, 0.7f) : Color.white;
+        var tint = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : stunT > 0f ? new Color(0.8f, 1f, 0.7f)
+                 : frenzy ? new Color(1f, 0.72f, 0.72f) : shieldHits > 0 ? new Color(0.75f, 0.95f, 1f) : Color.white;
+        if (cloakT > 0f) tint.a = 0.22f + 0.08f * Mathf.Sin(Time.time * 10f); // a shimmer on the water
+        sr.color = tint;
     }
 
     /// Returns true if the creature died.

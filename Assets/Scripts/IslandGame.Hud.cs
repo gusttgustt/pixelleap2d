@@ -492,6 +492,7 @@ public partial class IslandGame
 
         DrawHotbar(W, H);
         if (bagOpen) DrawBag(W, H);
+        DrawItemTip(W, H); // the hovered slot's details, over the bag (IslandGame.ItemInfo.cs)
         if (craftOpen) DrawCrafting(W, H);
         if (skillsOpen) DrawSkills(W, H);
         if (buildOpen && !Busy) DrawBuildPanel(W, H); // IslandGame.Build.cs

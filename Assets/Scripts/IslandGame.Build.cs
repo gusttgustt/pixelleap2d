@@ -543,7 +543,7 @@ public partial class IslandGame
             if (b.item != null) afford = Count(b.item.Value) > 0;
             if (b.kind == NodeKind.Plot && !b.hammer) afford = Count(Item.Hoe) > 0;
             GUI.color = afford ? Color.white : new Color(1f, 1f, 1f, 0.35f);
-            Icon(new Rect(r.x + 4, r.y + 4, cell - 8, cell - 8), b.move ? (carrying != null && carrying.CurrentSprite != null ? carrying.CurrentSprite : PixelArt.Icon(Item.FurnChair)) : b.hammer ? PixelArt.Icon(inHouse ? Item.FurnChair : Item.Hammer) : BuildSprite(b.kind));
+            Icon(new Rect(r.x + 4, r.y + 4, cell - 8, cell - 8), b.move ? (carrying != null && carrying.CurrentSprite != null ? carrying.CurrentSprite : PixelArt.HandIcon()) : b.hammer ? (inHouse ? PixelArt.HandIcon() : PixelArt.Icon(Item.Hammer)) : BuildSprite(b.kind));
             if (b.item != null) ShadowLabel(new Rect(r.x, r.yMax - 16, r.width - 3, 16), Count(b.item.Value).ToString(), smallRight);
             GUI.color = Color.white;
             if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) SelectBuild(i);
