@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// Chat stickers: two sets of 12 (อาคะ and โมโมะ, Resources/Emoji/<set>_<name>.png, 128 px).
+/// Chat stickers: three sets of 12 (อาคะ, โมโมะ and ยูรุ, Resources/Emoji/<set>_<name>.png, 128 px).
 /// A sticker travels as an ordinary chat message ":aka_laugh:" - the server needs nothing new,
 /// and an older game simply shows the code as text. Opened from the "สติกเกอร์" button next to
 /// the chat (mouse) or the round sticker button above the chat button (touch).
 public partial class IslandGame
 {
-    static readonly string[] StickerSets = { "aka", "momo" };
-    static readonly string[] StickerSetNames = { "อาคะ", "โมโมะ" };
+    static readonly string[] StickerSets = { "aka", "momo", "yoru" };
+    static readonly string[] StickerSetNames = { "อาคะ", "โมโมะ", "ยูรุ" };
     static readonly string[] StickerNames = { "laugh", "smug", "tongue", "cry", "angry", "shock", "love", "thumbsup", "sleepy", "facepalm", "please", "wave" };
     static readonly string[] StickerLabels = { "ขำกลิ้ง", "ยียวน", "แลบลิ้น", "ร้องไห้", "โกรธ", "ตกใจ", "หัวใจ", "เยี่ยม", "ง่วง", "หมดแรง", "ขอร้อง", "โบกมือ" };
     static readonly Dictionary<string, Texture2D> stickerTex = new Dictionary<string, Texture2D>();
