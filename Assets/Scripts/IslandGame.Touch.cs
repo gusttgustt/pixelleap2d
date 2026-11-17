@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Multi-touch comes from the Input System's Touchscreen, so you can walk and act at once.
 public partial class IslandGame
 {
-    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker, Awaken }
+    enum TouchBtn { None, Stick, Action, Eat, Drink, Craft, Skills, Power, PowerAtk, Bag, Chat, Sticker, Awaken, Who }
 
     /// Joystick direction (length 0..1), read by PlayerController.ReadInput.
     public static Vector2 TouchMove;
@@ -39,11 +39,16 @@ public partial class IslandGame
         // online only, on the right between the E side and the hotbar (IslandGame.ChatMobile.cs / Sticker.cs)
         TouchBtn.Chat => new Vector2(GuiW - 196f, GuiH - 210f),
         TouchBtn.Sticker => new Vector2(GuiW - 254f, GuiH - 164f),
+        TouchBtn.Who => new Vector2(GuiW - 262f, GuiH - 232f), // who's online + channels (phones have no O key, IslandGame.Who.cs)
         _ => new Vector2(112f, GuiH - 240f), // Skills
     };
 
+    bool WhoTouchShown => Online && sailT <= 0f && sleepT <= 0f && (!dead || downed);
+
     TouchBtn HitTest(Vector2 p)
     {
+        if (WhoTouchShown && (p - SmallCenter(TouchBtn.Who)).magnitude < SmallR * 1.3f) return TouchBtn.Who;
+        if (whoOpen) return TouchBtn.None; // the list is open: taps go to its buttons, not the controls under it
         if (dead)
         {
             if (downed && Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
@@ -113,6 +118,7 @@ public partial class IslandGame
         PollMobileChat(); // the phone's chat box was sent / cancelled (IslandGame.ChatMobile.cs)
         if (touchTapped.Contains(TouchBtn.Sticker) && !title) ToggleStickers(); // also while typing or knocked out (IslandGame.Sticker.cs)
         if (chatOpen || title) return;
+        if (touchTapped.Contains(TouchBtn.Who)) { ToggleWho(); return; } // who's online and the channel buttons
         if (touchTapped.Contains(TouchBtn.Chat)) { OpenMobileChat(); return; } // works while knocked out too
         if (dead || Busy) return;
         if (touchTapped.Contains(TouchBtn.Power)) UsePower();
@@ -139,6 +145,9 @@ public partial class IslandGame
     void DrawTouchControls()
     {
         if (!ShowTouch) return;
+        if (WhoTouchShown && (dialog == null || dead))
+            TouchCircle(SmallCenter(TouchBtn.Who), SmallR, $"CH{channel}", new Color(0.6f, 1f, 0.65f), whoOpen, 12);
+        if (whoOpen) return; // the list covers the middle: keep the controls out of its way
         if (dialog != null && !dead) // talking: only the E button, so the dialog's choices aren't covered
         {
             TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
