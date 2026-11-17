@@ -46,7 +46,7 @@ public partial class IslandGame
     {
         n = 0; c = 0;
         if (isl == 0) return "<color=#aaaaaa>ยังไม่ได้เข้าเกาะ (อยู่หน้าเมนู กำลังโหลด หรือหมดสติอยู่)</color>";
-        if (isl >= SeaRoomBase) return $"<color=#7fd0ff>ล่องเรือไป{ContinentNames[Mathf.Clamp(isl - SeaRoomBase, 0, Continents - 1)]}</color>";
+        if (isl >= SeaRoomBase) return $"<color=#7fd0ff>ล่องเรือไป{ContinentNames[Mathf.Clamp(RoomNoChannel(isl) - SeaRoomBase, 0, Continents - 1)]}</color> <color=#ffd27a>CH{RoomChannel(isl)}</color>";
         if (isl < 0)
         {
             int owner = -isl / 2;
@@ -56,9 +56,11 @@ public partial class IslandGame
             if (whoList != null) foreach (var p in whoList) if (p != null && p.id == owner) ownerName = p.name;
             return $"<color=#ffb0d0>เยี่ยมบ้าน {ownerName}{inside}</color>";
         }
+        int ch = RoomChannel(isl);
+        isl = RoomNoChannel(isl);
         c = Mathf.Clamp(isl / 100000, 0, Continents - 1);
         n = isl % 100000;
-        return $"เกาะที่ {n} {IslandName(n + c * 31)} <color=#cccccc>({ContinentNames[c]})</color>";
+        return $"เกาะที่ {n} {IslandName(n + c * 31)} <color=#cccccc>({ContinentNames[c]})</color> <color=#ffd27a>CH{ch}</color>";
     }
 
     void DrawWho(float W, float H)
@@ -76,11 +78,12 @@ public partial class IslandGame
             float ago = Time.unscaledTime - whoHeardAt;
             ShadowLabel(new Rect(box.xMax - 200, box.y + 12, 154, 18), ago < 3f ? "อัปเดตสด" : $"อัปเดตเมื่อ {ago:0} วิที่แล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 0.5f));
         }
-        ShadowLabel(new Rect(box.x + 14, box.y + 34, pw - 28, 18), "จะเห็นกันในเกมได้ต้องอยู่เกาะเดียวกัน (เลขเกาะและทวีปเดียวกัน) หรือแล่นเรือไปทวีปเดียวกัน", small, new Color(1f, 1f, 1f, 0.65f));
+        ShadowLabel(new Rect(box.x + 14, box.y + 34, pw - 28, 18), "จะเห็นกันในเกมได้ต้องอยู่เกาะเดียวกันและ channel (CH) เดียวกัน หรือแล่นเรือไปทวีปเดียวกันใน CH เดียวกัน", small, new Color(1f, 1f, 1f, 0.65f));
 
         var list = whoList ?? new NetPeer[0];
+        DrawChannelPicker(new Rect(box.x + 14, box.y + 56, pw - 28, 26), list);
         float rowH = 34f;
-        var view = new Rect(box.x + 10, box.y + 58, pw - 20, ph - 68);
+        var view = new Rect(box.x + 10, box.y + 100, pw - 20, ph - 110); // under the channel row and its note
         var content = new Rect(0, 0, view.width - 16, Mathf.Max(view.height, list.Length * rowH));
         var btn = new GUIStyle(GUI.skin.button) { fontSize = 11, richText = true };
         var rowSt = new GUIStyle(small) { richText = true, fontSize = 13 };
@@ -100,10 +103,23 @@ public partial class IslandGame
             ShadowLabel(new Rect(r.x + 8, r.y + 16, r.width - 130, 16), where, new GUIStyle(rowSt) { fontSize = 11 });
             if (me || here) continue;
             var br = new Rect(r.xMax - 118, r.y + 4, 112, r.height - 8);
-            if (n > 0)
+            int theirCh = RoomChannel(p.isl);
+            bool sameIsland = n > 0 && inRoom && !atHome && voyage == null && RoomNoChannel(p.isl) == RoomNoChannel(myRoom);
+            if (sameIsland) // same island, another channel: one click and you're there
+            {
+                GUI.enabled = ChannelBlock() == null;
+                if (CrispGUI.Button(br, $"ย้ายไป CH{theirCh}", btn)) { whoOpen = false; SwitchChannel(theirCh); }
+                GUI.enabled = true;
+            }
+            else if (n > 0)
             {
                 GUI.enabled = voyage == null;
-                if (CrispGUI.Button(br, "ล่องเรือไปหา", btn)) { whoOpen = false; SailToward(n, c); }
+                if (CrispGUI.Button(br, theirCh != channel ? $"ล่องเรือไปหา (CH{theirCh})" : "ล่องเรือไปหา", btn))
+                {
+                    whoOpen = false;
+                    ChannelOnSail(theirCh, n, c); // their channel, if you set sail for their island
+                    SailToward(n, c);
+                }
                 GUI.enabled = true;
             }
             else if (p.isl < 0 && -p.isl / 2 == p.id)

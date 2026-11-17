@@ -55,6 +55,7 @@ public partial class IslandGame
         look = PlayerPrefs.HasKey("look") ? CharacterLook.FromCode(PlayerPrefs.GetInt("look")) : CharacterLook.CanChoose ? CharacterLook.Random() : CharacterLook.Default;
         if (!CharacterLook.CanChoose && look.preset == 0) look = CharacterLook.Default; // ready-made characters only (for now)
         lookCode = look.Code;
+        LoadChannel(); // the channel picked last time (IslandGame.Channel.cs)
     }
 
     /// Remember name and look for next time.
@@ -159,6 +160,7 @@ public partial class IslandGame
         ClearRemotes();
         inRoom = false;
         hostId = 0;
+        if (voyage != null || !atHome) ApplyPendingChannel(); // sailing to a friend in another channel (IslandGame.Channel.cs)
         if (atHome && !serverHomes && voyage == null) { if (Online) Send(new NetMsg { t = "leave" }); return; } // an older server has no rooms for private islands: you're alone at home
         if (Online) Send(new NetMsg { t = "join", island = RoomKey }); // a private island has a room of its own (IslandGame.Visit.cs)
     }

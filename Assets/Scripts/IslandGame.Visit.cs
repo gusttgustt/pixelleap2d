@@ -41,7 +41,8 @@ public partial class IslandGame
 
     /// At sea everyone heading across the same continent's waters shares one room: you see their boats.
     const int SeaRoomBase = 1500000000;
-    int RoomKey => voyage != null ? SeaRoomBase + Mathf.Clamp(destContinent, 0, Continents - 1) : atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : WorldKey(island, continent);
+    int RoomKey => voyage != null ? SeaRoomBase + SeaChannelOffset + Mathf.Clamp(destContinent, 0, Continents - 1) // channels: IslandGame.Channel.cs
+                 : atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : ChannelOffset + WorldKey(island, continent);
 
     /// While visiting you can look around but only these do anything.
     /// Farming is allowed too: plant, water and harvest, feed the animals (the owner gets what you harvest as well).

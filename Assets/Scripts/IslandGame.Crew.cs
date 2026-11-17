@@ -109,6 +109,7 @@ public partial class IslandGame
                 dialog = null; craftOpen = false; skillsOpen = false; bagOpen = false;
                 destIsland = Mathf.Max(1, m.island);
                 destContinent = Mathf.Clamp(m.d, 0, Continents - 1);
+                if (m.x >= 1f) ChannelOnSail(Mathf.RoundToInt(m.x), destIsland, destContinent); // land in the captain's channel (IslandGame.Channel.cs)
                 voyageVisit = null;
                 SaveGame();
                 BeginSailFade(false);
@@ -205,7 +206,7 @@ public partial class IslandGame
         if (!IsCaptain) return;
         int n = 0;
         foreach (var id in crewAboard)
-            if (remotes.ContainsKey(id)) { SendCrew(id, "sail", dest, c, look: lookCode); n++; }
+            if (remotes.ContainsKey(id)) { SendCrew(id, "sail", dest, c, x: SailChannel, look: lookCode); n++; } // x: the channel we all sail in
         int left = crewMates.Count - n;
         if (n > 0) Hint($"ออกเรือพร้อมลูกเรือ {n} คน" + (left > 0 ? $" (อีก {left} คนไม่ได้ขึ้นเรือ ต้องกลับมารับ)" : ""), 4f);
         else if (crewMates.Count > 0) Hint("ไม่มีลูกเรือขึ้นเรือ ลูกเรือจะรออยู่ที่เกาะนี้", 3.5f);

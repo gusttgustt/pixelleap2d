@@ -822,6 +822,7 @@ public partial class IslandGame
                      : !inRoom ? "ออนไลน์ - กำลังเข้าเกาะ..."
                      : $"ออนไลน์ - บนเกาะนี้ {remotes.Count + 1} คน{(IsHost && remotes.Count > 0 ? " (โฮสต์)" : "")}";
         AskWho(); // how many are online in all (IslandGame.Who.cs)
+        if (Online && (!atHome || voyage != null)) state = $"CH{channel} · " + state; // channels: IslandGame.Channel.cs
         if (Online && onlineTotal >= 0) state += $" · ทั้งหมด {onlineTotal} คน (O)";
         var onlineRect = new Rect(W - 436, 12, 390, 18);
         ShadowLabel(onlineRect, state, new GUIStyle(small) { alignment = TextAnchor.UpperRight }, // left of the gear

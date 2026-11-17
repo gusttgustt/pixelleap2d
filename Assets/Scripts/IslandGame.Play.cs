@@ -787,6 +787,7 @@ public partial class IslandGame
         if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves
         health -= amount;
         hurtT = 0.3f;
+        lastHurtAt = Time.time; // no running off to another channel mid-fight (IslandGame.Channel.cs)
         if (player != null) player.Flash();
         if (voyage != null) voyage.hurtT = 0.2f;
         Sfx.Play("hurt", 0.7f);
