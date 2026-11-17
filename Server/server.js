@@ -341,6 +341,12 @@ function onMessage(socket, text) {
       log("  " + socket.name + " visits " + s.name + "'s island");
       return;
     }
+    case "crew": {
+      // crews (IslandGame.Crew.cs): reaches the player wherever they are, at sea too
+      const s = clients.get(m.to | 0);
+      if (s && s !== socket) { m.name = socket.name; send(s, m); }
+      return;
+    }
     case "knock": {
       const s = clients.get(m.to | 0);
       if (s) send(s, { t: "knock", from: socket.pid, name: socket.name });

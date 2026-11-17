@@ -152,16 +152,41 @@ public static class CrispGUI
         st.contentOffset = oldOffset * s;
         string text = c.text;
         string shown = st.richText && text.IndexOf("<size=", System.StringComparison.Ordinal) >= 0 ? Sized(text, s) : text;
+        // The font has no bold face, so Unity smears the regular one into a blurry "bold". Draw
+        // the regular face twice, a screen pixel or so apart, instead: thick and still sharp.
+        var oldStyle = st.fontStyle;
+        bool bold = oldStyle is FontStyle.Bold or FontStyle.BoldAndItalic || (st.richText && shown.IndexOf("<b>", System.StringComparison.Ordinal) >= 0);
+        if (bold)
+        {
+            st.fontStyle = oldStyle == FontStyle.BoldAndItalic ? FontStyle.Italic : oldStyle == FontStyle.Bold ? FontStyle.Normal : oldStyle;
+            if (st.richText) shown = Unbold(shown);
+        }
         var draw = shown == text ? c : new GUIContent(shown, c.tooltip);
-        if (textOnly) st.Draw(local, draw, false, false, false, false); // no hover glow on the words
-        else GUI.Label(local, draw, st);
+        float dx = bold ? Mathf.Max(1f, Mathf.Round(s * 0.6f)) : 0f;
+        for (int i = 0; i < (bold ? 2 : 1); i++)
+        {
+            var at = i == 0 ? local : new Rect(local.x + dx, local.y, local.width, local.height);
+            if (textOnly) st.Draw(at, draw, false, false, false, false); // no hover glow on the words
+            else GUI.Label(at, draw, st);
+        }
 
+        st.fontStyle = oldStyle;
         st.fontSize = oldSize; st.padding = oldPad; st.contentOffset = oldOffset;
         if (textOnly)
         {
             st.normal.background = n; st.hover.background = h; st.active.background = act; st.focused.background = f;
             st.onNormal.background = on; st.onHover.background = onH; st.onActive.background = onA; st.onFocused.background = onF;
         }
+    }
+
+    static readonly Dictionary<string, string> unbolded = new Dictionary<string, string>();
+    static string Unbold(string text)
+    {
+        if (unbolded.TryGetValue(text, out var done)) return done;
+        if (unbolded.Count > 2000) unbolded.Clear();
+        done = text.Replace("<b>", "").Replace("</b>", "");
+        unbolded[text] = done;
+        return done;
     }
 
     /// Rich text with <size=N> tags, the sizes scaled too (cached: the same lines come every frame).

@@ -403,6 +403,7 @@ public partial class IslandGame
         if (player != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
         DrawQuestTracker(W);
+        DrawCrewPanel(W, H); // crews (IslandGame.Crew.cs)
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
         DrawWarnings(W, H);
@@ -572,6 +573,7 @@ public partial class IslandGame
         st.normal.textColor = muted ? new Color(1f, 0.6f, 0.55f) : new Color(0.7f, 1f, 0.7f);
         st.hover.textColor = st.normal.textColor;
         if (CrispGUI.Button(r, muted ? "เสียง: ปิด (M)" : "เสียง: เปิด (M)", st)) Sfx.ToggleMute();
+        DrawWeatherFxButton(new Rect(r.x - 112, r.y, 106, r.height)); // weather effects on / off (IslandGame.Seasons.cs)
     }
 
     // ------------------------------------------------------------------ online UI

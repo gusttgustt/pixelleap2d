@@ -109,6 +109,7 @@ public partial class IslandGame
         TickAmbient(dt);
         TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
         TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
+        TickCrew();      // crew members on and off the captain's boat (IslandGame.Crew.cs)
         TickStarterPet(); // pick your first pet (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
@@ -141,6 +142,7 @@ public partial class IslandGame
         if (kb.hKey.wasPressedThisFrame) ToggleHome();  // private island <-> adventure (IslandGame.Home.cs)
         if (kb.gKey.wasPressedThisFrame) ToggleBuild(); // build / take down (IslandGame.Build.cs)
         if (kb.pKey.wasPressedThisFrame) PetKey();      // catch a weakened creature / your pets (IslandGame.Pet.cs)
+        if (kb.lKey.wasPressedThisFrame && voyage == null) ToggleAboard(); // crew: climb aboard / the crew panel (IslandGame.Crew.cs)
         if (kb.vKey.wasPressedThisFrame) AskHomes();    // visit a friend's private island (IslandGame.Visit.cs)
         if (kb.mKey.wasPressedThisFrame) { Sfx.ToggleMute(); Hint(Sfx.Muted ? "ปิดเสียง (M)" : "เปิดเสียง (M)", 1.5f); }
         if (craftOpen)
@@ -1117,6 +1119,7 @@ public partial class IslandGame
         voyageVisit = null;
         SaveGame(); // if you quit at sea you come back here, next to the raft
         BeginSailFade(false);
+        CrewSail(dest, c); // the crew aboard comes along (IslandGame.Crew.cs)
         Sfx.Play("win", 0.7f);
     }
 

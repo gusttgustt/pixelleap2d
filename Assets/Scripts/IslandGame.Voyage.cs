@@ -152,6 +152,7 @@ public partial class IslandGame
         v.raft += v.vel * dt;
         v.raft.y = Mathf.Clamp(v.raft.y, -6.5f, 6.5f);
         v.raft.x = Mathf.Max(v.raft.x, -3f);
+        CrewVoyageTick(dt); // a passenger rides the captain's boat; the captain shows the crew on deck (IslandGame.Crew.cs)
         if (moving)
         {
             v.animT += dt * 6f;

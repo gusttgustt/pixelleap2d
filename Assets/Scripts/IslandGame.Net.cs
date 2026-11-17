@@ -247,6 +247,7 @@ public partial class IslandGame
             case "homes": OnHomes(m.players); break;
             case "visit": OnVisitData(m); break;
             case "knock": OnKnock(m); break;
+            case "crew": OnCrew(m); break;     // crews sailing together (IslandGame.Crew.cs)
             case "auth": OnAuth(m); break;       // logged in (IslandGame.Account.cs)
             case "hnode": OnHomeNodes(m); break;   // private island changes (IslandGame.HomeSync.cs)
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm

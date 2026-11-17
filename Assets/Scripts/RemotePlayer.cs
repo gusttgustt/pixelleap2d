@@ -13,6 +13,7 @@ public class RemotePlayer : MonoBehaviour
 
     Vector2 target;
     int dir, frame, look;
+    public int Look => look; // their character, for showing them on a boat (IslandGame.Crew.cs)
     bool flip, seen;
     Item? hat, outfit;
     float height;

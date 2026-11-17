@@ -427,6 +427,7 @@ public partial class IslandGame
         var wst = new GUIStyle(st); wst.normal.textColor = new Color(1f, 0.8f, 0.35f);
         if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), "ป้ายประกาศค่าหัว (J)", wst)) ToggleWanted(); // IslandGame.Bounty.cs
         hudButtonsBottom = y + 22f;
+        DrawCrewButton(W); // IslandGame.Crew.cs
     }
 
     void DrawHomeWarp(float W, float H)

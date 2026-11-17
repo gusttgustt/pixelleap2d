@@ -125,7 +125,7 @@ public partial class IslandGame
     (Color, float) WeatherLight(Color col, float intensity)
     {
         col *= SeasonTint[(int)CurSeason];
-        float k = weatherK;
+        float k = WeatherFx ? weatherK : 0f;
         switch (nowWeather)
         {
             case Weather.Rain: col = Color.Lerp(col, col * new Color(0.75f, 0.8f, 0.95f), k); intensity *= Mathf.Lerp(1f, 0.78f, k); break;
@@ -136,7 +136,7 @@ public partial class IslandGame
             case Weather.Ash: col = Color.Lerp(col, col * new Color(0.95f, 0.75f, 0.62f), k); intensity *= Mathf.Lerp(1f, 0.8f, k); break;
             case Weather.Fog: intensity *= Mathf.Lerp(1f, 0.9f, k); break;
         }
-        if (flashT > 0f) { col = Color.Lerp(col, Color.white, flashT); intensity = Mathf.Max(intensity, flashT * 1.3f); }
+        if (flashT > 0f && WeatherFx) { col = Color.Lerp(col, Color.white, flashT); intensity = Mathf.Max(intensity, flashT * 1.3f); }
         return (col, intensity);
     }
 
@@ -171,7 +171,7 @@ public partial class IslandGame
         Vector3 c = cam.transform.position;
         Vector3 Top(float above = 0.3f) => new Vector3(c.x + Random.Range(-halfW - 1f, halfW + 1f), c.y + halfH + above, 0f);
         Vector3 Anywhere() => new Vector3(c.x + Random.Range(-halfW, halfW), c.y + Random.Range(-halfH, halfH), 0f);
-        float rate = dt * weatherK;
+        float rate = WeatherFx ? dt * weatherK : 0f; // effects off: no rain, snow, ash... (the weather still counts)
         float fall = halfH * 2f + 1f; // distance to cross the screen
         switch (nowWeather)
         {
@@ -202,6 +202,7 @@ public partial class IslandGame
                         strikeT = 1.1f;
                         Fx.Radial(strikeAt, new Color(1f, 0.95f, 0.5f), 14, -1.2f, 1.1f, 1f, 0.5f);
                     }
+                    else if (thunderTimer <= 0f && !WeatherFx) thunderTimer = Random.Range(5f, 11f); // just thunder you can't see
                     else if (thunderTimer <= 0f)
                     {
                         thunderTimer = Random.Range(5f, 11f);
@@ -256,7 +257,7 @@ public partial class IslandGame
                 if (Random.value < rate * 6f) Fx.Rise(Anywhere(), new Color(1f, 0.95f, 0.7f, 0.25f), 1, 0.5f, 0.6f, 1.5f, 2f, -0.2f); // shimmer
                 break;
             case Weather.Fireflies:
-                if (IsNight && Random.value < dt * 6f) Fx.Burst(PlayerPos + new Vector3(Random.Range(-4f, 4f), Random.Range(-2.5f, 2.5f), 0f), new Color(0.85f, 1f, 0.4f), 1, 0.2f, 0.2f, 2f, -0.2f);
+                if (WeatherFx && IsNight && Random.value < dt * 6f) Fx.Burst(PlayerPos + new Vector3(Random.Range(-4f, 4f), Random.Range(-2.5f, 2.5f), 0f), new Color(0.85f, 1f, 0.4f), 1, 0.2f, 0.2f, 2f, -0.2f);
                 break;
         }
     }
@@ -276,7 +277,7 @@ public partial class IslandGame
 
     void DrawWeatherOverlay(float W, float H)
     {
-        if (voyage != null || inHouse) return;
+        if (voyage != null || inHouse || !WeatherFx) return;
         float k = weatherK;
         switch (nowWeather)
         {
@@ -292,11 +293,43 @@ public partial class IslandGame
         if (flashT > 0f) FillOver(new Rect(0, 0, W, H), new Color(1f, 1f, 1f, flashT * 0.55f));
     }
 
+    // ------------------------------------------------------------------ effects on / off
+    static int weatherFx = -1;
+    /// Rain, snow, ash and the rest drawn on the screen (a setting kept in this browser / device).
+    /// Off, the weather still happens and still counts (thirst, cold, lightning): only the show goes.
+    public static bool WeatherFx
+    {
+        get
+        {
+            if (weatherFx < 0) { try { weatherFx = PlayerPrefs.GetInt("weatherFx", 1); } catch { weatherFx = 1; } }
+            return weatherFx != 0;
+        }
+        set
+        {
+            weatherFx = value ? 1 : 0;
+            try { PlayerPrefs.SetInt("weatherFx", weatherFx); PlayerPrefs.Save(); } catch { }
+        }
+    }
+
+    void DrawWeatherFxButton(Rect r)
+    {
+        if (title) return;
+        bool on = WeatherFx;
+        var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
+        st.normal.textColor = on ? new Color(0.7f, 1f, 0.7f) : new Color(1f, 0.6f, 0.55f);
+        st.hover.textColor = st.normal.textColor;
+        if (CrispGUI.Button(r, on ? "เอฟเฟกต์อากาศ: เปิด" : "เอฟเฟกต์อากาศ: ปิด", st))
+        {
+            WeatherFx = !on;
+            Hint(on ? "ปิดเอฟเฟกต์สภาพอากาศแล้ว (อากาศยังมีผลกับตัวละครเหมือนเดิม)" : "เปิดเอฟเฟกต์สภาพอากาศแล้ว", 2.5f);
+        }
+    }
+
     /// Season and weather under the little sky window at the top of the screen.
     void DrawSeasonInfo(Rect r)
     {
-        Fill(r, new Color(0f, 0f, 0f, 0.45f));
-        var st = new GUIStyle(smallCenter) { fontSize = 11, richText = true, wordWrap = false };
+        Fill(r, new Color(0f, 0f, 0f, 0.6f));
+        var st = new GUIStyle(smallCenter) { fontSize = 12, richText = true, wordWrap = false };
         int s = (int)CurSeason;
         ShadowLabel(new Rect(r.x, r.y, r.width, 16), $"<color={SeasonColors[s]}><b>{SeasonNames[s]}</b></color> {SeasonDay}/{SeasonDays}", st);
         ShadowLabel(new Rect(r.x, r.y + 15, r.width, 16), WeatherName(nowWeather), st, new Color(0.9f, 0.95f, 1f));
