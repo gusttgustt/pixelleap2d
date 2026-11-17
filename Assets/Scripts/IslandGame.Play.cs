@@ -186,8 +186,10 @@ public partial class IslandGame
         if (FriendsCanRevive) GoDown(); // friends here: knocked out, they can bring you back (IslandGame.Revive.cs)
         else if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
         Sfx.Play("hurt", 0.8f);
-        KeepHomeOnDeath();   // ...but your private island waits for the next run (IslandGame.Home.cs)
-        SaveSystem.Delete(); // death is permanent: next start is a new run
+        // Death doesn't wipe the character: save everything as it is now, and Respawn() wakes you
+        // up on this island with it all (at sea or visiting, the last save on land stands).
+        // Written already healed, so closing the game on the death screen also comes back alive.
+        if (player != null && voyage == null && !visiting && sailT <= 0f) SaveSystem.Write(Reborn(Snapshot()));
         return true;
     }
 

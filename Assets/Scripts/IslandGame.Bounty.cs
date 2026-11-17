@@ -41,7 +41,7 @@ public partial class IslandGame
         d.bounty = bounty; d.bountyIsl = bountyIsl; d.bountyHome = bountyHome; d.navyWins = navyWins;
     }
 
-    /// Kept over a death (KeepHomeOnDeath -> NewRun).
+    /// Carried into a new run from an old home keep (SaveSystem.TakeHomeKeep -> NewRun).
     static void CarryBounty(SaveData from, SaveData to)
     {
         to.bounty = from.bounty; to.bountyIsl = from.bountyIsl; to.bountyHome = from.bountyHome; to.navyWins = from.navyWins;

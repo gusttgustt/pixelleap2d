@@ -3,7 +3,7 @@ using UnityEngine;
 /// Online with friends on the island, falling in a fight doesn't end the run at once: you're
 /// knocked out ("downed") where you fell, and a friend can walk up and hold E (or the action
 /// button) next to you to bring you back. Nobody comes in time, or no friend is left on the
-/// island, and it's the usual death. You can also give up and start a new run yourself.
+/// island, and it's the usual death (you respawn and keep everything). You can also give up and respawn yourself.
 public partial class IslandGame
 {
     public bool downed;          // knocked out, waiting for a friend
@@ -42,11 +42,26 @@ public partial class IslandGame
         if (Shared) { AddChat("", "คุณตายแล้ว"); LeaveRoom(); } // someone else looks after the creatures now
     }
 
-    /// The respawn button / R key: give up waiting and start a new run.
+    /// The respawn button / R key: come back to life with everything you had (level, items,
+    /// skills, boat, private island...), in the middle of the island you were on.
     void Respawn()
     {
         FinalDeath();
-        StartGame(null);
+        var d = SaveSystem.Read(); // written when you fell (CheckDeath)
+        if (d == null) { StartGame(null); return; } // no save at all: a brand new run
+        if (voyage != null) EndVoyage(); // lost at sea: back to the last island
+        StartGame(Reborn(d));
+        Hint("คุณฟื้นขึ้นมาแล้ว! ของและเลเวลยังอยู่ครบ", 4f);
+    }
+
+    /// A save made at death, fixed up to wake up alive: full health, not starving, in the middle of the island.
+    static SaveData Reborn(SaveData d)
+    {
+        d.health = 9999f;                // StartGame caps it at MaxHealth
+        d.hunger = Mathf.Max(d.hunger, 60f);
+        d.thirst = Mathf.Max(d.thirst, 60f);
+        d.player = new Vector2(-1f, -1f); // not land: StartGame puts you in the middle of the island
+        return d;
     }
 
     /// A friend held E next to me long enough.
@@ -64,7 +79,7 @@ public partial class IslandGame
         Hint($"{who} ชุบชีวิตคุณแล้ว! รีบหาอะไรกินฟื้นพลัง", 4f);
         Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.95f, 0.55f), 14, 1.2f, 1f);
         Sfx.Play("craft", 0.6f);
-        SaveGame(); // the save was cleared when I fell: write it back
+        SaveGame(); // the save from when I fell has health 0: write the revived state
     }
 
     /// Reviver side, called from HandleInput. True while I'm busy reviving (other actions wait).

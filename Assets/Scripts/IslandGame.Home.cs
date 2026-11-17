@@ -185,17 +185,6 @@ public partial class IslandGame
         StartGame(d);
     }
 
-    void KeepHomeOnDeath()
-    {
-        if (!homeMade && pets.Count == 0 && bounty == 0) return;
-        var d = new SaveData { homeMade = homeMade, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade, homeLand = homeLand, homeContinent = homeContinent };
-        SaveBounty(d); // the government doesn't forget you
-        d.homeNodes.AddRange(homeNodes);
-        d.houseNodes.AddRange(houseNodes);
-        SavePets(d);
-        SaveSystem.WriteHomeKeep(d);
-    }
-
     void DevHomeKeys(UnityEngine.InputSystem.Keyboard kb)
     {
         if (!DevMode || kb == null || player == null || chatOpen) return;

@@ -561,7 +561,7 @@ public partial class IslandGame
             var again = new GUIStyle(GUI.skin.button) { fontSize = downed ? 15 : 18, fontStyle = FontStyle.Bold };
             again.normal.textColor = new Color(1f, 0.85f, 0.3f);
             again.hover.textColor = Color.white;
-            string btnText = downed ? "ยอมแพ้ เริ่มการผจญภัยใหม่ (R)" : "เริ่มการผจญภัยใหม่ (R)";
+            string btnText = downed ? "ยอมแพ้ เกิดใหม่ (R)" : "เกิดใหม่ (R)";
             if (CrispGUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
         }
         DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
