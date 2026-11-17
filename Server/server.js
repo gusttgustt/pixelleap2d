@@ -374,7 +374,19 @@ function onHomeOf(socket, owner) {
 // ---------- accounts ----------
 
 let accounts = {};                    // key (lower-case name) -> { name, salt, hash, tokens: [sha256], at }
-try { accounts = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "accounts.json"), "utf8")) || {}; } catch (e) { accounts = {}; }
+{
+  const file = path.join(DATA_DIR, "accounts.json");
+  let text = null;
+  try { text = fs.readFileSync(file, "utf8"); } catch (e) { accounts = {}; } // no file yet: a new server
+  if (text !== null) {
+    try { accounts = JSON.parse(text) || {}; }
+    catch (e) {
+      // A broken accounts file must not be written over with an empty one (that would lose every player).
+      console.log("\n!! " + file + " is broken (" + e.message + ").\n!! The server did not start. Run Server/restore-backup.bat to put a backup back.\n");
+      process.exit(1);
+    }
+  }
+}
 let accountsTimer = null;
 
 function writeFileSafe(file, text) {
@@ -439,6 +451,48 @@ function flushAll() {
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
   try { process.on(sig, () => { log("Server stopping: saving accounts..."); flushAll(); process.exit(0); }); } catch (e) {}
 }
+
+// ---------- backups ----------
+// A copy of DATA_DIR goes to Server/backups/<date_time>/ when the server starts and every
+// BACKUP_EVERY; the newest KEEP_BACKUPS are kept. To also copy them somewhere safer (a OneDrive or
+// Google Drive folder), put that folder's path on the first line of Server/backup-to.txt.
+// Server/restore-backup.bat puts a backup back.
+const BACKUP_DIR = path.resolve(process.env.BACKUP_DIR || path.join(__dirname, "backups"));
+const BACKUP_EVERY = 6 * 60 * 60 * 1000;
+const KEEP_BACKUPS = 30;
+
+function backupTargets() {
+  const out = [BACKUP_DIR];
+  try {
+    const extra = fs.readFileSync(path.join(__dirname, "backup-to.txt"), "utf8").split(/\r?\n/)[0].trim().replace(/^"|"$/g, "");
+    if (extra) out.push(path.resolve(extra, "IslandServerBackups"));
+  } catch (e) {}
+  return out;
+}
+
+function stamp() {
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "_" + p(d.getHours()) + "-" + p(d.getMinutes()) + "-" + p(d.getSeconds());
+}
+
+function backupNow(why) {
+  flushAll(); // what is still waiting goes to disk first, so the copy is up to date
+  let files;
+  try { files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith(".json")); } catch (e) { return; }
+  if (!files.length) return;
+  const name = stamp();
+  for (const root of backupTargets()) {
+    try {
+      const dir = path.join(root, name);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of files) fs.copyFileSync(path.join(DATA_DIR, f), path.join(dir, f));
+      const old = fs.readdirSync(root).filter(d => /^\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d$/.test(d)).sort();
+      for (const d of old.slice(0, Math.max(0, old.length - KEEP_BACKUPS))) fs.rmSync(path.join(root, d), { recursive: true, force: true });
+      log("  backup (" + why + "): " + files.length + " files -> " + dir);
+    } catch (e) { log("! backup to " + root + " failed: " + e.message); }
+  }
+}
+setInterval(() => backupNow("every 6 h"), BACKUP_EVERY).unref();
 
 // Wrong passwords and new accounts, counted per address and per account.
 const fails = new Map();               // "ip:<addr>" or "acct:<key>" -> { n, until }
@@ -544,4 +598,5 @@ server.listen(PORT, "0.0.0.0", () => {
   log("  game connects to  ws://127.0.0.1:" + PORT + "/ws");
   log("  web build at      http://localhost:" + PORT + "/  (from " + WEB_ROOT + ")");
   log("  accounts in       " + DATA_DIR + " (" + Object.keys(accounts).length + " players)");
+  backupNow("server start");
 });

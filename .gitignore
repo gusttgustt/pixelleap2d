@@ -52,3 +52,7 @@ Server/data/
 
 # Local MCP config (holds API keys)
 .mcp.json
+
+# Server backups of player data (Server/server.js) and where else to copy them
+Server/backups/
+Server/backup-to.txt
