@@ -384,12 +384,14 @@ function writeFileSafe(file, text) {
   fs.renameSync(tmp, file);
 }
 
+function saveAccountsNow() {
+  if (accountsTimer) { clearTimeout(accountsTimer); accountsTimer = null; }
+  try { writeFileSafe(path.join(DATA_DIR, "accounts.json"), JSON.stringify(accounts)); } catch (e) { log("! accounts not saved: " + e.message); }
+}
+
 function saveAccountsSoon() {
   if (accountsTimer) return;
-  accountsTimer = setTimeout(() => {
-    accountsTimer = null;
-    try { writeFileSafe(path.join(DATA_DIR, "accounts.json"), JSON.stringify(accounts)); } catch (e) { log("! accounts not saved: " + e.message); }
-  }, 1000);
+  accountsTimer = setTimeout(saveAccountsNow, 1000);
 }
 
 const keyOf = name => String(name || "").trim().toLowerCase();
@@ -424,8 +426,18 @@ function saveSoon(key, text) {
     try { writeFileSafe(saveFile(key), s.text); } catch (e) { log("! save failed: " + e.message); }
     s.text = null;
   };
+  s.write = write;
   const wait = s.last + SAVE_EVERY - Date.now();
   if (wait <= 0) write(); else s.timer = setTimeout(write, wait);
+}
+
+/// Closing the server window (or Ctrl+C): write everything still waiting, so nothing is lost.
+function flushAll() {
+  saveAccountsNow();
+  for (const s of saveTimers.values()) if (s.timer) { clearTimeout(s.timer); s.write(); }
+}
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
+  try { process.on(sig, () => { log("Server stopping: saving accounts..."); flushAll(); process.exit(0); }); } catch (e) {}
 }
 
 // Wrong passwords and new accounts, counted per address and per account.
@@ -484,17 +496,21 @@ async function onAccount(socket, m) {
       accounts[key] = { name, salt, hash, tokens: [], at: Date.now() };
       log("+ account " + name);
       authOk(socket, accounts[key]);
+      saveAccountsNow(); // a new account is on disk straight away
       return;
     }
-    if (locked(ipId) || locked(acctId)) { send(socket, { t: "auth", hits: 0, why: TOO_MANY }); return; }
     const acc = accounts[key];
     if (m.t === "token") {
-      if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { failed(ipId); send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
+      // A device's saved login. Tokens are random (48 hex digits), so they can't be guessed:
+      // an old or unknown one (e.g. from before the server moved) is not a wrong password
+      // and must not lock anyone out, and a locked address can still use a valid one.
+      if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
       acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
       authOk(socket, acc);
       return;
     }
-    if (!acc) { failed(ipId); send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; }
+    if (locked(ipId) || locked(acctId)) { send(socket, { t: "auth", hits: 0, why: TOO_MANY }); return; }
+    if (!acc) { send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; } // not a wrong password: don't count it
     const h = await hashPassAsync(pass, acc.salt);
     if (socket.destroyed) return;
     if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) {
