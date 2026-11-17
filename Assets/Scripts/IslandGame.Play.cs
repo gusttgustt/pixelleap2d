@@ -68,6 +68,7 @@ public partial class IslandGame
         }
 
         NetTick(dt);
+        CrewBoatTick(); // crew: the captain's boat on the island (IslandGame.Crew.cs)
 
         if (kb != null)
         {

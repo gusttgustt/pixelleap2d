@@ -218,7 +218,13 @@ public partial class IslandGame
             else if (!NearCaptainOrBoat(AboardLeash)) { aboard = false; SendCrew(crewCaptain, "unboard"); Hint("เดินห่างกัปตันและเรือเกินไป ลงจากเรือแล้ว (กลับไปกด L เพื่อขึ้นเรือ)", 4f); }
         }
         if (crewAboard.Count > 0) crewAboard.RemoveWhere(id => !remotes.ContainsKey(id));
-        // captain: tell the crew on this island where my boat is moored
+    }
+
+    /// Every frame on an island, even with the sea chart or another window open (TickCrew is
+    /// skipped then): the captain tells the crew where the boat is moored, the crew draws it.
+    void CrewBoatTick()
+    {
+        if (!Online || voyage != null || player == null) { ShowCapBoat(); return; }
         crewBoatT -= Time.deltaTime;
         if (IsCaptain && crewBoatT <= 0f)
         {
@@ -363,6 +369,8 @@ public partial class IslandGame
         string status = InCrew ? $"ลูกเรือของ <b>{crewCaptainName}</b> · {(aboard ? "<color=#9dff9d>อยู่บนเรือ</color>" : "ยังไม่ขึ้นเรือ (ไปที่เรือหรือตัวกัปตันแล้วกด L)")}"
                       : IsCaptain ? $"คุณเป็นกัปตัน · ลูกเรือ {crewMates.Count} คน ขึ้นเรือแล้ว {crewAboard.Count} คน"
                       : raftLevel > 0 ? "ชวนคนบนเกาะนี้มาเป็นลูกเรือของคุณ" : "สมัครเป็นลูกเรือของคนที่มีเรือ";
+        if (InCrew && !aboard && remotes.ContainsKey(crewCaptain) && !CapBoatHere)
+            status += " <color=#ffb08a>(ไม่เห็นเรือ: ให้กัปตันอัปเดตเกม)</color>";
         CrispGUI.Label(new Rect(box.x + 10, box.y + 30, box.width - 20, 18), status, line);
         float y = box.y + 52;
         if (others.Count == 0) CrispGUI.Label(new Rect(box.x + 10, y + 4, box.width - 20, 18), "<color=#b8c0c8>ยังไม่มีผู้เล่นคนอื่นบนเกาะนี้</color>", line);
