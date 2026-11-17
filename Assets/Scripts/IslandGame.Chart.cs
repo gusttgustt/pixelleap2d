@@ -109,12 +109,11 @@ public partial class IslandGame
         ShadowLabel(new Rect(box.x + 14, box.y + 6, pw - 120, 22), dialog.speaker, label, new Color(1f, 0.85f, 0.3f));
         if (GUI.Button(new Rect(box.xMax - 82, box.y + 5, 72, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
 
-        // ---- continents
-        float tabY = box.y + 32f, tabW = (pw - 20f) / Continents;
-        var tabSt = new GUIStyle(GUI.skin.button) { fontSize = 12, richText = true, alignment = TextAnchor.MiddleCenter, wordWrap = false };
+        // ---- continents: a pixel-art picture of each, with its weather (IslandGame.ChartArt.cs)
+        float tabY = box.y + 34f, tabW = (pw - 20f) / Continents, tabH = Mathf.Clamp(ph * 0.2f, 56f, 96f);
         for (int c = 0; c < Continents; c++)
         {
-            var r = new Rect(box.x + 10 + c * tabW, tabY, tabW - 4, 38);
+            var r = new Rect(box.x + 10 + c * tabW + 2f, tabY, tabW - 4f, tabH);
             bool on = c == chartC;
             int r0 = ReachOn(c), friends = 0;
             foreach (var f in chartFriends) if (f != null && f.c == c) friends++;
@@ -123,13 +122,12 @@ public partial class IslandGame
             if (!atHome && c == continent) marks.Add("<color=#ffe27a>คุณอยู่</color>");
             if (friends > 0) marks.Add($"<color=#ffb0d0>เพื่อน {friends}</color>");
             string sub = (r0 > 0 ? $"ไปมาแล้ว {r0} เกาะ" : "<color=#b8c0c8>ยังไม่เคยมา</color>") + (marks.Count > 0 ? " · " + string.Join(" · ", marks) : "");
-            if (GUI.Button(r, $"{(on ? "<b>" : "")}{c + 1}. {ContinentNames[c]}{(on ? "</b>" : "")}\n<size=10>{sub}</size>", tabSt)) ChartContinent(c);
-            if (on) Fill(new Rect(r.x, r.yMax - 3, r.width, 3), ContinentColor[c]);
+            if (ContinentCard(r, c, on, sub)) ChartContinent(c);
         }
 
         // ---- the sea and the route
-        float friendsH = 42f, infoH = 74f;
-        var map = new Rect(box.x + 10, tabY + 44f, pw - 20, ph - (tabY + 44f - box.y) - friendsH - infoH - 10f);
+        float friendsH = 42f, infoH = 74f, mapY = tabY + tabH + 8f;
+        var map = new Rect(box.x + 10, mapY, pw - 20, ph - (mapY - box.y) - friendsH - infoH - 10f);
         int visible = Mathf.Max(3, Mathf.FloorToInt(map.width / ChartGap));
         float maxScroll = Mathf.Max(0f, ChartLast - visible + 1f);
         if (chartSel >= 0)
