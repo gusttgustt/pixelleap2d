@@ -11,6 +11,8 @@ public partial class IslandGame
     bool whoOpen;
     float whoAskAt;
     Vector2 whoScroll;
+    float whoHeardAt;
+    int whoRoomAsked = int.MinValue; // ask again as soon as I move to another room
 
     void ToggleWho()
     {
@@ -24,8 +26,11 @@ public partial class IslandGame
     /// Ask the server now and then (every few seconds while the list is open).
     void AskWho()
     {
-        if (!Online || Time.unscaledTime < whoAskAt) return;
-        whoAskAt = Time.unscaledTime + (whoOpen ? 4f : 10f);
+        if (!Online) return;
+        int room = inRoom ? RoomKey : 0;
+        if (Time.unscaledTime < whoAskAt && room == whoRoomAsked) return;
+        whoRoomAsked = room;
+        whoAskAt = Time.unscaledTime + (whoOpen ? 1.5f : 8f);
         Send(new NetMsg { t = "who" });
     }
 
@@ -33,13 +38,14 @@ public partial class IslandGame
     {
         onlineTotal = m.hits;
         whoList = m.players;
+        whoHeardAt = Time.unscaledTime;
     }
 
     /// Where a room is, in words. n / c: the adventure island and continent (n = 0 when not on one).
     string WhereOf(int isl, int who, out int n, out int c)
     {
         n = 0; c = 0;
-        if (isl == 0) return "<color=#aaaaaa>กำลังเดินทาง/โหลด</color>";
+        if (isl == 0) return "<color=#aaaaaa>ยังไม่ได้เข้าเกาะ (อยู่หน้าเมนู กำลังโหลด หรือหมดสติอยู่)</color>";
         if (isl >= SeaRoomBase) return $"<color=#7fd0ff>ล่องเรือไป{ContinentNames[Mathf.Clamp(isl - SeaRoomBase, 0, Continents - 1)]}</color>";
         if (isl < 0)
         {
@@ -65,6 +71,11 @@ public partial class IslandGame
         string total = onlineTotal >= 0 ? $"ออนไลน์ทั้งหมด {onlineTotal} คน" : "กำลังดูว่าใครออนไลน์...";
         ShadowLabel(new Rect(box.x + 14, box.y + 8, pw - 120, 24), $"{total}  <size=12><color=#aaaaaa>(O ปิด)</color></size>", label, new Color(0.6f, 1f, 0.65f));
         if (CrispGUI.Button(new Rect(box.xMax - 40, box.y + 8, 28, 24), "X")) { whoOpen = false; return; }
+        if (whoList != null)
+        {
+            float ago = Time.unscaledTime - whoHeardAt;
+            ShadowLabel(new Rect(box.xMax - 200, box.y + 12, 154, 18), ago < 3f ? "อัปเดตสด" : $"อัปเดตเมื่อ {ago:0} วิที่แล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 0.5f));
+        }
         ShadowLabel(new Rect(box.x + 14, box.y + 34, pw - 28, 18), "จะเห็นกันในเกมได้ต้องอยู่เกาะเดียวกัน (เลขเกาะและทวีปเดียวกัน) หรือแล่นเรือไปทวีปเดียวกัน", small, new Color(1f, 1f, 1f, 0.65f));
 
         var list = whoList ?? new NetPeer[0];
