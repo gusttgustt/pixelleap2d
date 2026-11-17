@@ -44,6 +44,18 @@ const WORLD_SEED = crypto.randomInt(1, 2 ** 31 - 1); // every island layout come
 
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, "data"));
 
+// ---------- limits (against people trying to break the server) ----------
+const MAX_CLIENTS = 300;              // connections in all
+const MAX_PER_IP = 12;                // connections from one address (friends at one house share one)
+const MSG_RATE = 80, MSG_BURST = 300;              // messages per second (a player sends ~20)
+const BYTE_RATE = 256 * 1024, BYTE_BURST = 12 * 1024 * 1024; // bytes per second (a save or a home island is big, but rare)
+const MAX_STRIKES = 400;              // messages dropped for going too fast, then cut off
+const HELLO_WITHIN = 15000;           // ms to say hello after connecting
+const SAVE_EVERY = 5000;              // ms between save writes per account (the game sends every 8 s)
+const MAX_ACCOUNTS = 5000;
+const REGISTER_PER_IP = 3, REGISTER_ALL = 30, REGISTER_WINDOW = 60 * 60 * 1000; // new accounts per hour
+const FAILS_PER_IP = 10, FAILS_PER_ACCOUNT = 5, FAIL_LOCK = 15 * 60 * 1000;      // wrong passwords, then a 15 min wait
+
 const clients = new Map();            // id -> socket
 const rooms = new Map();              // island -> { order: [ids], events: Map(nodeId -> event) }
 let nextId = 1;
@@ -61,7 +73,8 @@ const TYPES = {
 const GAME_URL = process.env.GAME_URL || "https://gusttgustt.github.io/pixelleap2d/";
 
 const server = http.createServer((req, res) => {
-  let url = decodeURIComponent((req.url || "/").split("?")[0]);
+  let url;
+  try { url = decodeURIComponent((req.url || "/").split("?")[0]); } catch (e) { res.writeHead(400); res.end(); return; }
   if (url === "/status") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ online: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }));
@@ -79,7 +92,7 @@ const server = http.createServer((req, res) => {
   }
   if (url === "/") url = "/index.html";
   const file = path.resolve(WEB_ROOT, "." + url);
-  if (!file.startsWith(WEB_ROOT)) { res.writeHead(403); res.end(); return; }
+  if (!file.startsWith(WEB_ROOT + path.sep)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { "Content-Type": "text/plain" }); res.end("not found"); return; }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file).toLowerCase()] || "application/octet-stream", "Cache-Control": "no-cache" });
@@ -94,15 +107,34 @@ server.on("upgrade", (req, socket) => {
     socket.destroy();
     return;
   }
+  const ip = ipOf(req);
+  if (sockets.size >= MAX_CLIENTS || (perIp.get(ip) || 0) >= MAX_PER_IP) {
+    socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
+    return;
+  }
+  sockets.add(socket);
+  perIp.set(ip, (perIp.get(ip) || 0) + 1);
+  socket.ip = ip;
+  socket.once("close", () => {
+    sockets.delete(socket);
+    const n = (perIp.get(ip) || 1) - 1;
+    if (n > 0) perIp.set(ip, n); else perIp.delete(ip);
+  });
+  socket.helloTimer = setTimeout(() => { if (!socket.pid) socket.destroy(); }, HELLO_WITHIN);
   const key = req.headers["sec-websocket-key"];
+  if (!key) { socket.destroy(); return; }
   const accept = crypto.createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
   socket.write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept + "\r\n\r\n");
   socket.setNoDelay(true);
 
   let buf = Buffer.alloc(0);
-  let parts = [];
+  let parts = [], partsLen = 0;
   socket.pid = 0;
   socket.island = 0;
+  socket.msgs = MSG_BURST;
+  socket.bytes = BYTE_BURST;
+  socket.lastRefill = Date.now();
+  socket.strikes = 0;
 
   socket.on("data", chunk => {
     buf = Buffer.concat([buf, chunk]);
@@ -125,9 +157,13 @@ server.on("upgrade", (req, socket) => {
       if (op === 0xA) continue;
       if (op === 0x1 || op === 0x2 || op === 0x0) {
         parts.push(payload);
+        partsLen += payload.length;
+        if (partsLen > MAX_FRAME || parts.length > 1000) { socket.destroy(); return; } // a message in endless pieces
         if (!fin) continue;
         const text = Buffer.concat(parts).toString("utf8");
         parts = [];
+        partsLen = 0;
+        if (!allowed(socket, text.length)) { if (socket.destroyed) return; continue; }
         onMessage(socket, text);
       }
     }
@@ -147,6 +183,34 @@ function sendFrame(socket, op, payload) {
 }
 
 function send(socket, obj) { if (socket) sendFrame(socket, 0x1, Buffer.from(JSON.stringify(obj), "utf8")); }
+
+// ---------- who is connecting, and how fast ----------
+
+const sockets = new Set();            // every open game connection, hello or not
+const perIp = new Map();              // address -> open connections
+
+/// The player's address. Through the Cloudflare tunnel every connection comes from this PC
+/// (127.0.0.1) and Cloudflare tells the real one in a header; only trust that header then.
+function ipOf(req) {
+  const remote = (req.socket.remoteAddress || "").replace(/^::ffff:/, "");
+  const loop = remote === "127.0.0.1" || remote === "::1";
+  const cf = String(req.headers["cf-connecting-ip"] || "").trim();
+  return loop && cf ? cf.slice(0, 64) : remote;
+}
+
+/// Token buckets per connection: too many messages or bytes are dropped; keep at it and you're cut off.
+function allowed(socket, size) {
+  const now = Date.now(), dt = (now - socket.lastRefill) / 1000;
+  socket.lastRefill = now;
+  socket.msgs = Math.min(MSG_BURST, socket.msgs + dt * MSG_RATE);
+  socket.bytes = Math.min(BYTE_BURST, socket.bytes + dt * BYTE_RATE);
+  if (socket.msgs >= 1 && socket.bytes >= size) { socket.msgs -= 1; socket.bytes -= size; return true; }
+  if (++socket.strikes > MAX_STRIKES) {
+    log("! cut off " + (socket.name || "?") + " (" + socket.ip + "): too many messages");
+    socket.destroy();
+  }
+  return false;
+}
 
 // ---------- rooms (one per island number) ----------
 
@@ -204,6 +268,7 @@ function onMessage(socket, text) {
 
   if (m.t === "hello") {
     if (socket.pid) return;
+    clearTimeout(socket.helloTimer);
     socket.pid = nextId++;
     socket.name = String(m.name || "Islander").slice(0, 16);
     clients.set(socket.pid, socket);
@@ -238,7 +303,7 @@ function onMessage(socket, text) {
       if (!socket.acct || !accounts[socket.acct]) return;
       const text = String(m.text || ""), keep = String(m.room || "");
       if (text.length > MAX_SAVE || keep.length > MAX_SAVE) return;
-      try { writeFileSafe(saveFile(socket.acct), JSON.stringify({ save: text, keep, at: Date.now() })); } catch (e) { log("! save failed: " + e.message); }
+      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now() }));
       return;
     }
     case "logout": {
@@ -271,16 +336,21 @@ function onMessage(socket, text) {
     case "hnode": {
       // A private island changed (m.id = its owner): everyone on it sees it, and the owner gets it
       // wherever they are, so a friend's help on the farm is kept even while the owner is away.
-      if (m.to > 0) { const s = clients.get(m.to); if (s) send(s, m); return; }
+      // Only the owner, or someone standing on that private island, may change it.
+      const owner = m.id | 0;
+      if (owner <= 0 || (owner !== socket.pid && !onHomeOf(socket, owner))) return;
+      if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); return; }
       if (socket.island) toRoom(socket.island, m, socket.pid);
-      const o = clients.get(m.id | 0);
+      const o = clients.get(owner);
       if (o && o !== socket && o.island !== socket.island) send(o, m);
       return;
     }
     case "hgift": {
-      // a friend harvested on your farm: you get the same
+      // a friend harvested on your farm: you get the same (only from someone on your farm, a handful at a time)
       const s = clients.get(m.to | 0);
-      if (s) { m.name = socket.name; send(s, m); }
+      if (!s || s === socket || !onHomeOf(socket, s.pid)) return;
+      m.hits = Math.max(0, Math.min(m.hits | 0, 20));
+      if (m.hits > 0) { m.name = socket.name; send(s, m); }
       return;
     }
     case "node":
@@ -294,6 +364,11 @@ function onMessage(socket, text) {
       if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); }
       else toRoom(socket.island, m, socket.pid);
   }
+}
+
+/// Is this player on that owner's private island (outside or in the house)?
+function onHomeOf(socket, owner) {
+  return socket.island === -(owner * 2) || socket.island === -(owner * 2 + 1);
 }
 
 // ---------- accounts ----------
@@ -319,7 +394,6 @@ function saveAccountsSoon() {
 
 const keyOf = name => String(name || "").trim().toLowerCase();
 const saveFile = key => path.join(DATA_DIR, "u_" + Buffer.from(key, "utf8").toString("hex") + ".json");
-const hashPass = (pass, salt) => crypto.scryptSync(String(pass), salt, 32).toString("hex");
 const hashToken = t => crypto.createHash("sha256").update(String(t)).digest("hex");
 
 function readSave(key) {
@@ -337,31 +411,105 @@ function authOk(socket, acc) {
   log("  " + socket.name + " logged in as " + acc.name);
 }
 
-function onAccount(socket, m) {
+// A save is written at most every SAVE_EVERY ms per account (the newest one wins).
+const saveTimers = new Map();          // account -> { text, timer, last }
+function saveSoon(key, text) {
+  let s = saveTimers.get(key);
+  if (!s) { s = { text: null, timer: null, last: 0 }; saveTimers.set(key, s); }
+  s.text = text;
+  if (s.timer) return;
+  const write = () => {
+    s.timer = null;
+    s.last = Date.now();
+    try { writeFileSafe(saveFile(key), s.text); } catch (e) { log("! save failed: " + e.message); }
+    s.text = null;
+  };
+  const wait = s.last + SAVE_EVERY - Date.now();
+  if (wait <= 0) write(); else s.timer = setTimeout(write, wait);
+}
+
+// Wrong passwords and new accounts, counted per address and per account.
+const fails = new Map();               // "ip:<addr>" or "acct:<key>" -> { n, until }
+const registers = new Map();           // address -> [times]
+let registersAll = [];
+
+function locked(id) {
+  const f = fails.get(id);
+  if (!f) return false;
+  if (Date.now() > f.until) { fails.delete(id); return false; }
+  return f.n >= (id.startsWith("ip:") ? FAILS_PER_IP : FAILS_PER_ACCOUNT);
+}
+function failed(id) {
+  const f = fails.get(id);
+  if (!f || Date.now() > f.until) fails.set(id, { n: 1, until: Date.now() + FAIL_LOCK });
+  else { f.n++; f.until = Date.now() + FAIL_LOCK; }
+}
+setInterval(() => { // forget old entries
+  const now = Date.now();
+  for (const [id, f] of fails) if (now > f.until) fails.delete(id);
+  for (const [ip, list] of registers) { const l = list.filter(t => now - t < REGISTER_WINDOW); if (l.length) registers.set(ip, l); else registers.delete(ip); }
+  registersAll = registersAll.filter(t => now - t < REGISTER_WINDOW);
+}, 60 * 1000).unref();
+
+function hashPassAsync(pass, salt) {
+  return new Promise((ok, no) => crypto.scrypt(String(pass), salt, 32, (e, k) => e ? no(e) : ok(k.toString("hex"))));
+}
+
+const TOO_MANY = "ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่";
+
+async function onAccount(socket, m) {
+  if (socket.authBusy) return;          // one at a time per connection
   socket.tries = (socket.tries || 0) + 1;
   if (socket.tries > 20) { send(socket, { t: "auth", hits: 0, why: "ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่" }); return; }
-  const name = String(m.name || "").trim(), key = keyOf(name), pass = String(m.text || "");
-  if (m.t === "register") {
-    if (!/^[\p{L}\p{M}\p{N}_.\-]{3,20}$/u.test(name)) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค" }); return; }
-    if (pass.length < 4) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย 4 ตัว" }); return; }
-    if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
-    const salt = crypto.randomBytes(16).toString("hex");
-    accounts[key] = { name, salt, hash: hashPass(pass, salt), tokens: [], at: Date.now() };
-    log("+ account " + name);
-    authOk(socket, accounts[key]);
-    return;
-  }
-  const acc = accounts[key];
-  if (m.t === "token") {
-    if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
-    acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
+  const name = String(m.name || "").trim(), key = keyOf(name), pass = String(m.text || "").slice(0, 200);
+  const ipId = "ip:" + socket.ip, acctId = "acct:" + key;
+  socket.authBusy = true;
+  try {
+    if (m.t === "register") {
+      if (!/^[\p{L}\p{M}\p{N}_.\-]{3,20}$/u.test(name)) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค" }); return; }
+      if (pass.length < 4) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย 4 ตัว" }); return; }
+      if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
+      const now = Date.now(), mine = (registers.get(socket.ip) || []).filter(t => now - t < REGISTER_WINDOW);
+      registersAll = registersAll.filter(t => now - t < REGISTER_WINDOW);
+      if (mine.length >= REGISTER_PER_IP || registersAll.length >= REGISTER_ALL || Object.keys(accounts).length >= MAX_ACCOUNTS) {
+        log("! too many new accounts (" + socket.ip + ")");
+        send(socket, { t: "auth", hits: 0, why: "สมัครบัญชีใหม่มากเกินไปแล้ว ลองใหม่ภายหลัง" });
+        return;
+      }
+      const salt = crypto.randomBytes(16).toString("hex");
+      const hash = await hashPassAsync(pass, salt);
+      if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
+      if (socket.destroyed) return;
+      mine.push(now); registers.set(socket.ip, mine); registersAll.push(now);
+      accounts[key] = { name, salt, hash, tokens: [], at: Date.now() };
+      log("+ account " + name);
+      authOk(socket, accounts[key]);
+      return;
+    }
+    if (locked(ipId) || locked(acctId)) { send(socket, { t: "auth", hits: 0, why: TOO_MANY }); return; }
+    const acc = accounts[key];
+    if (m.t === "token") {
+      if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { failed(ipId); send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
+      acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
+      authOk(socket, acc);
+      return;
+    }
+    if (!acc) { failed(ipId); send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; }
+    const h = await hashPassAsync(pass, acc.salt);
+    if (socket.destroyed) return;
+    if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) {
+      failed(ipId); failed(acctId);
+      if (locked(acctId)) log("! account " + acc.name + " locked for 15 min (wrong passwords, last from " + socket.ip + ")");
+      send(socket, { t: "auth", hits: 0, why: locked(ipId) || locked(acctId) ? TOO_MANY : "รหัสผ่านไม่ถูกต้อง" });
+      return;
+    }
+    fails.delete(acctId);
     authOk(socket, acc);
-    return;
+  } catch (e) {
+    log("! account error: " + e.message);
+  } finally {
+    socket.authBusy = false;
   }
-  if (!acc) { send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; }
-  const h = hashPass(pass, acc.salt);
-  if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านไม่ถูกต้อง" }); return; }
-  authOk(socket, acc);
 }
 
 function drop(socket) {
