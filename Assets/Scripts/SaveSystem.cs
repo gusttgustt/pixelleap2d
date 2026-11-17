@@ -51,6 +51,8 @@ public class SaveData
     // Pets (IslandGame.Pet.cs): all you own, and the one out walking with you (-1 = none).
     public List<PetSave> pets = new List<PetSave>();
     public int activePet = -1;
+    // The bounty (IslandGame.Bounty.cs): 0 in older saves, which then earn it back from what they've done.
+    public int bounty, bountyIsl, bountyHome, navyWins;
     public long savedAt;    // unix seconds of the last write: the newer of the cloud and local save wins (IslandGame.Account.cs)
 }
 

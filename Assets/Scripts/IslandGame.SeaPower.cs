@@ -70,7 +70,7 @@ public partial class IslandGame
         var near = SeaInRange(4f + powerLv);
         if (near.Count == 0) { Hint("ไม่มีสัตว์ทะเลให้ดึงในระยะ", 1.5f); return false; }
         var c = near[0];
-        if (c.IsMonster) c.Stun(2f);                      // far too big to pull: the vines just hold it
+        if (c.IsBig) c.Stun(2f);                          // far too big to pull: the vines just hold it
         else c.pos = voyage.raft + (c.pos - voyage.raft).normalized * 0.9f;
         VineFx(c.transform.position);
         HitSea(c, 1 + powerLv, new Color(1f, 0.9f, 0.4f));
@@ -121,7 +121,7 @@ public partial class IslandGame
                     }
                     if (next == null) break;
                     done.Add(next);
-                    Vector3 to = next.transform.position + Vector3.up * (next.IsMonster ? 1f : 0.3f);
+                    Vector3 to = next.transform.position + Vector3.up * (next.IsBig ? 1f : 0.3f);
                     ChainBoltFx(from, to, col);
                     from = to; at = next;
                     hits++;

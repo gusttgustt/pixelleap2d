@@ -207,6 +207,7 @@ public partial class IslandGame
                 myId = m.id;
                 worldSeed = m.worldSeed;
                 serverHomes = false;
+                serverWanted = false; bountyDirty = true; // the board of wanted posters gets my bounty (IslandGame.Bounty.cs)
                 Send(new NetMsg { t = "homes" }); // does this server know private islands? (an older one stays quiet)
                 break;
 
@@ -249,6 +250,7 @@ public partial class IslandGame
             case "auth": OnAuth(m); break;       // logged in (IslandGame.Account.cs)
             case "hnode": OnHomeNodes(m); break;   // private island changes (IslandGame.HomeSync.cs)
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
+            case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)
 
             case "p":
                 if (inRoom) AddRemote(m.from, m.name).Apply(m);

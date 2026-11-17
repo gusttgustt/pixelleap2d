@@ -34,6 +34,11 @@ public partial class IslandGame
             powerCd = 0f; powerAtkCd = 0f;
             Hint($"[dev] พลัง{PowerName(power)} Lv {powerLv}", 2f);
         }
+        if (kb.insertKey.wasPressedThisFrame) // Insert: a government warship at sea (shift: two) / set sail for the next island on land
+        {
+            if (voyage != null) { voyage.navyShips = kb.shiftKey.isPressed ? 2 : 1; SpawnNavy(); }
+            else if (player != null) { raftLevel = Mathf.Max(raftLevel, island); ChooseVoyage(ReachOn(continent) + 1, continent); }
+        }
         if (kb.f3Key.wasPressedThisFrame && voyage != null) { if (voyage.monster == null) SpawnMonster(); } // at sea: call up the sea monster
         else if (kb.f3Key.wasPressedThisFrame)
             for (int i = 0, n = kb.shiftKey.isPressed ? 1 : 8; i < n; i++) // shift: just one (catching pets)

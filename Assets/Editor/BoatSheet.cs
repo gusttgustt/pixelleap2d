@@ -56,6 +56,36 @@ public static class BoatSheet
         Debug.Log("Exported IslandShots/boats.png");
     }
 
+    /// The government warship (both frames) on the open sea beside the biggest player boat, and a
+    /// cannonball: IslandShots/navy.png. Batch: -executeMethod BoatSheet.ExportNavy
+    [MenuItem("Island/Export Navy Sheet")]
+    public static void ExportNavy()
+    {
+        int W = CellW * 3, H = CellH;
+        var buf = new Color[W * H];
+        Sprite sea = PixelArt.Water(0);
+        for (int cell = 0; cell < 3; cell++)
+        {
+            int cx = cell * CellW;
+            Fill(buf, W, cx, 0, CellW, CellH, PixelArt.WaterColor);
+            for (int gy = -4; gy <= 4; gy++)
+                for (int gx = -4; gx <= 4; gx++)
+                    Blit(buf, W, H, sea, cx + CellW / 2 + (gx - gy) * 32, 40 - (gx + gy) * 16, cx, 0);
+            var s = cell < 2 ? PixelArt.SeaCreature(SeaKind.Navy, cell) : PixelArt.Boat(PixelArt.BoatLooks);
+            Blit(buf, W, H, s, cx + CellW / 2, 40, cx, 0);
+            if (cell == 0) Blit(buf, W, H, PixelArt.Cannonball(), cx + 20, 170, cx, 0);
+        }
+        var tex = new Texture2D(W * Zoom, H * Zoom, TextureFormat.RGBA32, false);
+        var outPx = new Color[tex.width * tex.height];
+        for (int y = 0; y < tex.height; y++)
+            for (int x = 0; x < tex.width; x++) outPx[y * tex.width + x] = buf[(y / Zoom) * W + x / Zoom];
+        tex.SetPixels(outPx);
+        tex.Apply();
+        Directory.CreateDirectory("IslandShots");
+        File.WriteAllBytes("IslandShots/navy.png", tex.EncodeToPNG());
+        Debug.Log("Exported IslandShots/navy.png");
+    }
+
     static void Fill(Color[] buf, int W, int x0, int y0, int w, int h, Color c)
     {
         for (int y = y0; y < y0 + h; y++) for (int x = x0; x < x0 + w; x++) buf[y * W + x] = c;

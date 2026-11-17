@@ -34,6 +34,7 @@ public partial class IslandGame
         if (title) { UpdateTitle(); return; }
         NetPoll();
         TickCloud(dt); // logged in: the server keeps a copy of the save (IslandGame.Account.cs)
+        TickBounty(dt); // milestones and the board of wanted posters (IslandGame.Bounty.cs)
         TickVisit(dt); // online: keep the server's copy of your private island fresh (IslandGame.Visit.cs)
         TickHomeSync(dt); // online: friends on a private island see the same thing (IslandGame.HomeSync.cs)
         DevKeys(kb);
@@ -133,6 +134,7 @@ public partial class IslandGame
         if (kb.tabKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) ToggleCraft(); // adventure list, or the home list inside your house (IslandGame.House.cs)
         if (kb.kKey.wasPressedThisFrame) { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; }
         if (kb.escapeKey.wasPressedThisFrame) { craftOpen = false; skillsOpen = false; bagOpen = false; }
+        HandleWantedKeys(kb); // J: the board of wanted posters (IslandGame.Bounty.cs)
         HandleHotbarKeys(kb); // B bag, 1-8 shortcuts
         if (kb.fKey.wasPressedThisFrame) EatBest();
         if (kb.qKey.wasPressedThisFrame) DrinkFlask();
@@ -676,6 +678,7 @@ public partial class IslandGame
         };
         QuestKill(kind);
         BossDown(kind);
+        if (kind == EnemyKind.Captain) AddBounty(CaptainBounty, at + Vector3.up * 1f, null); // the pirate warship's captain: the government notices
         if (kind == EnemyKind.Snowman) SplitSnowman(WorldDeltaToGrid(at)); // bursts into snowlings
         if (kind == EnemyKind.ShroomKing) Hint("ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ", 6f);
         inv[drop] = Count(drop) + n;

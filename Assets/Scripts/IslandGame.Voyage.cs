@@ -18,6 +18,10 @@ public partial class IslandGame
         public int dir;
         public float monsterAt = -1f;       // the sea monster surfaces when the raft gets this far (-1: not this trip)
         public SeaCreature monster;
+        public float navyAt = -1f;          // government warships turn up when the raft gets this far (IslandGame.Navy.cs)
+        public int navyShips = 1;
+        public readonly List<NavyShot> shots = new List<NavyShot>();
+        public readonly List<Wreck> wrecks = new List<Wreck>();
     }
 
     /// Non-null while paddling between islands.
@@ -83,6 +87,7 @@ public partial class IslandGame
             : destContinent != continent ? 0.9f
             : Mathf.Max(island, destIsland) >= 7 ? 0.3f + (IsNight ? 0.1f : 0f) : 0f;
         if (Random.value < monsterChance) voyage.monsterAt = voyage.length * Random.Range(0.3f, 0.6f);
+        PlanNavy(voyage); // government warships hunting wanted sailors (IslandGame.Navy.cs)
 
         camPos = voyage.raft;
         Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!" + (power != Power.None ? " (ใช้พลัง R / ท่าพิเศษ T ได้)" : ""), 6f);
@@ -179,6 +184,7 @@ public partial class IslandGame
         UpdateWaves();
         SpawnSeaCreatures(dt);
         if (v.monsterAt > 0f && v.raft.x >= v.monsterAt) SpawnMonster();
+        UpdateNavy(dt);
 
         // Target the closest creature in reach (big ones reach further; the monster only while it's up)
         v.target = null;
@@ -236,6 +242,7 @@ public partial class IslandGame
         foreach (var c in v.creatures) { if (c.kind == SeaKind.Shark) sharks++; else if (c.kind == SeaKind.Jellyfish) jellies++; }
         int sharkCap = Mathf.Min(4, 1 + tier + (IsNight ? 1 : 0) + (island - 1) / 2);
         if (v.monster != null) sharkCap = Mathf.Max(0, sharkCap - 2); // the sharks keep clear of it
+        if (NavyAlive > 0) sharkCap = Mathf.Max(0, sharkCap - 1);   // and of the guns
         bool openSea = v.raft.x > 4f && v.raft.x < v.length - 6f; // no sharks right at the shores
         if (openSea && sharks < sharkCap)
             SpawnSea(SeaKind.Shark, v.raft + new Vector2(Random.Range(9f, 12f), Random.Range(-5f, 5f)));
@@ -254,9 +261,12 @@ public partial class IslandGame
     {
         if (c == null || !c.Hittable) return false;
         Vector3 at = c.transform.position;
-        if (!c.Hit(dmg, voyage.raft)) { Popup($"-{dmg}", at + Vector3.up * (c.IsMonster ? 1.4f : 0.5f), popupCol); return false; }
+        bool navy = c.kind == SeaKind.Navy;
+        if (navy) AddBounty(NavyHitBounty, null, null); // attacking a government ship: they write it down
+        if (!c.Hit(dmg, voyage.raft)) { Popup($"-{dmg}", at + Vector3.up * c.Tall, popupCol); return false; }
         voyage.creatures.Remove(c);
         if (c.IsMonster) MonsterSlain(c, at);
+        else if (navy) NavySunk(c, at);
         else Reward(at, c.kind == SeaKind.Shark ? Item.RawMeat : (Item?)null, 2, c.xp);
         return true;
     }

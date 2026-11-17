@@ -19,7 +19,7 @@ public partial class IslandGame
     void UpdateCamera()
     {
         var m = Mouse.current;
-        if (m != null && !craftOpen && !skillsOpen && !bagOpen && dialog?.shop == null && dialog?.chart != true) // the wheel scrolls the panels while they're open
+        if (m != null && !craftOpen && !skillsOpen && !bagOpen && !wantedOpen && dialog?.shop == null && dialog?.chart != true) // the wheel scrolls the panels while they're open
         {
             float s = m.scroll.ReadValue().y;
             if (s > 0.1f && zoom < 8) zoomOffset++;
@@ -336,7 +336,7 @@ public partial class IslandGame
         ("1-8", "ช่องลัด"), ("F", "กินอาหาร"), ("Q", "ดื่มจากกระบอกน้ำ"), ("X", "ดับกองไฟ"),
         ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("K", "สกิล"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
         ("H", "เกาะส่วนตัว / กลับไปผจญภัย"), ("G", "สร้าง / รื้อ"), ("V", "เยี่ยมบ้านเพื่อน"), ("Enter", "แชท"),
-        ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
+        ("J", "ป้ายประกาศค่าหัว"), ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
     };
 
     /// A short line of the keys you need right now, with F1 for the rest.
@@ -444,6 +444,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
             infoY += 19f;
         }
+        infoY = DrawBountyHud(infoY);  // IslandGame.Bounty.cs
         infoY = DrawHomeHud(infoY, s); // coins, fishing line, animals (IslandGame.Home.cs)
         infoY = DrawPowerHud(infoY);
         infoY = DrawTurtleHud(infoY);
@@ -471,7 +472,7 @@ public partial class IslandGame
             if (e != null && e.hp < e.maxHp) HpBar(e.transform.position + Vector3.up * 0.55f, e.hp, e.maxHp, s);
         if (voyage != null)
             foreach (var c in voyage.creatures)
-                if (c != null && c.hp < c.maxHp) HpBar(c.transform.position + Vector3.up * 0.6f, c.hp, c.maxHp, s);
+                if (c != null && c.enabled && c.hp < c.maxHp) HpBar(c.transform.position + Vector3.up * (c.Tall + 0.1f), c.hp, c.maxHp, s);
 
         if (!craftOpen && !skillsOpen && !dead && !Busy && !buildOpen) DrawPrompt(s);
 
@@ -490,6 +491,7 @@ public partial class IslandGame
         if (craftOpen) DrawCrafting(W, H);
         if (skillsOpen) DrawSkills(W, H);
         if (buildOpen && !Busy) DrawBuildPanel(W, H); // IslandGame.Build.cs
+        DrawBountyFlash(W);
         BuildPointerEvent(s); // a click / tap on the ground places right there
 
         // "!" over the weaver while she has something to teach
@@ -500,6 +502,7 @@ public partial class IslandGame
                 float bounce = Mathf.Sin(Time.time * 4f) * 2f;
                 ShadowLabel(new Rect(gp.x - 10, gp.y - 22 + bounce, 20, 22), "!", titleCenter, new Color(1f, 0.85f, 0.3f));
             }
+        if (wantedOpen) DrawWanted(W, H); // IslandGame.Bounty.cs (over the "!" marks)
         if (dialog != null) DrawDialog(W, H);
 
         if (Time.time < hintUntil) ShadowLabel(new Rect(0, H - 112, W, 22), hint, labelCenter, new Color(1f, 0.92f, 0.5f));
@@ -875,6 +878,7 @@ public partial class IslandGame
         float left = Mathf.Max(0f, voyage.length - voyage.raft.x);
         ShadowLabel(new Rect(bar.x, bar.y + 10, bar.width, 18), $"เหลืออีก {left * 10f:0} ม.", smallCenter);
 
+        DrawNavyBars(W, voyage.monster != null ? 100f : 66f); // government warships (IslandGame.Bounty.cs)
         var m = voyage.monster; // the sea monster's health, boss style
         if (m == null) return;
         var hb = new Rect(W / 2f - 140f, 66f, 280f, 10f);

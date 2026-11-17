@@ -187,8 +187,9 @@ public partial class IslandGame
 
     void KeepHomeOnDeath()
     {
-        if (!homeMade && pets.Count == 0) return;
+        if (!homeMade && pets.Count == 0 && bounty == 0) return;
         var d = new SaveData { homeMade = homeMade, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade, homeLand = homeLand, homeContinent = homeContinent };
+        SaveBounty(d); // the government doesn't forget you
         d.homeNodes.AddRange(homeNodes);
         d.houseNodes.AddRange(houseNodes);
         SavePets(d);
@@ -408,7 +409,7 @@ public partial class IslandGame
         st.normal.textColor = atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f);
         st.hover.textColor = Color.white;
         if (CrispGUI.Button(new Rect(W - 182, 50, 172, 22), visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)", st)) ToggleHome();
-        if (craftOpen || skillsOpen || bagOpen || dialog != null) return; // a panel covers this corner: its buttons must get the clicks
+        if (craftOpen || skillsOpen || bagOpen || wantedOpen || dialog != null) return; // a panel covers this corner: its buttons must get the clicks
         float y = 76f;
         if (atHome && !buildOpen && !visiting)
         {
@@ -422,6 +423,9 @@ public partial class IslandGame
         if (Online && serverHomes && CrispGUI.Button(new Rect(W - 182, y, 172, 22), "เยี่ยมบ้านเพื่อน (V)", pst)) AskHomes();
         if (Online && serverHomes) y += 26f;
         if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), pets.Count > 0 ? $"สัตว์เลี้ยง {pets.Count} ตัว (P)" : "สัตว์เลี้ยง (P)", pst)) OpenPetMenu();
+        y += 26f;
+        var wst = new GUIStyle(st); wst.normal.textColor = new Color(1f, 0.8f, 0.35f);
+        if (CrispGUI.Button(new Rect(W - 182, y, 172, 22), "ป้ายประกาศค่าหัว (J)", wst)) ToggleWanted(); // IslandGame.Bounty.cs
         hudButtonsBottom = y + 22f;
     }
 

@@ -359,7 +359,7 @@ public partial class IslandGame : MonoBehaviour
             level = 1, health = 100f, hunger = 100f, thirst = 100f,
         };
         var home = SaveSystem.TakeHomeKeep(); // your private island from the last run, if you built one
-        if (home != null) { d.pets.AddRange(home.pets); d.activePet = home.activePet; d.homeContinent = home.homeContinent; } // and your pets
+        if (home != null) { d.pets.AddRange(home.pets); d.activePet = home.activePet; d.homeContinent = home.homeContinent; CarryBounty(home, d); } // and your pets and your bounty
         if (home != null && home.homeMade)
         {
             d.homeMade = true;
@@ -417,6 +417,7 @@ public partial class IslandGame : MonoBehaviour
         elderHealDay = data.elderHealDay;
         LoadQuests(data);
         LoadBag(data);
+        LoadBounty(data); // IslandGame.Bounty.cs
         air = 100f; inkT = 0f; warmth = 100f;
         power = (Power)data.powerId; powerLv = Mathf.Clamp(data.powerLv, 1, 5); powerXp = data.powerXp;
         powerCd = 0f; invisibleT = 0f; bubbleT = 0f; bubbleHits = 0;
@@ -636,6 +637,7 @@ public partial class IslandGame : MonoBehaviour
         SaveHome(d);
         SaveQuests(d);
         SaveBag(d);
+        SaveBounty(d);
         d.skills.AddRange(skills);
         foreach (var l in learned) d.learned.Add((int)l);
         foreach (var kv in inv) if (kv.Value > 0) d.items.Add(new ItemStack { item = kv.Key, count = kv.Value });

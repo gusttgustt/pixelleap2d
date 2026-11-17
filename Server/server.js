@@ -25,6 +25,9 @@
 //                                                        or {t:"auth", hits:0, why}
 //                        {t:"save", text, room}       the logged-in player's save (and kept home island)
 //                        {t:"logout", ev: token}
+//   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
+//                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
+//                        {t:"wanted"}                 -> {t:"wanted", players: [{name, b, lk, c}]}  highest first (c:1 = you)
 //   Accounts live in DATA_DIR (default Server/data): accounts.json + one file per player's save.
 //   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
@@ -316,6 +319,12 @@ function onMessage(socket, text) {
       nameCheck(socket);
       return;
     }
+    case "bounty":
+      setBounty(socket, m);
+      return;
+    case "wanted":
+      send(socket, { t: "wanted", players: wantedFor(socket) });
+      return;
     case "home":
       socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000), c: Math.max(0, Math.min(3, m.island | 0)) };
       return;
@@ -382,6 +391,51 @@ function nameCheck(socket) {
 /// Is this player on that owner's private island (outside or in the house)?
 function onHomeOf(socket, owner) {
   return socket.island === -(owner * 2) || socket.island === -(owner * 2 + 1);
+}
+
+// ---------- bounties (the board of wanted posters) ----------
+
+const MAX_BOARD = 500;                // posters kept (the lowest bounties go first)
+const SHOW_BOARD = 60;                // posters sent to a player
+let board = {};                       // "a:<account>" or "g:<guest name>" -> { name, b, lk, at }
+{
+  const file = path.join(DATA_DIR, "bounty.json");
+  try { board = JSON.parse(fs.readFileSync(file, "utf8")) || {}; }
+  catch (e) {
+    board = {};
+    if (fs.existsSync(file)) { try { fs.renameSync(file, file + ".broken"); } catch (e2) {} console.log("! bounty.json was broken: starting a new board (old one kept as bounty.json.broken)"); }
+  }
+}
+let boardTimer = null;
+function saveBoardSoon() {
+  if (boardTimer) return;
+  boardTimer = setTimeout(() => {
+    boardTimer = null;
+    try { writeFileSafe(path.join(DATA_DIR, "bounty.json"), JSON.stringify(board)); } catch (e) { log("! bounty board not saved: " + e.message); }
+  }, 3000);
+}
+const boardKey = socket => socket.acct ? "a:" + socket.acct : "g:" + keyOf(socket.name);
+
+function setBounty(socket, m) {
+  const b = Math.max(0, Math.min(2000000000, Math.floor(+m.hits || 0)));
+  const key = boardKey(socket), old = board[key];
+  if (socket.acct) delete board["g:" + keyOf(socket.name)]; // played as a guest before making the account
+  if (old && old.b === b && old.lk === (m.look | 0) && old.name === socket.name) return;
+  board[key] = { name: socket.name, b, lk: m.look | 0, at: Date.now() };
+  const keys = Object.keys(board);
+  if (keys.length > MAX_BOARD) {
+    keys.sort((x, y) => board[y].b - board[x].b || board[y].at - board[x].at);
+    for (const k of keys.slice(MAX_BOARD)) if (k !== key) delete board[k];
+  }
+  saveBoardSoon();
+}
+
+function wantedFor(socket) {
+  const mine = boardKey(socket);
+  return Object.entries(board)
+    .sort((x, y) => y[1].b - x[1].b || x[1].at - y[1].at)
+    .slice(0, SHOW_BOARD)
+    .map(([k, e]) => ({ id: 0, name: e.name, b: e.b, lk: e.lk, c: k === mine ? 1 : 0 }));
 }
 
 // ---------- accounts ----------
@@ -460,6 +514,7 @@ function saveSoon(key, text) {
 /// Closing the server window (or Ctrl+C): write everything still waiting, so nothing is lost.
 function flushAll() {
   saveAccountsNow();
+  if (boardTimer) { clearTimeout(boardTimer); boardTimer = null; try { writeFileSafe(path.join(DATA_DIR, "bounty.json"), JSON.stringify(board)); } catch (e) {} }
   for (const s of saveTimers.values()) if (s.timer) { clearTimeout(s.timer); s.write(); }
 }
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {

@@ -2172,7 +2172,7 @@ public static partial class PixelArt
 
     public static Sprite SeaCreature(SeaKind kind, int frame) => kind switch
     {
-        SeaKind.Shark => Shark(frame), SeaKind.Serpent => Serpent(frame), _ => Jellyfish(frame),
+        SeaKind.Shark => Shark(frame), SeaKind.Serpent => Serpent(frame), SeaKind.Navy => NavyShip(frame), _ => Jellyfish(frame),
     };
 
     /// งูทะเลยักษ์ on the surface: two coils out of the water behind a tall neck and a

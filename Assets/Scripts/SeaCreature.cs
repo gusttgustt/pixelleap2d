@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum SeaKind { Shark, Jellyfish, Serpent }
+public enum SeaKind { Shark, Jellyfish, Serpent, Navy }
 
 /// Open-sea creature met while paddling between islands. Positions are in world space.
 ///   Shark     - circles the raft, then charges in for a bite and backs off.
@@ -8,6 +8,9 @@ public enum SeaKind { Shark, Jellyfish, Serpent }
 ///   Serpent   - งูทะเลยักษ์, a sea monster that turns up on some crossings: it follows the raft
 ///               under the water (can't be hit), rises, lunges for a big bite, then lingers on the
 ///               surface for a moment - that's your chance to hit it - before diving again.
+///   Navy      - เรือรัฐบาล, a government warship hunting wanted sailors (IslandGame.Navy.cs): it
+///               keeps a few lengths off the raft and fires cannon volleys (a red ring marks where
+///               each ball comes down), and rams you if you paddle in close. Paddle up and hit it.
 /// While you're invisible (Shadow power) nothing charges or lunges at you.
 public class SeaCreature : MonoBehaviour
 {
@@ -22,14 +25,19 @@ public class SeaCreature : MonoBehaviour
     SpriteRenderer sr;
     int frame;
     bool bit; // this lunge has already landed
+    float fireT, ramCd, laneY, laneT; // the warship's next volley / ram, the lane it holds and when it changes lanes
 
-    public string DisplayName => kind switch { SeaKind.Shark => "ฉลาม", SeaKind.Serpent => "งูทะเลยักษ์", _ => "แมงกะพรุน" };
+    public string DisplayName => kind switch { SeaKind.Shark => "ฉลาม", SeaKind.Serpent => "งูทะเลยักษ์", SeaKind.Navy => "เรือรัฐบาล", _ => "แมงกะพรุน" };
     public bool IsMonster => kind == SeaKind.Serpent;
+    /// Too big to pull or shove about (the sea monster and the warships).
+    public bool IsBig => kind is SeaKind.Serpent or SeaKind.Navy;
+    /// How high above its waterline to show numbers and its health bar (world units).
+    public float Tall => kind switch { SeaKind.Serpent => 1.4f, SeaKind.Navy => 2.1f, _ => 0.5f };
     /// Under the water the serpent can't be hit (or targeted).
     public bool Hittable => kind != SeaKind.Serpent || state is State.Rise or State.Lunge or State.Linger;
     /// Extra reach for big creatures (targeting and power ranges, world units).
-    public float Reach => kind == SeaKind.Serpent ? 0.8f : 0f;
-    bool Enraged => kind == SeaKind.Serpent && hp * 2 <= maxHp;
+    public float Reach => kind == SeaKind.Serpent ? 0.8f : kind == SeaKind.Navy ? 1.1f : 0f;
+    bool Enraged => (kind is SeaKind.Serpent or SeaKind.Navy) && hp * 2 <= maxHp;
 
     public void Init(SeaKind k, Vector2 p, int tier)
     {
@@ -39,6 +47,7 @@ public class SeaCreature : MonoBehaviour
         {
             SeaKind.Shark => (6, 10f, 2.2f, 20),
             SeaKind.Serpent => (45, 16f, 4.2f, 150),
+            SeaKind.Navy => (60, 9f, 1.5f, 180),
             _ => (2, 5f, 0.3f, 6),
         };
         maxHp = Mathf.RoundToInt(maxHp * (1f + 0.5f * tier));
@@ -51,8 +60,20 @@ public class SeaCreature : MonoBehaviour
         drift = Random.insideUnitCircle.normalized;
         sr = gameObject.AddComponent<SpriteRenderer>();
         if (k == SeaKind.Serpent) { state = State.Rise; stateT = 1.2f; transform.localScale = Vector3.one * 1.3f; } // it makes an entrance
+        if (k == SeaKind.Navy) { fireT = 2.5f; laneY = p.y; laneT = 4f; }
         Apply();
     }
+
+    /// A tougher warship (the higher your bounty, the better the navy sends).
+    public void Toughen(float hpMul, float dmgMul)
+    {
+        maxHp = Mathf.RoundToInt(maxHp * hpMul);
+        hp = maxHp;
+        damage *= dmgMul;
+        xp = Mathf.RoundToInt(xp * hpMul);
+    }
+
+    public float Damage => damage;
 
     void Update()
     {
@@ -65,7 +86,7 @@ public class SeaCreature : MonoBehaviour
         Vector2 raft = game.RaftPos;
         Vector2 toRaft = raft - pos;
         float dist = toRaft.magnitude;
-        if (kind != SeaKind.Serpent && pos.x < raft.x - 18f) { Destroy(gameObject); return; } // left far behind
+        if (!IsBig && pos.x < raft.x - 18f) { Destroy(gameObject); return; } // left far behind
 
         if (stunT > 0f) // tangled in vines / knocked silly: just bob there
         {
@@ -76,6 +97,7 @@ public class SeaCreature : MonoBehaviour
         }
 
         if (kind == SeaKind.Serpent) UpdateSerpent(game, dt, raft, toRaft, dist);
+        else if (kind == SeaKind.Navy) UpdateNavy(game, dt, raft, toRaft, dist);
         else if (kind == SeaKind.Shark)
         {
             stateT -= dt;
@@ -173,6 +195,45 @@ public class SeaCreature : MonoBehaviour
         frame = (int)animT & 1;
     }
 
+    /// The warship sails alongside, a few lengths off, and lets fly with its guns.
+    void UpdateNavy(IslandGame game, float dt, Vector2 raft, Vector2 toRaft, float dist)
+    {
+        float rage = Enraged ? 1.4f : 1f;
+        animT += dt * 2f;
+        ramCd -= dt;
+        // It keeps pace with the raft east-west but holds a lane north-south, so you can paddle up to
+        // it; every few seconds (or when you've slipped far off) it picks a new lane beside you.
+        angle += dt * 0.5f * rage;
+        laneT -= dt;
+        if (laneT <= 0f || Mathf.Abs(laneY - raft.y) > 5f)
+        {
+            laneT = Random.Range(5f, 7f);
+            float side = raft.y > 3f ? -1f : raft.y < -3f ? 1f : Random.value < 0.6f ? -1f : 1f; // below you more often: the whole ship shows
+            laneY = Mathf.Clamp(raft.y + side * Random.Range(2.2f, 3f), -6.2f, 6.2f);
+        }
+        Vector2 spot = new Vector2(raft.x + 1.4f + Mathf.Sin(angle) * 1.4f, laneY);
+        float sp = dist > 8f ? speed * 2.6f : speed; // never shaken off for long
+        if (pos.x < raft.x - 10f) pos.x = raft.x - 10f;
+        Vector2 step = spot - pos;
+        pos += new Vector2(Mathf.Clamp(step.x, -sp * 1.6f * dt, sp * 1.6f * dt), Mathf.Clamp(step.y, -sp * 0.6f * dt, sp * 0.6f * dt)); // slow to turn across
+        if (dist < 1.6f && ramCd <= 0f && !game.Invisible) // you came too close: it rams you
+        {
+            ramCd = 3f;
+            game.DamagePlayer(damage * 0.7f, "เรือรัฐบาลพุ่งชน!");
+            game.Shake(0.12f, 0.3f);
+            game.ShoveRaft(toRaft.normalized * 3f); // knocked aside
+            Fx.Burst(transform.position, new Color(0.85f, 0.95f, 1f), 16, 1.4f, 2f, 0.6f, 4f);
+        }
+        fireT -= dt;
+        if (fireT <= 0f)
+        {
+            fireT = Random.Range(3.4f, 4.6f) / rage;
+            if (dist < 10f && !game.Invisible) game.NavyVolley(this, Enraged ? 3 : 2, damage);
+        }
+        RippleTrail(dt, 0.15f);
+        frame = (int)animT & 1;
+    }
+
     void Linger()
     {
         state = State.Linger;
@@ -214,7 +275,13 @@ public class SeaCreature : MonoBehaviour
             return;
         }
         sr.sprite = PixelArt.SeaCreature(kind, frame);
-        if (kind == SeaKind.Shark)
+        if (kind == SeaKind.Navy)
+        {
+            Vector2 v = game.voyage != null ? game.voyage.vel : Vector2.zero; // sails the way you go
+            float hx = Mathf.Abs(v.x) > 0.3f ? v.x : game.RaftPos.x - pos.x;
+            if (Mathf.Abs(hx) > 0.1f) sr.flipX = hx < 0;
+        }
+        else if (kind == SeaKind.Shark)
         {
             Vector2 heading = state == State.Retreat ? pos - game.RaftPos : game.RaftPos - pos;
             if (Mathf.Abs(heading.x) > 0.05f) sr.flipX = heading.x < 0;
@@ -228,20 +295,21 @@ public class SeaCreature : MonoBehaviour
         hp -= dmg;
         hurtT = 0.15f;
         Fx.Burst(transform.position, new Color(0.75f, 0.9f, 1f), 8, 1f, 1.4f);
-        if (kind != SeaKind.Serpent) pos += (pos - from).normalized * 0.4f; // the monster is too big to knock about
+        if (!IsBig) pos += (pos - from).normalized * 0.4f; // the monster and the warships are too big to knock about
         if (kind == SeaKind.Shark) Retreat(); // a good hit scares it off for a moment
         if (hp > 0) return false;
+        if (kind == SeaKind.Navy) { enabled = false; return true; } // it sinks (IslandGame.Navy.cs)
         Destroy(gameObject);
         return true;
     }
 
     /// Vines hold it in place for a moment (the monster shrugs it off faster).
-    public void Stun(float t) => stunT = Mathf.Max(stunT, kind == SeaKind.Serpent ? t * 0.4f : t);
+    public void Stun(float t) => stunT = Mathf.Max(stunT, IsBig ? t * 0.4f : t);
 
     /// Shoved through the water (world units); the monster barely moves.
     public void Push(Vector2 by)
     {
-        pos += kind == SeaKind.Serpent ? by * 0.25f : by;
+        pos += IsBig ? by * 0.25f : by;
         if (kind == SeaKind.Shark) Retreat();
     }
 }
