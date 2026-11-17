@@ -9,7 +9,7 @@ using UnityEngine;
 public partial class IslandGame
 {
     public enum Shape { Round, Long, Crescent, Twin, Archipelago, Peak }
-    public enum Weather { Clear, Fog, Rain, Fireflies, Leaves }
+    public enum Weather { Clear, Fog, Rain, Fireflies, Leaves, Snow, Blizzard, Thunder, Heat, Petals, Ash } // the first five: an island's own weather (old saves); the rest come with the seasons (IslandGame.Seasons.cs)
     public enum Landmark { Wreck, Ruins, GiantTree, Shrine }
     public enum Variant { None, Giant, Fiery, Armored }
 
@@ -40,7 +40,9 @@ public partial class IslandGame
 
     static string WeatherName(Weather w) => w switch
     {
-        Weather.Fog => "หมอกลง", Weather.Rain => "ฝนตก", Weather.Fireflies => "หิ่งห้อย", Weather.Leaves => "ใบไม้ปลิว", _ => "ฟ้าใส",
+        Weather.Fog => "หมอกลง", Weather.Rain => "ฝนตก", Weather.Fireflies => "หิ่งห้อย", Weather.Leaves => "ใบไม้ปลิว",
+        Weather.Snow => "หิมะตก", Weather.Blizzard => "พายุหิมะ", Weather.Thunder => "ฝนฟ้าคะนอง", Weather.Heat => "แดดร้อนจัด",
+        Weather.Petals => "กลีบดอกไม้ปลิว", Weather.Ash => "เถ้าภูเขาไฟ", _ => "ฟ้าใส",
     };
 
     static string VariantName(Variant v) => v switch { Variant.Giant => "ยักษ์", Variant.Fiery => "เพลิง", Variant.Armored => "เกราะ", _ => "" };
@@ -54,7 +56,7 @@ public partial class IslandGame
 
         T.shape = (Shape)r.Next(System.Enum.GetValues(typeof(Shape)).Length);
         bool dryBiome = biome is Biome.Sky or Biome.Bubble or Biome.Hourglass or Biome.Ice;
-        T.weather = biome == Biome.Storm ? Weather.Rain : dryBiome ? (r.Next(3) == 0 ? Weather.Fireflies : Weather.Clear) : (Weather)r.Next(System.Enum.GetValues(typeof(Weather)).Length);
+        T.weather = biome == Biome.Storm ? Weather.Rain : dryBiome ? (r.Next(3) == 0 ? Weather.Fireflies : Weather.Clear) : (Weather)r.Next(5); // (5 = the weather there was before seasons: keeps the dice the same for old islands)
         Color[] tints =
         {
             Color.white, new Color(1f, 0.93f, 0.85f), new Color(0.86f, 0.93f, 1f), new Color(1f, 0.88f, 0.95f),
@@ -233,33 +235,6 @@ public partial class IslandGame
         Popup("ได้รับพร! +1 แต้มสกิล", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.9f, 0.5f));
         Hint("พลังจากศาลเจ้าโบราณ: ฟื้นฟูเต็ม และได้แต้มสกิล 1 แต้ม (กด K)", 5f);
         Sfx.Play("levelup", 0.7f);
-    }
-
-    // ------------------------------------------------------------------ weather
-    void UpdateWeather(float dt)
-    {
-        if (player == null || voyage != null || cam == null) return;
-        Vector3 c = cam.transform.position;
-        switch (T.weather)
-        {
-            case Weather.Rain:
-                for (int i = 0; i < 2; i++)
-                    if (Random.value < dt * 30f) Fx.Burst(c + new Vector3(Random.Range(-7f, 7f), 4f, 0f), new Color(0.6f, 0.75f, 1f, 0.8f), 1, 0.05f, 0.2f, 1.2f, 6f);
-                break;
-            case Weather.Leaves:
-                if (Random.value < dt * 5f) Fx.Burst(c + new Vector3(Random.Range(-7f, 7f), 4f, 0f), Random.value < 0.5f ? new Color(0.9f, 0.6f, 0.2f) : new Color(0.5f, 0.8f, 0.3f), 1, 0.3f, 0.4f, 4f, 0.5f);
-                break;
-            case Weather.Fireflies:
-                if (IsNight && Random.value < dt * 6f) Fx.Burst(PlayerPos + new Vector3(Random.Range(-4f, 4f), Random.Range(-2.5f, 2.5f), 0f), new Color(0.85f, 1f, 0.4f), 1, 0.2f, 0.2f, 2f, -0.2f);
-                break;
-        }
-    }
-
-    void DrawWeatherOverlay(float W, float H)
-    {
-        if (voyage != null) return;
-        if (T.weather == Weather.Fog) Fill(new Rect(0, 0, W, H), new Color(0.85f, 0.88f, 0.92f, 0.22f));
-        else if (T.weather == Weather.Rain) Fill(new Rect(0, 0, W, H), new Color(0.2f, 0.25f, 0.35f, 0.15f));
     }
 
     // ------------------------------------------------------------------ alpha (island boss)

@@ -53,24 +53,178 @@ public partial class IslandGame
         if (!dead) clock += dt * TimeScale; // the Hourglass island races through its days
         float c = Mathf.Cos((Phase - 0.5f) * Mathf.PI * 2f);
         daylight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((c + 0.3f) / 0.6f));
-        Color night = new Color(0.45f, 0.55f, 1f), dusk = new Color(1f, 0.7f, 0.5f);
+        bool dim = voyage == null && biome is Biome.Mushroom or Biome.Bubble or Biome.Sunken;
         if (biome == Biome.Mushroom && voyage == null) daylight = Mathf.Min(daylight, 0.42f); // the mushroom canopy keeps it dim
         if (biome == Biome.Bubble && voyage == null) daylight = Mathf.Clamp(daylight, 0.38f, 0.6f); // deep under the sea
         if (biome == Biome.Sunken && voyage == null) daylight = Mathf.Clamp(daylight, 0.36f, 0.5f); // the sea floor
-        Color col = Color.Lerp(night, Color.white, daylight);
-        if (biome == Biome.Mushroom && voyage == null) col = Color.Lerp(col, new Color(0.7f, 0.55f, 1f), 0.35f);
-        if (biome == Biome.Bubble && voyage == null) col = Color.Lerp(col, new Color(0.5f, 0.85f, 1f), 0.45f);
-        if (biome == Biome.Sunken && voyage == null) col = Color.Lerp(col, new Color(0.4f, 0.75f, 1f), 0.6f);
-        col = Color.Lerp(col, dusk, (1f - Mathf.Abs(daylight - 0.5f) * 2f) * 0.6f);
-        float intensity = Mathf.Lerp(0.22f, 1f, daylight);
+        Color col;
+        float intensity;
+        if (dim) // under a canopy or the sea: only a hint of the hour gets through
+        {
+            col = Color.Lerp(new Color(0.45f, 0.55f, 1f), Color.white, daylight);
+            if (biome == Biome.Mushroom) col = Color.Lerp(col, new Color(0.7f, 0.55f, 1f), 0.35f);
+            if (biome == Biome.Bubble) col = Color.Lerp(col, new Color(0.5f, 0.85f, 1f), 0.45f);
+            if (biome == Biome.Sunken) col = Color.Lerp(col, new Color(0.4f, 0.75f, 1f), 0.6f);
+            intensity = Mathf.Lerp(0.22f, 1f, daylight);
+        }
+        else (col, intensity) = SkyLight(Phase); // morning gold, white noon, red evening, blue night
+        (col, intensity) = WeatherLight(col, intensity); // the season and the weather (IslandGame.Seasons.cs)
+        AnnouncePartOfDay();
         if (inHouse) { intensity = Mathf.Max(intensity, 0.85f); col = Color.Lerp(col, new Color(1f, 0.92f, 0.8f), 0.7f); } // lamps on indoors
-        if (sun != null) { sun.color = col; sun.intensity = intensity; }
-        Color bg = (biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f)
+        // The 2D light doesn't reach the sprites in the web build, so the time of day is painted
+        // over the screen instead (DrawTimeOfDayWash): the light itself stays plain white.
+        lightCol = col; lightPower = intensity;
+        if (sun != null) { sun.color = Color.white; sun.intensity = 1f; }
+        Color bg = biome == Biome.Sky && voyage == null ? new Color(0.62f, 0.8f, 0.98f)
                   : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f)
-                  : biome == Biome.Sunken && voyage == null ? new Color(0.03f, 0.1f, 0.22f) : PixelArt.WaterColor) * col * intensity;
+                  : biome == Biome.Sunken && voyage == null ? new Color(0.03f, 0.1f, 0.22f) : PixelArt.WaterColor;
         if (inHouse) bg = new Color(0.08f, 0.055f, 0.045f);
         bg.a = 1f;
         cam.backgroundColor = bg;
+    }
+
+    // ------------------------------------------------------------------ morning, noon, evening, night
+    public enum DayPart { Morning, Noon, Evening, Night }
+    static readonly string[] DayPartNames = { "เช้า", "กลางวัน", "เย็น", "กลางคืน" };
+    static readonly string[] DayPartColors = { "#ffd48a", "#fff6c0", "#ff9a5c", "#9db4ff" };
+    DayPart lastPart = (DayPart)(-1);
+
+    /// Night is when daylight is low (IsNight, Phase < ~0.24 or > ~0.76); the day splits into a
+    /// golden morning, a bright noon and a red evening.
+    public DayPart PartOfDay => IsNight ? DayPart.Night : Phase < 0.40f ? DayPart.Morning : Phase < 0.63f ? DayPart.Noon : DayPart.Evening;
+
+    /// The colour and strength of the light at a time of day (0 = midnight, 0.5 = noon).
+    static readonly (float at, Color col, float power)[] SkyKeys =
+    {
+        (0.00f, new Color(0.30f, 0.40f, 0.95f), 0.20f), // midnight: deep blue
+        (0.19f, new Color(0.38f, 0.44f, 0.95f), 0.25f),
+        (0.245f, new Color(1.00f, 0.58f, 0.62f), 0.52f), // sunrise: pink
+        (0.30f, new Color(1.00f, 0.82f, 0.62f), 0.80f), // morning: gold
+        (0.38f, new Color(1.00f, 0.93f, 0.80f), 0.90f),
+        (0.44f, new Color(1.00f, 1.00f, 0.98f), 1.00f), // noon: white and bright
+        (0.58f, new Color(1.00f, 1.00f, 0.96f), 1.00f),
+        (0.65f, new Color(1.00f, 0.74f, 0.48f), 0.82f), // evening: orange
+        (0.72f, new Color(1.00f, 0.50f, 0.32f), 0.62f), // sunset: red
+        (0.765f, new Color(0.72f, 0.40f, 0.62f), 0.40f), // dusk: purple
+        (0.82f, new Color(0.36f, 0.42f, 0.95f), 0.24f),
+        (1.00f, new Color(0.30f, 0.40f, 0.95f), 0.20f),
+    };
+
+    static (Color, float) SkyLight(float phase)
+    {
+        for (int i = 1; i < SkyKeys.Length; i++)
+            if (phase <= SkyKeys[i].at)
+            {
+                var a = SkyKeys[i - 1]; var b = SkyKeys[i];
+                float k = Mathf.SmoothStep(0f, 1f, (phase - a.at) / (b.at - a.at));
+                return (Color.Lerp(a.col, b.col, k), Mathf.Lerp(a.power, b.power, k));
+            }
+        return (SkyKeys[0].col, SkyKeys[0].power);
+    }
+
+    /// A short line when the morning, noon or evening begins (night has its own warning in Play).
+    void AnnouncePartOfDay()
+    {
+        var part = PartOfDay;
+        if (part == lastPart) return;
+        bool first = (int)lastPart < 0;
+        lastPart = part;
+        if (first || dead || inHouse || Time.time < hintUntil) return; // don't talk over another hint
+        string line = part switch
+        {
+            DayPart.Morning => "รุ่งเช้าแล้ว แสงแดดสีทองส่องมา สัตว์ร้ายกลับไปนอน",
+            DayPart.Noon => "เที่ยงวัน แดดจ้าที่สุด",
+            DayPart.Evening => "เย็นแล้ว พระอาทิตย์กำลังตก เตรียมกองไฟก่อนมืด",
+            _ => null,
+        };
+        if (line != null) Hint(line, 3.5f);
+    }
+
+    /// Top of the screen next to the status bars: a little window on the sky with the sun or moon
+    /// riding across it, and the name of the time of day under it.
+    void DrawSkyDial(Rect r)
+    {
+        float ph = Phase;
+        var (light, _) = SkyLight(ph);
+        bool night = PartOfDay == DayPart.Night;
+        Color top = night ? new Color(0.04f, 0.06f, 0.2f) : Color.Lerp(new Color(0.3f, 0.55f, 0.95f), light, 0.35f);
+        Color low = night ? new Color(0.12f, 0.15f, 0.38f) : Color.Lerp(new Color(0.65f, 0.85f, 1f), light, 0.6f);
+        Fill(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), new Color(0f, 0f, 0f, 0.45f));
+        float skyH = r.height - 16f;
+        for (int i = 0; i < 6; i++) Fill(new Rect(r.x, r.y + i * skyH / 6f, r.width, skyH / 6f + 1f), Color.Lerp(top, low, i / 5f));
+        if (night)
+            for (int i = 0; i < 9; i++)
+            {
+                float a = 0.5f + 0.5f * Mathf.Sin(Time.time * 2f + i * 1.9f);
+                Fill(new Rect(r.x + 4 + (i * 23) % (r.width - 8), r.y + 3 + (i * 11) % (skyH - 8), 1.5f, 1.5f), new Color(1f, 1f, 1f, 0.4f + 0.5f * a));
+            }
+        // the sun crosses from 0.25 (sunrise) to 0.75 (sunset); the moon takes the other half
+        float t = night ? Mathf.Repeat(ph + 0.25f, 1f) * 2f : (ph - 0.25f) * 2f;
+        t = Mathf.Clamp01(t);
+        float bx = r.x + 6f + t * (r.width - 12f), by = r.y + skyH - 4f - Mathf.Sin(t * Mathf.PI) * (skyH - 10f);
+        if (night)
+        {
+            Fill(new Rect(bx - 4, by - 4, 8, 8), new Color(0.95f, 0.95f, 0.85f));
+            Fill(new Rect(bx - 1, by - 5, 6, 6), Color.Lerp(top, low, 0.4f)); // a crescent
+        }
+        else
+        {
+            Color sunCol = PartOfDay == DayPart.Noon ? new Color(1f, 0.95f, 0.55f) : new Color(1f, 0.6f, 0.3f);
+            Fill(new Rect(bx - 6, by - 6, 12, 12), new Color(sunCol.r, sunCol.g, sunCol.b, 0.3f));
+            Fill(new Rect(bx - 4, by - 4, 8, 8), sunCol);
+        }
+        Fill(new Rect(r.x, r.y + skyH - 2, r.width, 2), night ? new Color(0.05f, 0.12f, 0.2f) : new Color(0.2f, 0.5f, 0.3f)); // the ground
+        Fill(new Rect(r.x, r.y + skyH, r.width, 16f), new Color(0f, 0f, 0f, 0.55f));
+        var st = new GUIStyle(smallCenter) { fontSize = 12, richText = true, fontStyle = FontStyle.Bold };
+        ShadowLabel(new Rect(r.x, r.y + skyH - 1, r.width, 17), $"<color={DayPartColors[(int)PartOfDay]}>{DayPartNames[(int)PartOfDay]}</color>", st);
+    }
+
+    /// IMGUI hands its colours to the screen as they are, but the project renders in linear colour
+    /// space: convert, so a dark wash darkens instead of turning into a pale haze.
+    static Color Over(Color c) => QualitySettings.activeColorSpace == ColorSpace.Linear ? new Color(c.linear.r, c.linear.g, c.linear.b, c.a) : c;
+    static void FillOver(Rect r, Color c) => Fill(r, Over(c));
+
+    static Texture2D vignetteTex;
+    Color lightCol = Color.white;
+    float lightPower = 1f;
+
+    /// The light of the hour over the whole world (under the HUD): darkness by night, a colour
+    /// wash for the gold morning and the red evening, and darker edges at night.
+    void DrawTimeOfDayWash(float W, float H)
+    {
+        if (inHouse) return;
+        var full = new Rect(0, 0, W, H);
+        float dark = Mathf.Clamp01(1f - lightPower);
+        if (dark > 0.01f) FillOver(full, new Color(lightCol.r * 0.12f, lightCol.g * 0.14f, lightCol.b * 0.3f, dark * 0.85f));
+        float hue = 1f - Mathf.Min(lightCol.r, Mathf.Min(lightCol.g, lightCol.b));
+        if (hue > 0.02f) FillOver(full, new Color(lightCol.r, lightCol.g, lightCol.b, hue * 0.22f));
+        if (voyage == null && biome is Biome.Mushroom or Biome.Bubble or Biome.Sunken) return;
+        if (vignetteTex == null)
+        {
+            const int n = 64;
+            vignetteTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[n * n];
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n * 2f - 1f, dy = (y + 0.5f) / n * 2f - 1f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) / 1.414f;
+                    px[y * n + x] = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, (d - 0.35f) / 0.65f));
+                }
+            vignetteTex.SetPixels(px);
+            vignetteTex.Apply();
+        }
+        float ph = Phase;
+        float nightK = 1f - Mathf.Clamp01(daylight / 0.35f);
+        float eveK = Mathf.Clamp01(1f - Mathf.Abs(ph - 0.71f) / 0.07f);
+        float mornK = Mathf.Clamp01(1f - Mathf.Abs(ph - 0.27f) / 0.06f);
+        Color c = new Color(0.01f, 0.02f, 0.08f, 0.6f * nightK);
+        c = Color.Lerp(c, new Color(0.5f, 0.12f, 0.05f, 0.3f), eveK);
+        c = Color.Lerp(c, new Color(1f, 0.6f, 0.55f, 0.18f), mornK);
+        if (c.a < 0.01f) return;
+        GUI.color = Over(c);
+        GUI.DrawTexture(new Rect(0, 0, W, H), vignetteTex, ScaleMode.StretchToFill);
+        GUI.color = Color.white;
     }
 
     void Hint(string text, float seconds) { hint = text; hintUntil = Time.time + seconds; }
@@ -244,6 +398,7 @@ public partial class IslandGame
             DrawTitle(W, 540f);
             return;
         }
+        DrawTimeOfDayWash(W, H);
         if (player != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
         DrawQuestTracker(W);
@@ -261,8 +416,10 @@ public partial class IslandGame
             : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
             : voyage != null ? $"กลางทะเล กำลังไป{VoyageDestName}"
-            : $"เกาะที่ {island}: {T.name}  <size=11>{ContinentName} · {BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
-        ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
+            : $"เกาะที่ {island}: {T.name}  <size=11>{ContinentName} · {BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}</size>";
+        ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - <color={DayPartColors[(int)PartOfDay]}>{DayPartNames[(int)PartOfDay]}</color>", label);
+        DrawSkyDial(new Rect(222, 8, 76, 52));
+        DrawSeasonInfo(new Rect(220, 64, 80, 32));
         string goal = visiting ? "เดินชมบ้านเพื่อน ทักทายด้วย Enter ร้านค้าในตลาดใช้ได้ตามปกติ  (H กลับบ้านตัวเอง)"
                     : atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
                     : voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
