@@ -174,6 +174,28 @@
     // Keyboard goes to the game after any click/tap on it.
     canvas.addEventListener("pointerdown", function () { canvas.focus(); });
 
+    // Which server to play on. The PC running Server/start-online.bat writes its current address
+    // into server.txt next to this page (the free tunnel address changes every time it starts).
+    // A server given in the address (?server=...) wins, except an old tunnel address, which is
+    // swapped for the latest one so bookmarks keep working.
+    function pickServer(then) {
+      var host = location.hostname, params = new URLSearchParams(location.search), cur = params.get("server") || "";
+      if (host === "localhost" || host === "127.0.0.1" || /trycloudflare\.com$/.test(host)) return then();
+      if (cur && !/trycloudflare\.com/.test(cur)) return then();
+      fetch("server.txt?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : ""; })
+        .then(function (t) {
+          t = (t || "").trim();
+          if (/^wss?:\/\/\S+$/.test(t) && t !== cur) {
+            params.set("server", t);
+            history.replaceState(null, "", location.pathname + "?" + params.toString() + location.hash);
+          }
+        })
+        .catch(function () {})
+        .then(then);
+    }
+
+    pickServer(function () {
     var script = document.createElement("script");
     script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
     script.onload = function () {
@@ -187,6 +209,7 @@
       });
     };
     document.body.appendChild(script);
+    });
   </script>
 </body>
 </html>

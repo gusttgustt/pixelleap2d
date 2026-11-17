@@ -111,14 +111,14 @@ public partial class IslandGame
             StartGame(SaveSystem.Read());
             return;
         }
-        if (link.Dead && waited < 70f) { link = NetLink.Open(NetLink.ServerUrl()); helloSent = false; } // server still waking up
-        if (waited > 6f) netStatus = $"กำลังปลุกเซิร์ฟเวอร์... อาจใช้เวลาถึง 1 นาที ({waited:0} วิ)";
-        if (waited > 75f)
+        if (link.Dead && waited < 15f) { link = NetLink.Open(NetLink.ServerUrl()); helloSent = false; } // tunnel may still be starting
+        if (waited > 4f) netStatus = $"กำลังเชื่อมต่อเซิร์ฟเวอร์... ({waited:0} วิ)";
+        if (waited > 20f)
         {
             link.Close();
             link = null;
             connecting = false;
-            netStatus = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง หรือเล่นออฟไลน์";
+            netStatus = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (เซิร์ฟเวอร์อาจปิดอยู่) ลองใหม่อีกครั้ง หรือเล่นออฟไลน์";
         }
     }
 

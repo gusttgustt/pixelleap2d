@@ -18,8 +18,11 @@ public abstract class NetLink
     public abstract bool TryReceive(out string text);
     public abstract void Close();
 
-    /// The public server (Render). The web build served by the server itself uses its own address.
-    public const string PublicUrl = "wss://pixelleap.onrender.com/ws";
+    /// The game server runs on the PC that started Server/start-online.bat. Its address changes every
+    /// start (a free Cloudflare tunnel), so that script publishes it in this file on GitHub Pages.
+    public const string LinkFileUrl = "https://gusttgustt.github.io/pixelleap2d/server.txt";
+    /// Last resort: a server on this same computer.
+    public const string LocalUrl = "ws://127.0.0.1:8787/ws";
 
     public static NetLink Open(string url)
     {
@@ -31,8 +34,9 @@ public abstract class NetLink
     }
 
     /// Where the server is: "-server <url>" on the command line; on the web "?server=<url>"
-    /// in the page address, else the page's own host when that's our server (Render or a
-    /// local server.js), else the public server (e.g. when played from GitHub Pages).
+    /// in the page address (index.html adds it from server.txt), else the page's own host when
+    /// that's our server (a tunnel or a local server.js). Desktop otherwise reads server.txt;
+    /// last resort a server on this computer.
     public static string ServerUrl()
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -47,18 +51,40 @@ public abstract class NetLink
         try
         {
             var u = new Uri(page);
-            bool ours = u.Host.EndsWith("onrender.com") || u.Host == "localhost" || u.Host == "127.0.0.1";
+            bool ours = u.Host.EndsWith("trycloudflare.com") || u.Host == "localhost" || u.Host == "127.0.0.1";
             if (ours) return (u.Scheme == "https" ? "wss://" : "ws://") + u.Authority + "/ws";
         }
         catch { }
-        return PublicUrl;
+        return LocalUrl; // the page (index.html) normally adds ?server= from server.txt
 #else
         var args = Environment.GetCommandLineArgs();
         for (int i = 0; i + 1 < args.Length; i++)
             if (args[i] == "-server") return args[i + 1];
-        return PublicUrl;
+        return PublishedUrl() ?? LocalUrl;
 #endif
     }
+
+#if !(UNITY_WEBGL && !UNITY_EDITOR)
+    static string published;
+    static float publishedAt = -999f;
+
+    /// The address in server.txt (asked again at most every 30 seconds), or null.
+    static string PublishedUrl()
+    {
+        if (Time.realtimeSinceStartup - publishedAt < 30f) return published;
+        publishedAt = Time.realtimeSinceStartup;
+        try
+        {
+            using (var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) })
+            {
+                string t = http.GetStringAsync(LinkFileUrl + "?t=" + DateTime.UtcNow.Ticks).Result.Trim();
+                published = t.StartsWith("ws://") || t.StartsWith("wss://") ? t : null;
+            }
+        }
+        catch { published = null; }
+        return published;
+    }
+#endif
 
 #if !(UNITY_WEBGL && !UNITY_EDITOR)
     /// Desktop / editor: ClientWebSocket with a receive loop and a send loop on the thread pool.

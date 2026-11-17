@@ -56,8 +56,8 @@ const TYPES = {
   ".png": "image/png", ".ico": "image/x-icon", ".svg": "image/svg+xml", ".unityweb": "application/octet-stream",
 };
 
-// Where people play: the game files are big (tens of MB), so on the public server they come
-// from GitHub Pages (free bandwidth) and this server only carries the small game messages.
+// Where people play: the game files are big (tens of MB), so they come
+// from GitHub Pages (free bandwidth) and this PC only carries the small game messages.
 const GAME_URL = process.env.GAME_URL || "https://gusttgustt.github.io/pixelleap2d/";
 
 const server = http.createServer((req, res) => {
@@ -70,8 +70,8 @@ const server = http.createServer((req, res) => {
   const host = (req.headers.host || "").split(":")[0];
   const local = host === "localhost" || host === "127.0.0.1" || /^192\.168\./.test(host) || /^10\./.test(host);
   if (!local) {
-    // Play on GitHub Pages, connected back to this server (Render, or a Cloudflare tunnel to someone's PC).
-    const secure = (req.headers["x-forwarded-proto"] || "").includes("https") || /onrender\.com$|trycloudflare\.com$/.test(host);
+    // Play on GitHub Pages, connected back to this server through the Cloudflare tunnel to this PC.
+    const secure = (req.headers["x-forwarded-proto"] || "").includes("https") || /trycloudflare\.com$/.test(host);
     const ws = (secure ? "wss://" : "ws://") + req.headers.host + "/ws";
     res.writeHead(302, { Location: GAME_URL + "?server=" + encodeURIComponent(ws) });
     res.end();
@@ -381,12 +381,3 @@ server.listen(PORT, "0.0.0.0", () => {
   log("  web build at      http://localhost:" + PORT + "/  (from " + WEB_ROOT + ")");
   log("  accounts in       " + DATA_DIR + " (" + Object.keys(accounts).length + " players)");
 });
-
-// Render's free plan sleeps after 15 minutes without requests; ping ourselves every 10 minutes.
-const SELF_URL = process.env.RENDER_EXTERNAL_URL;
-if (SELF_URL && typeof fetch === "function") {
-  setInterval(() => {
-    fetch(SELF_URL.replace(/\/$/, "") + "/status", { cache: "no-store" }).then(r => r.text()).catch(() => {});
-  }, 10 * 60 * 1000);
-  log("  keep-awake ping every 10 min to " + SELF_URL);
-}

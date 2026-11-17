@@ -1,7 +1,7 @@
 {
   "name": "island-survival-server",
   "private": true,
-  "description": "Island Survival relay server and web build (see Server/server.js)",
+  "description": "Island Survival game server, run on this PC with Server/start-online.bat (see Server/server.js)",
   "scripts": {
     "start": "node Server/server.js"
   },
