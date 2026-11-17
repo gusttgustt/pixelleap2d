@@ -12,6 +12,7 @@ public static partial class PixelArt
             1 => Cat(frame),
             2 => Rabbit(frame),
             3 => Parrot(frame),
+            4 => FishBowl(frame),
             _ => Dog(frame),
         };
     }
@@ -107,6 +108,29 @@ public static partial class PixelArt
         c.Rect(11, 5 - hop, 2, 1, yellow); c.Set(12, 6 - hop, Hex("#c89a20"));      // beak
         c.Set(11, 6 - hop, Hex("#3a3030"));
         return c.ToSprite(7, 16);
+    });
+
+    /// Goldfish in a round glass bowl that floats along beside you.
+    public static Sprite FishBowl(int frame) => Get("pet_fish_" + frame, () =>
+    {
+        var c = new Canvas(16, 17);
+        Color glass = new Color(0.75f, 0.92f, 1f, 0.55f), rim = Hex("#e8f6ff"), water = new Color(0.35f, 0.65f, 0.95f, 0.75f), waterL = new Color(0.55f, 0.82f, 1f, 0.8f);
+        Color o = Hex("#ff8a1e"), oL = Hex("#ffc060"), oD = Hex("#c85a10");
+        c.Ball(8f, 9.5f, 6.2f, 5.6f, glass, glass, rim);                              // the glass
+        for (int y = 7; y <= 14; y++)                                                // water inside
+        {
+            float hw = Mathf.Sqrt(Mathf.Max(0f, 5.4f * 5.4f - (y - 9.5f) * (y - 9.5f) * 1.2f));
+            for (int x = Mathf.CeilToInt(8f - hw); x <= Mathf.FloorToInt(8f + hw); x++) c.Set(x, y, y == 7 ? waterL : water);
+        }
+        c.Rect(4, 3, 9, 1, rim);                                                     // the rim
+        int sw = frame == 1 ? 1 : frame == 2 ? -1 : 0;
+        c.Ellipse(8.5f + sw * 0.5f, 10.5f, 2.4f, 1.5f, o);                           // fish body
+        c.Set(9 + sw, 10, oL); c.Set(10 + sw, 10, oL);
+        c.Set(5 + sw, 9 + (frame == 2 ? 1 : 0), oD); c.Set(5 + sw, 11 - (frame == 1 ? 1 : 0), oD); c.Set(6 + sw, 10, o); // tail
+        c.Set(10 + sw, 10, Hex("#1a1010"));                                          // eye
+        c.Set(12, 8 + (frame & 1), Color.white);                                     // a bubble
+        c.Set(3, 6, Color.white); c.Set(3, 7, rim);                                  // glint
+        return c.ToSprite(8, 15);
     });
 
     /// Icon for the catching net (Item.PetNet).

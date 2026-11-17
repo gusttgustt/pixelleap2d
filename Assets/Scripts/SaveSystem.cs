@@ -22,7 +22,10 @@ public class SaveData
     public Vector2 player;
     public List<ItemStack> items = new List<ItemStack>();
     public List<NodeSave> nodes = new List<NodeSave>();
-    public int farthest;          // highest island reached (0 = older save: same as island)
+    public int farthest;          // highest island reached on the first continent (0 = older save: same as island)
+    public int continent;         // which continent the adventure island is on (IslandGame.World.cs)
+    public List<int> reach = new List<int>(); // highest island reached on each continent (empty = older save)
+    public int homeContinent;     // where your private island is
     public List<IslandSave> visited = new List<IslandSave>(); // other islands, as you left them
     public List<string> flags = new List<string>();      // quests and story (see IslandGame.Quest.cs)
     public List<string> questKills = new List<string>(); // "<quest>|<enemy kind>|<count>"
@@ -37,6 +40,7 @@ public class SaveData
     public Vector2 advPlayer;                            // where you stood on it
     public List<NodeSave> homeNodes = new List<NodeSave>(); // the private island while you're away
     public int homeStickCap, homeRockCap;
+    public int homeLand;                                 // how many times the private island was made bigger (IslandGame.Home.cs)
     // Inside your house (IslandGame.House.cs). While inHouse, `nodes` is the room and homeNodes the
     // island outside; otherwise the room waits in houseNodes.
     public bool inHouse, roomMade;
@@ -61,6 +65,7 @@ public class PetSave
 public class IslandSave
 {
     public int island, seed, biomeId;
+    public int continent;
     public int stickCap, rockCap, obsidianCap;
     public List<NodeSave> nodes = new List<NodeSave>();
 }

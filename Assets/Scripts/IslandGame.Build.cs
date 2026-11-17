@@ -13,6 +13,7 @@ public partial class IslandGame
         public NodeKind kind;
         public (Item item, int n)[] cost = new (Item, int)[0];
         public bool hammer;   // the take-down tool, not something to place
+        public bool move;     // the move tool: pick something up and put it down somewhere else
         public bool turns;    // R rotates it a quarter turn
         public Item? item;    // furniture: placed from the bag, picked up back into it
     }
@@ -36,6 +37,7 @@ public partial class IslandGame
     static readonly BuildDef[] Builds =
     {
         new BuildDef { name = "ค้อน: รื้อถอน", hammer = true, desc = "รื้อสิ่งที่สร้างไว้ ได้วัตถุดิบคืนครึ่งหนึ่ง" },
+        new BuildDef { name = "มือ: ย้ายของ", move = true, desc = "ย้ายบ้าน สัตว์ในฟาร์ม รั้ว แปลงผัก และของที่สร้างไว้ไปวางที่ใหม่ ฟรี" },
         new BuildDef { name = "แปลงผัก", kind = NodeKind.Plot, desc = "ขุดด้วยจอบบนพื้นหญ้า แล้วปลูก รดน้ำ เก็บเกี่ยว" },
         new BuildDef { name = "รั้วไม้", kind = NodeKind.Fence, turns = true, cost = new[] { (Item.Stick, 2), (Item.Wood, 1) }, desc = "ล้อมคอกสัตว์ กด R หมุน" },
         new BuildDef { name = "ทางเดินหิน", kind = NodeKind.StonePath, cost = new[] { (Item.Stone, 2) }, desc = "ปูพื้นหิน เดินทับได้" },
@@ -50,7 +52,9 @@ public partial class IslandGame
     };
 
     public bool buildOpen;
-    int buildSel = 1;
+    int buildSel = 2;
+    WorldNode carrying;   // the move tool: what you picked up, on its way to a new spot
+    WorldNode moveTarget; // the move tool: what you would pick up now
     bool buildTurn;
     SpriteRenderer ghost;
     // what the build cursor is on this frame (also shown in the panel)
@@ -88,6 +92,14 @@ public partial class IslandGame
         if (ghost != null) Destroy(ghost.gameObject);
         ghost = null;
         demolishTarget = null;
+        DropCarried();
+    }
+
+    void DropCarried()
+    {
+        if (carrying != null) carrying.SetFaded(false);
+        carrying = null;
+        moveTarget = null;
     }
 
     void SelectBuild(int i)
@@ -95,6 +107,7 @@ public partial class IslandGame
         if (!atHome) { buildSel = 0; return; }
         int n = Palette.Length;
         buildSel = (i % n + n) % n;
+        if (!CurrentBuild.move) DropCarried();
     }
 
     void HandleBuildInput(Keyboard kb)
@@ -102,6 +115,7 @@ public partial class IslandGame
         if (player == null) return;
         if (kb != null && !chatOpen)
         {
+            if (kb.escapeKey.wasPressedThisFrame && carrying != null) { DropCarried(); Hint("ยกเลิกการย้าย", 1.5f); return; }
             if (kb.escapeKey.wasPressedThisFrame || kb.gKey.wasPressedThisFrame) { CloseBuild(); return; }
             if (kb.hKey.wasPressedThisFrame) { ToggleHome(); return; }
             if (kb.zKey.wasPressedThisFrame) SelectBuild(buildSel - 1);
@@ -119,6 +133,7 @@ public partial class IslandGame
             buildTap = false;
             lastInteract = Time.time;
             var tb = CurrentBuild;
+            if (tb.move) { MoveAction(true); return; }
             if (tb.hammer)
             {
                 if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
@@ -138,6 +153,7 @@ public partial class IslandGame
         if (!((pressed && since > 0.15f) || (held && since > 0.3f))) return;
         lastInteract = Time.time;
         var b = CurrentBuild;
+        if (b.move) { if (pressed) MoveAction(false); return; }
         if (b.hammer)
         {
             if (Count(Item.Hammer) == 0 && !inHouse) { Hint("ต้องมีค้อน (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านช่างไม้)", 2.5f); return; }
@@ -210,7 +226,9 @@ public partial class IslandGame
             ghost.sortingOrder = 32000;
         }
         demolishTarget = null;
+        moveTarget = null;
         UpdateBuildPointer();
+        if (b.move) { UpdateMoveCursor(); return; }
         if (b.hammer)
         {
             ghost.enabled = false;
@@ -296,24 +314,133 @@ public partial class IslandGame
             if (Count(Item.Hoe) == 0) { why = "ต้องมีจอบ (ทำที่โต๊ะช่างในบ้าน หรือซื้อที่ร้านเมล็ดพันธุ์)"; return false; }
             if (tiles[t.x, t.y] != 2) { why = "ขุดแปลงผักได้บนพื้นหญ้าเท่านั้น"; return false; }
         }
+        if (!SpotFree(b.kind, t, null, out why)) return false;
+        foreach (var c in b.cost) if (Count(c.item) < c.n) { why = MissingMaterials; return false; }
+        return true;
+    }
+
+    /// Nothing in the way of putting a k on tile t (ignore: the thing being moved there).
+    bool SpotFree(NodeKind k, Vector2Int t, WorldNode ignore, out string why)
+    {
+        why = null;
         Vector2 g = t;
-        bool big = b.kind == NodeKind.Cottage;
+        bool big = k == NodeKind.Cottage;
         if (big) // the whole 3 x 3 patch must be flat land
             for (int dx = -1; dx <= 1; dx++)
                 for (int dy = -1; dy <= 1; dy++)
                     if (!IsLand(g + new Vector2(dx, dy)) || LevelAt(g + new Vector2(dx, dy)) != LevelAt(g)) { why = "บ้านต้องใช้พื้นเรียบ 3x3 ช่อง"; return false; }
-        float own = BuildRadius(b.kind);
+        float own = BuildRadius(k);
+        bool animal = k is NodeKind.Chicken or NodeKind.Cow;
         foreach (var n in nodes)
         {
-            if (n == null || Hidden(n) || Clearable(n) || n.IsAnimal) continue;
-            if (Flat(b.kind) != Flat(n.kind) && !(b.kind == NodeKind.Cottage)) continue; // furniture on rugs, benches on paths
-            float need = big ? 1.45f : 0.55f;
+            if (n == null || n == ignore || Hidden(n) || Clearable(n) || (n.IsAnimal && !big)) continue;
+            if (Flat(k) != Flat(n.kind) && !big) continue; // furniture on rugs, benches on paths
+            float need = big ? 1.45f : animal ? 0.45f : 0.55f;
             if (n.Blocking) need = Mathf.Max(need, n.BlockRadius + (big ? 0.9f : 0.2f));
             if ((n.grid - g).magnitude < need) { why = $"มี{(n.built ? NodeName(n.kind) : "ของ")}อยู่ตรงนี้แล้ว"; return false; }
         }
-        foreach (var v in villagers) if (v != null && own > 0f && (v.grid - g).magnitude < own + 0.3f) { why = "มีคนยืนอยู่ตรงนี้"; return false; }
-        foreach (var c in b.cost) if (Count(c.item) < c.n) { why = MissingMaterials; return false; }
+        foreach (var v in villagers) if (v != null && (own > 0f || big) && (v.grid - g).magnitude < own + 0.3f) { why = "มีคนยืนอยู่ตรงนี้"; return false; }
         return true;
+    }
+
+    // ------------------------------------------------------------------ the move tool
+    /// Things on your private island you can pick up and put somewhere else: what you built,
+    /// your house, farm plots (crops and all) and the farm animals.
+    static bool Movable(WorldNode n) => n != null && (n.built || n.IsAnimal || n.kind is NodeKind.Plot or NodeKind.Cottage or NodeKind.Well);
+
+    static string MoveName(NodeKind k) => k switch
+    {
+        NodeKind.Cottage => "บ้าน", NodeKind.Chicken => "ไก่", NodeKind.Cow => "วัว", NodeKind.Well => "บ่อน้ำ",
+        _ => NodeName(k),
+    };
+
+    WorldNode FindMoveTarget()
+    {
+        bool aim = buildPointer;
+        Vector2 p = aim ? (Vector2)pointerTile : player.grid + player.facing.normalized * 1.0f;
+        WorldNode best = null;
+        float bd = float.MaxValue;
+        foreach (var n in nodes)
+        {
+            if (!Movable(n)) continue;
+            bool big = n.kind == NodeKind.Cottage;
+            float d = (n.grid - p).magnitude;
+            float reach = big ? 1.6f : Mathf.Max(0.75f, BuildRadius(n.kind) + 0.35f);
+            if (d < reach && d < bd && (aim || (n.grid - player.grid).magnitude < (big ? 3.2f : 2.6f))) { bd = d; best = n; }
+        }
+        return best;
+    }
+
+    bool CanMoveTo(WorldNode n, Vector2Int t, out string why)
+    {
+        why = null;
+        if (!InMap(t.x, t.y) || (tiles[t.x, t.y] != 1 && tiles[t.x, t.y] != 2)) { why = "ต้องวางบนพื้นดิน"; return false; }
+        if (n.kind == NodeKind.Plot && tiles[t.x, t.y] != 2) { why = "แปลงผักต้องอยู่บนพื้นหญ้า"; return false; }
+        if (((Vector2)t - n.grid).sqrMagnitude < 0.01f) { why = "เลือกที่ใหม่ที่ไม่ใช่ที่เดิม"; return false; }
+        return SpotFree(n.kind, t, n, out why);
+    }
+
+    void UpdateMoveCursor()
+    {
+        cursor.transform.localScale = Vector3.one;
+        if (carrying == null)
+        {
+            ghost.enabled = false;
+            moveTarget = FindMoveTarget();
+            cursor.enabled = moveTarget != null;
+            if (moveTarget != null)
+            {
+                cursor.transform.position = GridToWorld(moveTarget.grid) + Vector3.up * HeightAt(moveTarget.grid);
+                cursor.color = new Color(1f, 0.85f, 0.3f, 0.6f + 0.4f * Mathf.Sin(Time.time * 8f));
+            }
+            buildOk = moveTarget != null;
+            buildWhy = moveTarget != null ? $"กด E หรือแตะเพื่อยก{MoveName(moveTarget.kind)}" : "ไม่มีของที่ย้ายได้ตรงหน้า (บ้าน สัตว์ รั้ว แปลงผัก ของที่สร้าง)";
+            return;
+        }
+        buildTile = buildPointer ? pointerTile : FacingTile(carrying.kind == NodeKind.Cottage ? 2.2f : 1.25f);
+        buildOk = CanMoveTo(carrying, buildTile, out buildWhy);
+        Vector2 g = buildTile;
+        Vector3 pos = GridToWorld(g) + Vector3.up * HeightAt(g);
+        ghost.enabled = true;
+        ghost.sprite = carrying.CurrentSprite;
+        ghost.flipX = carrying.Flipped;
+        ghost.transform.position = pos;
+        ghost.color = buildOk ? new Color(0.7f, 1f, 0.7f, 0.75f) : new Color(1f, 0.45f, 0.45f, 0.55f);
+        cursor.enabled = true;
+        cursor.transform.position = pos;
+        cursor.color = buildOk ? new Color(0.6f, 1f, 0.6f, 0.9f) : new Color(1f, 0.4f, 0.4f, 0.9f);
+        if (buildOk) buildWhy = $"กด E หรือแตะเพื่อวาง{MoveName(carrying.kind)}ตรงนี้ (Esc ยกเลิก)";
+    }
+
+    void MoveAction(bool tapped)
+    {
+        if (carrying == null)
+        {
+            if (moveTarget == null) { Hint(tapped ? "แตะที่ของที่อยากย้าย: บ้าน สัตว์ในฟาร์ม รั้ว แปลงผัก หรือของที่สร้างไว้" : "หันหน้าไปที่ของที่อยากย้าย", 2.5f); return; }
+            carrying = moveTarget;
+            carrying.SetFaded(true);
+            Sfx.Play("pickup", 0.4f);
+            Hint($"ยก{MoveName(carrying.kind)}แล้ว เลือกที่ใหม่ แล้วแตะ/กด E เพื่อวาง (Esc ยกเลิก)", 3f);
+            return;
+        }
+        if (!buildOk) { Hint(buildWhy, 2f); return; }
+        var n = carrying;
+        Vector2 g = buildTile;
+        float clear = n.kind == NodeKind.Cottage ? 1.5f : 0.6f;
+        foreach (var c in nodes.FindAll(c => c != null && c != n && (Hidden(c) || Clearable(c)) && (c.grid - g).magnitude < clear))
+        {
+            if (c.available && c.kind == NodeKind.Stick) inv[Item.Stick] = Count(Item.Stick) + 1;
+            if (c.available && c.kind == NodeKind.Rock) inv[Item.Stone] = Count(Item.Stone) + 1;
+            if (c.kind == NodeKind.Drop) inv[c.dropItem] = Count(c.dropItem) + c.dropCount;
+            RemoveNode(c);
+        }
+        n.MoveTo(g);
+        carrying = null;
+        if (!CanWalk(player.grid, 0.18f)) player.grid = FreeStand(player.grid); // put down on top of yourself: step aside
+        Fx.Burst(n.transform.position + Vector3.up * 0.2f, new Color(0.85f, 0.75f, 0.55f), n.kind == NodeKind.Cottage ? 20 : 8, 1f, 0.9f);
+        Sfx.Play("craft", 0.45f);
+        Popup($"ย้าย{MoveName(n.kind)}แล้ว", n.transform.position + Vector3.up * 0.8f, new Color(1f, 0.95f, 0.6f));
+        homeSendT = Mathf.Min(homeSendT, 3f); // visitors who come later see it in the new spot
     }
 
     void Place(BuildDef b, Vector2Int t)
@@ -412,10 +539,11 @@ public partial class IslandGame
             bool afford = true;
             foreach (var c in b.cost) if (Count(c.item) < c.n) afford = false;
             if (b.hammer) afford = Count(Item.Hammer) > 0 || inHouse;
+            if (b.move) afford = true;
             if (b.item != null) afford = Count(b.item.Value) > 0;
             if (b.kind == NodeKind.Plot && !b.hammer) afford = Count(Item.Hoe) > 0;
             GUI.color = afford ? Color.white : new Color(1f, 1f, 1f, 0.35f);
-            Icon(new Rect(r.x + 4, r.y + 4, cell - 8, cell - 8), b.hammer ? PixelArt.Icon(inHouse ? Item.FurnChair : Item.Hammer) : BuildSprite(b.kind));
+            Icon(new Rect(r.x + 4, r.y + 4, cell - 8, cell - 8), b.move ? (carrying != null && carrying.CurrentSprite != null ? carrying.CurrentSprite : PixelArt.Icon(Item.FurnChair)) : b.hammer ? PixelArt.Icon(inHouse ? Item.FurnChair : Item.Hammer) : BuildSprite(b.kind));
             if (b.item != null) ShadowLabel(new Rect(r.x, r.yMax - 16, r.width - 3, 16), Count(b.item.Value).ToString(), smallRight);
             GUI.color = Color.white;
             if (GUI.Button(r, GUIContent.none, GUIStyle.none)) SelectBuild(i);
@@ -428,9 +556,11 @@ public partial class IslandGame
             cost.Append(Count(c.item) >= c.n ? "<color=#b8f0a0>" : "<color=#ff8a8a>").Append($"{c.n} {Name(c.item)} ({Count(c.item)})</color>");
         }
         if (sel.item != null) cost.Append($"<color=#cccccc>มีในกระเป๋า {Count(sel.item.Value)} ชิ้น</color>");
+        else if (sel.move) cost.Append(carrying != null ? $"<color=#ffd84d>กำลังยก{MoveName(carrying.kind)}</color>" : "<color=#cccccc>ฟรี ย้ายกี่ครั้งก็ได้</color>");
         else if (sel.cost.Length == 0) cost.Append(sel.hammer ? (inHouse ? "<color=#cccccc>เก็บได้คืนครบ</color>" : "<color=#cccccc>ใช้ค้อน</color>") : "<color=#cccccc>ใช้จอบ ไม่เสียวัตถุดิบ</color>");
         ShadowLabel(new Rect(x0, y0 + cell + 4, w, 18), $"<b>{sel.name}</b>   {cost}", small);
-        string sub = buildOk ? $"<color=#cccccc>{sel.desc}  ·  แตะ/คลิกที่พื้นเพื่อวาง</color>" : $"<color=#ffcc66>{buildWhy}</color>";
+        string sub = sel.move ? (buildOk ? $"<color=#cccccc>{buildWhy}</color>" : $"<color=#ffcc66>{buildWhy}</color>")
+                   : buildOk ? $"<color=#cccccc>{sel.desc}  ·  แตะ/คลิกที่พื้นเพื่อวาง</color>" : $"<color=#ffcc66>{buildWhy}</color>";
         ShadowLabel(new Rect(x0, y0 + cell + 22, w, 18), sub, small);
     }
 }

@@ -172,7 +172,7 @@ public partial class IslandGame : MonoBehaviour
     /// 0 = no raft yet. The raft travels with you; Lv N is strong enough to reach island N+1.
     public int raftLevel;
     /// Highest island reached, and every other island you've visited (kept as you left it).
-    public int farthest = 1;
+    public int farthest { get => reach[continent]; set => reach[continent] = value; } // on this continent (IslandGame.World.cs)
     readonly List<IslandSave> visited = new List<IslandSave>();
     /// Clothing recipes taught by the tribe, and what is being worn.
     public readonly HashSet<Item> learned = new HashSet<Item>();
@@ -359,13 +359,14 @@ public partial class IslandGame : MonoBehaviour
             level = 1, health = 100f, hunger = 100f, thirst = 100f,
         };
         var home = SaveSystem.TakeHomeKeep(); // your private island from the last run, if you built one
-        if (home != null) { d.pets.AddRange(home.pets); d.activePet = home.activePet; } // and your pets
+        if (home != null) { d.pets.AddRange(home.pets); d.activePet = home.activePet; d.homeContinent = home.homeContinent; } // and your pets
         if (home != null && home.homeMade)
         {
             d.homeMade = true;
             d.homeNodes.AddRange(home.homeNodes);
             d.homeStickCap = home.homeStickCap; d.homeRockCap = home.homeRockCap;
             d.houseLevel = home.houseLevel; d.roomMade = home.roomMade;
+            d.homeLand = home.homeLand;
             d.houseNodes.AddRange(home.houseNodes);
         }
         return d;
@@ -377,12 +378,13 @@ public partial class IslandGame : MonoBehaviour
     {
         if (data == null) data = NewRun();
         if (!visitLoad) { visiting = false; visitBack = null; } // any other load ends a visit (IslandGame.Visit.cs)
+        voyageVisit = null; voyageBack = null; // a trip to a friend ends with any load (it ends in one)
         LoadHome(data); // private island state (IslandGame.Home.cs)
         if (Online && !atHome)
         {
             // Online everyone shares the island: build it fresh from the shared seed, then
             // catch up on what other players already changed (see "room" in IslandGame.Net.cs).
-            data.seed = SeedFor(Mathf.Max(1, data.island));
+            data.seed = SeedFor(WorldKey(Mathf.Max(1, data.island), data.continent));
             data.fresh = true;
         }
         bool fresh = data.fresh;
@@ -399,11 +401,11 @@ public partial class IslandGame : MonoBehaviour
         stickCap = 0; rockCap = 0; obsidianCap = 0; pond = null; seaSpot = null; target = null; enemyTarget = null;
 
         island = Mathf.Max(1, data.island);
-        farthest = Mathf.Max(island, data.farthest);
+        LoadWorld(data); // continents (IslandGame.World.cs)
         visited.Clear();
-        foreach (var v in data.visited) if (v != null && (atHome || v.island != island)) visited.Add(v); // at home, the island you came from waits in `visited`
+        foreach (var v in data.visited) if (v != null && (atHome || v.island != island || v.continent != continent)) visited.Add(v); // at home, the island you came from waits in `visited`
         // Saves before v6 used a 3-island cycle; keep their island the same biome it was.
-        biome = atHome ? Biome.Tropical : data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island);
+        biome = atHome ? Biome.Tropical : data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island, continent);
         tier = atHome ? 0 : (island - 1) / 15;
         seed = data.seed;
         raftLevel = data.raftLevel;
@@ -561,37 +563,37 @@ public partial class IslandGame : MonoBehaviour
 
     /// Land on island `dest`, keeping inventory, level and skills. A new island is generated;
     /// one you've been to comes back exactly as you left it.
-    void ArriveAt(int dest)
+    void ArriveAt(int dest, int destC)
     {
         var d = Snapshot();
         d.island = dest;
+        d.continent = destC;
         d.nodes.Clear();
         d.player = new Vector2(-99f, -99f); // stand by the boat
-        var known = visited.Find(v => v.island == dest);
+        var known = Kept(dest, destC);
         if (known != null)
         {
             d.fresh = false;
             d.seed = known.seed; d.biomeId = known.biomeId;
             d.stickCap = known.stickCap; d.rockCap = known.rockCap; d.obsidianCap = known.obsidianCap;
             d.nodes.AddRange(known.nodes);
-            d.visited.RemoveAll(v => v.island == dest);
+            d.visited.RemoveAll(v => v.island == dest && v.continent == destC);
         }
         else
         {
             d.fresh = true;
-            d.biomeId = (int)BiomeFor(dest) + 1;
-            d.seed = NewIslandSeed(dest);
+            d.biomeId = (int)BiomeFor(dest, destC) + 1;
+            d.seed = NewIslandSeed(dest, destC);
         }
-        d.farthest = Mathf.Max(farthest, dest);
-        StartGame(d);
+        StartGame(d); // LoadWorld raises this continent's reach to dest
     }
 
     /// Island N+1's seed comes from island N's (same chain as before islands were remembered).
-    int NewIslandSeed(int dest)
+    int NewIslandSeed(int dest, int c)
     {
         int from = dest - 1;
-        int s = from == island ? seed : visited.Find(v => v.island == from)?.seed ?? seed;
-        return new System.Random(s + from * 7919).Next();
+        int s = from == island && c == continent ? seed : Kept(from, c)?.seed ?? seed;
+        return new System.Random(s + from * 7919 + c * 104729).Next();
     }
 
     /// Store the island you're leaving so you can come back to it later. The boat goes with you.
@@ -599,18 +601,19 @@ public partial class IslandGame : MonoBehaviour
     {
         var keep = new IslandSave
         {
-            island = island, seed = seed, biomeId = (int)biome + 1,
+            island = island, continent = continent, seed = seed, biomeId = (int)biome + 1,
             stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap,
         };
         foreach (var n in nodes)
             if (n != null && n.kind != NodeKind.Raft)
                 keep.nodes.Add(ToSave(n));
-        visited.RemoveAll(v => v.island == island);
+        visited.RemoveAll(v => v.island == island && v.continent == continent);
         visited.Add(keep);
     }
 
-    public Biome BiomeOf(int n) =>
-        n == island ? biome : visited.Find(v => v.island == n) is IslandSave kept && kept.biomeId > 0 ? (Biome)(kept.biomeId - 1) : BiomeFor(n);
+    public Biome BiomeOf(int n) => BiomeOf(n, continent);
+    public Biome BiomeOf(int n, int c) =>
+        n == island && c == continent && !atHome ? biome : Kept(n, c) is IslandSave kept && kept.biomeId > 0 ? (Biome)(kept.biomeId - 1) : BiomeFor(n, c);
 
     public static string BiomeNameOf(Biome b) => b switch { Biome.Jungle => "เกาะป่าดิบ", Biome.Volcanic => "เกาะภูเขาไฟ", Biome.Tribal => "เกาะชนเผ่า", Biome.Mushroom => "เกาะเห็ดเรืองแสง", Biome.Turtle => "เกาะหลังเต่ายักษ์", Biome.Sky => "เกาะลอยฟ้า", Biome.Bubble => "เกาะใต้ฟองอากาศ", Biome.Hourglass => "เกาะนาฬิกาทราย", Biome.Ice => "เกาะน้ำแข็ง", Biome.Sunken => "นครบาดาล", Biome.Pirate => "อ่าวโจรสลัด", Biome.Crystal => "เกาะผลึก", Biome.Storm => "เกาะพายุ", Biome.Insect => "เกาะแมลงยักษ์", _ => "เกาะเขตร้อน" };
 
@@ -624,10 +627,11 @@ public partial class IslandGame : MonoBehaviour
             level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel,
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
-            farthest = farthest,
+            farthest = reach[0],
             powerId = (int)power, powerLv = powerLv, powerXp = powerXp,
         };
         d.visited.AddRange(visited);
+        SaveWorld(d); // IslandGame.World.cs
         SaveHome(d);
         SaveQuests(d);
         SaveBag(d);
@@ -679,6 +683,18 @@ public partial class IslandGame : MonoBehaviour
         float hillBias = biome switch { Biome.Volcanic => 0.1f, Biome.Jungle => 0.03f, Biome.Mushroom => 0.02f, Biome.Turtle => 0.16f, Biome.Sky => 0.05f, Biome.Bubble => 0.04f, Biome.Hourglass => 0.06f, Biome.Ice => 0.05f, Biome.Sunken => 0.03f, Biome.Pirate => 0.04f, Biome.Crystal => 0.07f, Biome.Storm => 0.1f, Biome.Insect => 0.03f, _ => 0f }; // the shell rises in the middle
         BuildHills(center, radius, hx, hy, hillBias + ShapeHillBias);
         CarvePonds(center);
+        if (HomeGrow > 1f) // the private island was made bigger (IslandGame.Home.cs): new flat shore
+        {                  // around it, after the hills and ponds so the old land stays exactly the same
+            float landR = radius * HomeGrow;
+            for (int gx = 0; gx < Size; gx++)
+                for (int gy = 0; gy < Size; gy++)
+                {
+                    if (tiles[gx, gy] != 0) continue;
+                    float n = Mathf.PerlinNoise(ox + gx * 0.13f, oy + gy * 0.13f);
+                    float v = ShapeValue(gx, gy, center, landR, n);
+                    if (v > 0.13f) { tiles[gx, gy] = v > 0.3f ? 2 : 1; heights[gx, gy] = 0; }
+                }
+        }
         RemoveUnreachableLand(center); // no stranded islets: the boat could land where you can't walk out
 
         // Ground tiles. Water is drawn under all land so cliff edges show over the sea.

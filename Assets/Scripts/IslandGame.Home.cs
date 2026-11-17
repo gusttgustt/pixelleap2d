@@ -21,10 +21,14 @@ public partial class IslandGame
     Vector2 advPlayer;             // where you stood on the adventure island
     readonly List<NodeSave> homeNodes = new List<NodeSave>();
     int homeStickCap, homeRockCap;
+    int homeLand;                 // island expansions bought (0 = the island you start with)
+    const int MaxHomeLand = 3;
+    /// How much wider the private island's land reaches with each expansion.
+    float HomeGrow => atHome ? 1f + 0.075f * homeLand : 1f;
 
     float homeT;                   // fade while travelling (home <-> adventure, in and out of the house)
     bool homeApplied;
-    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit }
+    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit, Expand }
     Warp warp;
 
     public Vector2 TownCenter => Center + new Vector2(5f, -5f); // the market, to the east of your house
@@ -39,6 +43,7 @@ public partial class IslandGame
         homeNodes.Clear();
         homeNodes.AddRange(d.homeNodes);
         homeStickCap = d.homeStickCap; homeRockCap = d.homeRockCap;
+        homeLand = Mathf.Clamp(d.homeLand, 0, MaxHomeLand);
         LoadHouse(d); // IslandGame.House.cs
         LoadPets(d);  // IslandGame.Pet.cs
     }
@@ -50,6 +55,7 @@ public partial class IslandGame
         d.advIsland = island;
         d.advPlayer = advPlayer;
         d.homeStickCap = homeStickCap; d.homeRockCap = homeRockCap;
+        d.homeLand = homeLand;
         d.homeNodes.Clear();
         if (!atHome || inHouse) d.homeNodes.AddRange(homeNodes); // outdoors at home they're the live nodes (d.nodes)
         SaveHouse(d);
@@ -110,6 +116,7 @@ public partial class IslandGame
                 case Warp.EnterHouse: EnterHouse(); break;
                 case Warp.Visit: visitLoad = true; try { DoVisit(); } finally { visitLoad = false; } break;
                 case Warp.EndVisit: DoEndVisit(); break;
+                case Warp.Expand: DoExpandIsland(); break;
                 default: ExitHouse(); break;
             }
             if (!visiting) { SaveSystem.Write(Snapshot()); savedAt = Time.time; }
@@ -120,9 +127,9 @@ public partial class IslandGame
     void GoHome()
     {
         // keep the adventure island exactly as it is (the raft too: you come back to the same spot)
-        var keep = new IslandSave { island = island, seed = seed, biomeId = (int)biome + 1, stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap };
+        var keep = new IslandSave { island = island, continent = continent, seed = seed, biomeId = (int)biome + 1, stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap };
         foreach (var n in nodes) if (n != null) keep.nodes.Add(ToSave(n));
-        visited.RemoveAll(v => v.island == island);
+        visited.RemoveAll(v => v.island == island && v.continent == continent);
         visited.Add(keep);
         advPlayer = player.grid;
 
@@ -159,20 +166,20 @@ public partial class IslandGame
 
         var d = Snapshot();
         d.nodes.Clear();
-        var known = visited.Find(v => v.island == island);
+        var known = Kept(island, continent);
         if (known != null)
         {
             d.fresh = false;
             d.seed = known.seed; d.biomeId = known.biomeId;
             d.stickCap = known.stickCap; d.rockCap = known.rockCap; d.obsidianCap = known.obsidianCap;
             d.nodes.AddRange(known.nodes);
-            d.visited.RemoveAll(v => v.island == island);
+            d.visited.RemoveAll(v => v.island == island && v.continent == continent);
         }
         else // shouldn't happen offline; online the island is rebuilt from the shared seed anyway
         {
             d.fresh = true;
-            d.biomeId = (int)BiomeFor(island) + 1;
-            d.seed = new System.Random(island * 7919 + 17).Next();
+            d.biomeId = (int)BiomeFor(island, continent) + 1;
+            d.seed = new System.Random(island * 7919 + 17 + continent * 104729).Next();
         }
         d.player = advPlayer;
         StartGame(d);
@@ -181,7 +188,7 @@ public partial class IslandGame
     void KeepHomeOnDeath()
     {
         if (!homeMade && pets.Count == 0) return;
-        var d = new SaveData { homeMade = homeMade, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade };
+        var d = new SaveData { homeMade = homeMade, homeStickCap = homeStickCap, homeRockCap = homeRockCap, houseLevel = houseLevel, roomMade = roomMade, homeLand = homeLand, homeContinent = homeContinent };
         d.homeNodes.AddRange(homeNodes);
         d.houseNodes.AddRange(houseNodes);
         SavePets(d);
@@ -205,8 +212,11 @@ public partial class IslandGame
         {
             foreach (var it in new[] { Item.GoldCoin, Item.Wood, Item.Stone, Item.Stick, Item.Plank, Item.Rope, Item.Fiber, Item.Berry, Item.Wheat })
                 inv[it] = Count(it) + 50;
-            Hint("[dev] +50 เหรียญและวัตถุดิบ", 2f);
+            raftLevel = Mathf.Max(raftLevel, 1); // so the sea chart can be tried out
+            health = MaxHealth; hunger = 100f; thirst = 100f;
+            Hint("[dev] +50 เหรียญและวัตถุดิบ (และแพ)", 2f);
         }
+        if (kb.f12Key.wasPressedThisFrame && dialog == null) OpenChart(); // the sea chart without a boat (IslandGame.Chart.cs)
     }
 
     void GiveWelcomeKit()
@@ -302,7 +312,7 @@ public partial class IslandGame
 
     void ReadSign(WorldNode n)
     {
-        bool town = (n.grid - TownCenter).magnitude < 7f;
+        bool town = (n.grid - TownCenter).magnitude < (n.grid - Center).magnitude; // whichever sign it is nearer to
         if (inHouse) town = false;
         var d = new Dialog { speaker = town ? "ป้ายตลาดเมืองท่า" : visiting ? $"ป้ายหน้าบ้านของ {visitName}" : "ป้ายหน้าบ้าน" };
         d.text = town
@@ -316,8 +326,45 @@ public partial class IslandGame
               "• สัตว์เลี้ยง: ซื้อที่ร้านสัตว์เลี้ยง หรือจับสัตว์ป่าด้วยตาข่าย กด P ดูสัตว์เลี้ยง\n" +
               "• เล่นออนไลน์: กด V ไปเยี่ยมบ้านเพื่อน และเพื่อนก็มาเยี่ยมบ้านคุณได้\n" +
               "• ตลาดอยู่ทางขวา (ตะวันออก) กด H เพื่อกลับไปผจญภัยต่อ";
+        if (!town && !visiting && !inHouse)
+        {
+            if (homeLand < MaxHomeLand)
+            {
+                var cost = ExpandCost(homeLand + 1);
+                d.options.Add(($"ขยายเกาะ ขั้นที่ {homeLand + 1}/{MaxHomeLand} (ใช้ {CostText(cost)})", () => ExpandIsland(cost), CanPay(cost)));
+            }
+            else d.text += "\n\nเกาะของคุณขยายจนสุดแล้ว";
+        }
         d.options.Add(("ปิด", CloseDialog, true));
         dialog = d;
+    }
+
+    // ------------------------------------------------------------------ making the island bigger
+    static (Item item, int n)[] ExpandCost(int step) => step switch
+    {
+        1 => new[] { (Item.GoldCoin, 80), (Item.Stone, 20), (Item.Wood, 10) },
+        2 => new[] { (Item.GoldCoin, 200), (Item.Stone, 40), (Item.Wood, 20), (Item.Plank, 10) },
+        _ => new[] { (Item.GoldCoin, 400), (Item.Stone, 60), (Item.Plank, 25), (Item.Rope, 10) },
+    };
+
+    void ExpandIsland((Item item, int n)[] cost)
+    {
+        if (!CanPay(cost) || homeLand >= MaxHomeLand || visiting || !atHome || inHouse) return;
+        foreach (var c in cost) inv[c.item] -= c.n;
+        homeLand++;
+        CloseDialog();
+        BeginWarp(Warp.Expand);
+    }
+
+    /// After the fade: the island is rebuilt with its land reaching further out to sea. What you
+    /// built stays where it is (only the shoreline grows).
+    void DoExpandIsland()
+    {
+        var d = Snapshot();
+        d.fresh = false;
+        StartGame(d);
+        Sfx.Play("levelup", 0.7f);
+        Hint($"เกาะขยายแล้ว (ขั้นที่ {homeLand}/{MaxHomeLand})! ชายหาดใหม่รอบเกาะว่างให้สร้างและทำฟาร์มได้", 5f);
     }
 
     void ResetHomeTools()
@@ -389,6 +436,7 @@ public partial class IslandGame
             Warp.LeaveHome => homeApplied ? $"เกาะที่ {island}: {T.name}" : "ออกไปผจญภัยต่อ...",
             Warp.EnterHouse => homeApplied ? $"{HouseName(houseLevel)}" : "เข้าบ้าน...",
             Warp.Visit => homeApplied ? $"บ้านของ {visitName}" : "กำลังล่องเรือไปเยี่ยมบ้านเพื่อน...",
+            Warp.Expand => homeApplied ? "เกาะกว้างขึ้นแล้ว!" : "กำลังถมทะเลขยายเกาะ...",
             Warp.EndVisit => homeApplied ? (atHome ? "เกาะส่วนตัว" : $"เกาะที่ {island}: {T.name}") : "กลับบ้าน...",
             _ => homeApplied ? "เกาะส่วนตัว" : "ออกจากบ้าน...",
         };

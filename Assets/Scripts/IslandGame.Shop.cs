@@ -39,6 +39,7 @@ public partial class IslandGame
         new Ware { name = "ลูกแมว 1 ตัว", pet = 1, price = 40 },
         new Ware { name = "กระต่าย 1 ตัว", pet = 2, price = 30 },
         new Ware { name = "นกแก้ว 1 ตัว", pet = 3, price = 60 },
+        new Ware { name = "ปลาทองในโหล 1 ตัว", pet = 4, price = 35 },
         new Ware { item = Item.PetNet, n = 2, price = 8 },
     };
     static readonly Ware[] FishWares =

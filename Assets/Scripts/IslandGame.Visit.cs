@@ -31,8 +31,15 @@ public partial class IslandGame
     /// The server answered "homes": it knows private islands (rooms, visits). An older server
     /// doesn't, and then none of this is used (the game works as before, alone at home).
     bool serverHomes;
+    /// Friends with a private island to visit (from the server), shown on the sea chart.
+    NetPeer[] chartFriends = new NetPeer[0];
+    bool friendsKnown;
+    // Sailing to a friend: their island arrives first, then you paddle there past the sharks.
+    NetPeer sailFriend;                       // asked the server for this friend's island
+    NetMsg voyageVisit;                       // their island, waiting at the end of the voyage
+    SaveData voyageBack;                      // where you set sail from (you come back here)
 
-    int RoomKey => atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : island;
+    int RoomKey => atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : WorldKey(island, continent);
 
     /// While visiting you can look around but only these do anything.
     /// Farming is allowed too: plant, water and harvest, feed the animals (the owner gets what you harvest as well).
@@ -60,7 +67,7 @@ public partial class IslandGame
         var sb = new StringBuilder();
         for (int i = 0; i < pets.Count; i++)
             if (i != activePet) sb.Append(pets[i].code).Append(':').Append(pets[i].name).Append('|');
-        Send(new NetMsg { t = "home", text = EncodeNodes(outside), room = EncodeNodes(room), lv = houseLevel, pets = sb.ToString() });
+        Send(new NetMsg { t = "home", text = EncodeNodes(outside), room = EncodeNodes(room), lv = houseLevel + 100 * homeLand, pets = sb.ToString(), island = homeContinent });
     }
 
     /// Compact text for a list of nodes: "kind,x,y,flags,hits,regrow,item,count;" (JSON is too big).
@@ -110,14 +117,21 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ choosing whom to visit
+    /// V: the sea chart, opened on the friends' islands (IslandGame.Chart.cs).
     void AskHomes()
     {
-        if (!Online) { Hint("การเยี่ยมบ้านเพื่อนต้องเล่นออนไลน์", 2.5f); return; }
-        if (!serverHomes) { Hint("เซิร์ฟเวอร์ตอนนี้ยังเป็นเวอร์ชันเก่า ยังเยี่ยมบ้านไม่ได้ (เจ้าของเซิร์ฟเวอร์ต้องเปิดเซิร์ฟเวอร์ใหม่)", 4f); return; }
         if (title || dead || player == null || voyage != null || Busy || homeT > 0f) return;
+        if (visiting) { Hint("กด H เพื่อกลับบ้านตัวเองก่อน แล้วค่อยล่องเรือไปบ้านเพื่อนคนอื่น", 3f); return; }
+        if (inHouse) { Hint("ออกจากบ้านก่อน แล้วค่อยเปิดแผนที่ทะเล (V)", 2.5f); return; }
+        OpenChart(true);
+    }
+
+    /// Ask the server who has an island to visit (the chart shows them when the answer comes).
+    void RequestFriends()
+    {
+        if (!Online || !serverHomes) return;
         homesAsked = true;
         Send(new NetMsg { t = "homes" });
-        Hint("กำลังดูว่าใครเปิดบ้านให้เยี่ยมบ้าง...", 1.5f);
     }
 
     void OnHomes(NetPeer[] list)
@@ -127,26 +141,22 @@ public partial class IslandGame
             serverHomes = true;
             if (atHome && player != null && !inRoom) { JoinRoom(); homeSendT = Mathf.Min(homeSendT, 2f); } // got home before the answer came
         }
-        ShowHomes(list);
+        if (!homesAsked) return;
+        homesAsked = false;
+        chartFriends = list ?? new NetPeer[0];
+        friendsKnown = true;
     }
 
-    void ShowHomes(NetPeer[] list)
+    /// Picked a friend's island on the chart: get their island, then set sail.
+    void SailToFriend(NetPeer p)
     {
-        if (!homesAsked || player == null || Busy) return;
-        homesAsked = false;
-        craftOpen = false; skillsOpen = false; bagOpen = false;
-        var d = new Dialog { speaker = "เยี่ยมบ้านเพื่อน" };
-        int n = list?.Length ?? 0;
-        d.text = n == 0
-            ? "ตอนนี้ยังไม่มีผู้เล่นคนอื่นที่ออนไลน์และมีเกาะส่วนตัวเลย ลองใหม่ทีหลังนะ"
-            : "เลือกบ้านที่อยากไปเยี่ยม ช่วยปลูก รดน้ำ เก็บเกี่ยว และเลี้ยงสัตว์ในฟาร์มของเพื่อนได้ (ของที่เก็บได้ เพื่อนจะได้ด้วยเท่ากัน) แต่สร้างหรือรื้ออะไรไม่ได้";
-        for (int i = 0; i < n && i < 8; i++)
-        {
-            var p = list[i];
-            d.options.Add(($"ไปเยี่ยมบ้านของ {p.name}", () => { CloseDialog(); Send(new NetMsg { t = "visit", id = p.id }); Hint($"กำลังขอเข้าบ้านของ {p.name}...", 2f); }, true));
-        }
-        d.options.Add(("ปิด", CloseDialog, true));
-        dialog = d;
+        if (!Online || p == null) return;
+        if (!CanStartVisit(out var why)) { if (why != null) Hint(why, 2.5f); return; }
+        if (!SuppliesOk()) return;
+        CloseDialog();
+        sailFriend = p;
+        Send(new NetMsg { t = "visit", id = p.id });
+        Hint($"กำลังเตรียมเรือไปบ้านของ {p.name}...", 2f);
     }
 
     bool CanStartVisit(out string why)
@@ -166,7 +176,18 @@ public partial class IslandGame
     {
         if (string.IsNullOrEmpty(m.text)) { Hint("เข้าบ้านนั้นไม่ได้ เจ้าของอาจออฟไลน์ไปแล้ว", 3f); return; }
         if (m.id == myId) { Hint("นี่บ้านของคุณเองนะ กด H เพื่อกลับเกาะส่วนตัว", 2.5f); return; }
-        if (!CanStartVisit(out var why)) { if (why != null) Hint(why, 2.5f); return; }
+        if (!CanStartVisit(out var why)) { if (why != null) Hint(why, 2.5f); sailFriend = null; return; }
+        if (sailFriend != null && sailFriend.id == m.id) // set sail (the voyage ends in ArriveAtFriend)
+        {
+            sailFriend = null;
+            SaveGame();
+            voyageBack = Snapshot();
+            voyageVisit = m;
+            destIsland = 0;
+            BeginSailFade(false);
+            Sfx.Play("win", 0.7f);
+            return;
+        }
         visitData = m;
         BeginWarp(Warp.Visit);
     }
@@ -178,7 +199,7 @@ public partial class IslandGame
         var m = visitData;
         visitData = null;
         if (m == null) return;
-        if (!visiting)
+        if (!visiting && visitBack == null)
         {
             visitBack = Snapshot();
             SaveSystem.Write(visitBack); // if the game closes during the visit, you wake up back home
@@ -195,7 +216,8 @@ public partial class IslandGame
         d.nodes = DecodeNodes(m.text);
         d.homeNodes.Clear();
         d.houseNodes = DecodeNodes(m.room);
-        d.houseLevel = Mathf.Clamp(m.lv, 0, MaxHouseLevel);
+        d.houseLevel = Mathf.Clamp(m.lv % 100, 0, MaxHouseLevel);
+        d.homeLand = Mathf.Clamp(m.lv / 100, 0, MaxHomeLand);
         d.roomMade = d.houseNodes.Count > 0;
         d.stickCap = 0; d.rockCap = 0; d.obsidianCap = 0;
         d.player = new Vector2(-99f, -99f); // arrive in front of their house
@@ -212,6 +234,19 @@ public partial class IslandGame
         StartGame(d);
         Send(new NetMsg { t = "knock", to = visitOwner });
         Hint($"มาถึงบ้านของ {visitName} แล้ว! ช่วยดูแลฟาร์มได้ (เพื่อนได้ผลผลิตด้วย) กด Enter เพื่อทักทาย กด H เพื่อกลับ", 7f);
+    }
+
+    /// The voyage reached the friend's island.
+    void ArriveAtFriend()
+    {
+        var m = voyageVisit;
+        voyageVisit = null;
+        if (m == null) return;
+        visitBack = voyageBack;   // coming home (H) takes you back to where you set sail
+        voyageBack = null;
+        visitData = m;
+        visitLoad = true;
+        try { DoVisit(); } finally { visitLoad = false; }
     }
 
     void EndVisit()

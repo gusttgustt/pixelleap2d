@@ -19,7 +19,7 @@ public partial class IslandGame
     void UpdateCamera()
     {
         var m = Mouse.current;
-        if (m != null && !craftOpen && !skillsOpen && !bagOpen && dialog?.shop == null) // the wheel scrolls the panels while they're open
+        if (m != null && !craftOpen && !skillsOpen && !bagOpen && dialog?.shop == null && dialog?.chart != true) // the wheel scrolls the panels while they're open
         {
             float s = m.scroll.ReadValue().y;
             if (s > 0.1f && zoom < 8) zoomOffset++;
@@ -260,8 +260,8 @@ public partial class IslandGame
         string where = visiting ? (inHouse ? $"ในบ้านของ {visitName}  <size=11>{HouseName(houseLevel)} Lv {Mathf.Max(1, houseLevel)}</size>" : $"เกาะส่วนตัวของ {visitName}  <size=11>มาเยี่ยมบ้าน</size>")
             : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
-            : voyage != null ? $"กลางทะเล กำลังไปเกาะที่ {destIsland}"
-            : $"เกาะที่ {island}: {T.name}  <size=11>{BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
+            : voyage != null ? $"กลางทะเล กำลังไป{VoyageDestName}"
+            : $"เกาะที่ {island}: {T.name}  <size=11>{ContinentName} · {BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}{(T.weather != Weather.Clear ? " · " + WeatherName(T.weather) : "")}</size>";
         ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - {(IsNight ? "กลางคืน" : "กลางวัน")}", label);
         string goal = visiting ? "เดินชมบ้านเพื่อน ทักทายด้วย Enter ร้านค้าในตลาดใช้ได้ตามปกติ  (H กลับบ้านตัวเอง)"
                     : atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
@@ -368,8 +368,8 @@ public partial class IslandGame
             float a = sailT < 1.8f ? sailT / 1.8f : Mathf.Clamp01((4.2f - sailT) / 1.6f);
             Fill(new Rect(0, 0, W, H), new Color(0.08f, 0.25f, 0.45f, a));
             string text = arriving
-                ? (sailApplied ? $"เกาะที่ {island}: {BiomeName}" : "เห็นฝั่งแล้ว!")
-                : (sailApplied ? $"ทะเลเปิด - พายไปเกาะที่ {destIsland}" : "กำลังออกเรือ...");
+                ? (sailApplied ? (visiting ? $"บ้านของ {visitName}" : $"เกาะที่ {island}: {BiomeName}") : "เห็นฝั่งแล้ว!")
+                : (sailApplied ? $"ทะเลเปิด - พายไป{VoyageDestName}" : "กำลังออกเรือ...");
             ShadowLabel(new Rect(0, H / 2 - 20, W, 40), text, titleCenter, new Color(1f, 1f, 1f, a));
         }
 
@@ -646,6 +646,7 @@ public partial class IslandGame
     {
         var d = dialog;
         if (d.shop != null) { DrawShop(W, H, d); return; } // market stalls (IslandGame.Shop.cs)
+        if (d.chart) { DrawChart(W, H); return; } // the sea chart (IslandGame.Chart.cs)
         float pw = Mathf.Min(620f, W - 20f);
         const float optH = 26f;
         var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
@@ -683,8 +684,8 @@ public partial class IslandGame
         Fill(new Rect(bar.x - 2, bar.y - 2, bar.width + 4, bar.height + 4), new Color(0f, 0f, 0f, 0.5f));
         Fill(new Rect(bar.x, bar.y, bar.width * VoyageProgress, bar.height), new Color(0.4f, 0.75f, 1f));
         Icon(new Rect(bar.x + bar.width * VoyageProgress - 10f, bar.y - 18f, 20f, 20f), PixelArt.Raft(raftLevel));
-        ShadowLabel(new Rect(bar.x - 70, bar.y - 6, 66, 20), $"เกาะ {island}", new GUIStyle(small) { alignment = TextAnchor.MiddleRight });
-        ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 80, 20), $"เกาะ {destIsland}", small);
+        ShadowLabel(new Rect(bar.x - 70, bar.y - 6, 66, 20), atHome ? "บ้าน" : $"เกาะ {island}", new GUIStyle(small) { alignment = TextAnchor.MiddleRight });
+        ShadowLabel(new Rect(bar.xMax + 6, bar.y - 6, 120, 20), voyageVisit != null ? $"บ้าน{visitNameOf(voyageVisit)}" : $"เกาะ {destIsland}", small);
         float left = Mathf.Max(0f, voyage.length - voyage.raft.x);
         ShadowLabel(new Rect(bar.x, bar.y + 10, bar.width, 18), $"เหลืออีก {left * 10f:0} ม.", smallCenter);
     }

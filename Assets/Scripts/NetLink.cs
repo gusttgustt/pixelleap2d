@@ -203,4 +203,4 @@ public class NetMsg
 
 [Serializable] public class NetEnemy { public int id, k, hp, mhp, fl; public float x, y; }
 [Serializable] public class NetEvent { public int id, kind, hits; public string ev; public float dur, x, y, age; }
-[Serializable] public class NetPeer { public int id; public string name; }
+[Serializable] public class NetPeer { public int id; public string name; public int c; } // c: the continent of their private island

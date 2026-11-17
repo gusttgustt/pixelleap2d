@@ -346,6 +346,33 @@ public class WorldNode : MonoBehaviour
         Refresh();
     }
 
+    /// Picked up and put down somewhere else on the private island (the move tool, IslandGame.Build.cs).
+    public void MoveTo(Vector2 g)
+    {
+        grid = g;
+        home = g;
+        netGrid = null;
+        Vector3 flat = IslandGame.GridToWorld(g);
+        basePos = flat + Vector3.up * IslandGame.I.HeightAt(g);
+        transform.position = basePos;
+        if (kind is NodeKind.StonePath or NodeKind.Rug or NodeKind.HouseDoor) sr.sortingOrder = kind == NodeKind.Rug ? -30490 : -30500;
+        else if (kind == NodeKind.Plot) sr.sortingOrder = IslandGame.SortOrder(flat.y + IslandGame.HalfH);
+        else sr.sortingOrder = IslandGame.SortOrder(flat.y);
+        SetFaded(false);
+        Shake();
+    }
+
+    /// Half see-through while it's being carried to a new spot.
+    public void SetFaded(bool on)
+    {
+        var c = sr.color;
+        c.a = on ? 0.35f : 1f;
+        sr.color = c;
+    }
+
+    public Sprite CurrentSprite => sr != null ? sr.sprite : null;
+    public bool Flipped => sr != null && sr.flipX;
+
     /// Re-applies saved state after loading.
     public void Restore(bool isAvailable, int savedHits, float regrowSeconds)
     {

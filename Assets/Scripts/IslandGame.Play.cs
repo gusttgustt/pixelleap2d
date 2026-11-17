@@ -108,6 +108,7 @@ public partial class IslandGame
         TickAmbient(dt);
         TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
         TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
+        TickStarterPet(); // pick your first pet (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
     }
@@ -1101,51 +1102,31 @@ public partial class IslandGame
     float RaftArmor => Mathf.Min(0.4f, 0.08f * Mathf.Max(0, raftLevel - 1));
 
     /// Using your boat opens the sea chart: sail back to any island you've visited, or on to a new one.
-    void TrySail(int page = 0)
-    {
-        var d = new Dialog { speaker = $"แผนที่ทะเล - {BoatName(raftLevel)} Lv {raftLevel}" };
-        int next = farthest + 1;
-        bool canGoNew = raftLevel >= farthest;
-        d.text = canGoNew
-            ? $"เลือกเกาะที่จะล่องไป เกาะที่เคยไปแล้วจะยังเหมือนตอนที่จากมา"
-            : $"ทะเลไปเกาะที่ {next} คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ต้องให้ช่างต่อเรืออัปเกรดเป็น Lv {farthest} ก่อน แต่กลับไปเกาะที่เคยไปได้";
-        // visited islands, nearest first, a page at a time (there can be a hundred of them)
-        var known = new System.Collections.Generic.List<int>();
-        for (int n = farthest; n >= 1; n--) if (n != island) known.Add(n);
-        known.Sort((a, b) => Mathf.Abs(a - island).CompareTo(Mathf.Abs(b - island)));
-        const int perPage = 6;
-        for (int i = page * perPage; i < known.Count && i < (page + 1) * perPage; i++)
-        {
-            int dest = known[i];
-            d.options.Add(($"ล่องไปเกาะที่ {dest} {IslandName(dest)} ({BiomeNameOf(BiomeOf(dest))})", () => ChooseVoyage(dest), true));
-        }
-        if (page > 0) d.options.Add(("◀ หน้าก่อน", () => TrySail(page - 1), true));
-        if ((page + 1) * perPage < known.Count) d.options.Add(($"หน้าถัดไป ▶ (อีก {known.Count - (page + 1) * perPage} เกาะ)", () => TrySail(page + 1), true));
-        d.options.Add((canGoNew ? $"ออกสำรวจเกาะใหม่ (เกาะที่ {next}) ★" : $"เกาะใหม่ (เกาะที่ {next}) - ต้องใช้เรือ Lv {farthest}",
-            () => ChooseVoyage(next), canGoNew));
-        d.options.Add(("ยังไม่ออกเรือ", CloseDialog, true));
-        dialog = d;
-        craftOpen = false; skillsOpen = false;
-    }
+    void TrySail() => OpenChart(); // the picture map (IslandGame.Chart.cs)
 
-    void ChooseVoyage(int dest)
+    void ChooseVoyage(int dest, int c)
     {
         dialog = null;
         lastInteract = Time.time;
+        if (!SuppliesOk()) return;
         destIsland = dest;
-        // The voyage takes a while: warn once if the player is low on supplies.
-        int food = 0;
-        foreach (var kv in inv) if (FoodValue(kv.Key) > 0) food += kv.Value;
-        bool lowSupplies = food < 3 || (thirst < 60f && flaskWater == 0);
-        if (lowSupplies && Time.time > sailWarnUntil)
-        {
-            sailWarnUntil = Time.time + 4f;
-            Hint("อาหารหรือน้ำไม่พอสำหรับการเดินทาง! เลือกเกาะอีกครั้งถ้าจะออกเรือเลย", 4f);
-            return;
-        }
+        destContinent = c;
+        voyageVisit = null;
         SaveGame(); // if you quit at sea you come back here, next to the raft
         BeginSailFade(false);
         Sfx.Play("win", 0.7f);
+    }
+
+    /// The voyage takes a while: warn once if the player is low on supplies (choose again to go anyway).
+    bool SuppliesOk()
+    {
+        int food = 0;
+        foreach (var kv in inv) if (FoodValue(kv.Key) > 0) food += kv.Value;
+        bool lowSupplies = food < 3 || (thirst < 60f && flaskWater == 0);
+        if (!lowSupplies || Time.time <= sailWarnUntil) return true;
+        sailWarnUntil = Time.time + 4f;
+        Hint("อาหารหรือน้ำไม่พอสำหรับการเดินทาง! เลือกอีกครั้งถ้าจะออกเรือเลย", 4f);
+        return false;
     }
 
     void BeginSailFade(bool landing)
@@ -1168,9 +1149,13 @@ public partial class IslandGame
             else
             {
                 EndVoyage();
-                ArriveAt(destIsland);
-                SaveSystem.Write(Snapshot()); // SaveGame() is skipped while sailing, so save the new island directly
-                savedAt = Time.time;
+                if (voyageVisit != null) ArriveAtFriend(); // a friend's private island (IslandGame.Visit.cs)
+                else
+                {
+                    ArriveAt(destIsland, destContinent);
+                    SaveSystem.Write(Snapshot()); // SaveGame() is skipped while sailing, so save the new island directly
+                    savedAt = Time.time;
+                }
             }
         }
         if (sailT >= 4.2f) sailT = 0f;

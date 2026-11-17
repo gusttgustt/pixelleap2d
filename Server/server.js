@@ -13,8 +13,8 @@
 //                        {t:"join", island}           -> {t:"room", host, players, events}
 //                        {t:"leave"}                  (paddling out to sea)
 //                        {t:"node"|"spawn", ...}      world change: remembered + passed on
-//                        {t:"home", text, room, lv, pets}  my private island, for visitors (kept, not passed on)
-//                        {t:"homes"}                  -> {t:"homes", players}  who has a private island to visit
+//                        {t:"home", text, room, lv, pets, island}  my private island (island = its continent), for visitors (kept, not passed on)
+//                        {t:"homes"}                  -> {t:"homes", players}  who has a private island to visit (and on which continent, c)
 //                        {t:"visit", id}              -> {t:"visit", id, name, text, room, lv, pets}  (text "" = gone)
 //                        {t:"knock", to}              "I'm visiting your island" (reaches them anywhere)
 //                        {t:"hnode", id, text, room}  a private island changed (to everyone on it + its owner)
@@ -313,11 +313,11 @@ function onMessage(socket, text) {
       return;
     }
     case "home":
-      socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000) };
+      socket.home = { text: String(m.text || "").slice(0, 400000), room: String(m.room || "").slice(0, 100000), lv: m.lv | 0, pets: String(m.pets || "").slice(0, 2000), c: Math.max(0, Math.min(3, m.island | 0)) };
       return;
     case "homes": {
       const players = [];
-      for (const [id, s] of clients) if (id !== socket.pid && s.home && s.home.text) players.push({ id, name: s.name });
+      for (const [id, s] of clients) if (id !== socket.pid && s.home && s.home.text) players.push({ id, name: s.name, c: s.home.c | 0 });
       send(socket, { t: "homes", players: players.slice(0, 40) });
       return;
     }

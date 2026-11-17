@@ -27,13 +27,16 @@ public partial class IslandGame
                        : player != null ? player.transform.position : Vector3.zero;
     /// Where the current voyage goes (set when you choose it on the sea chart).
     public int destIsland = 2;
-    bool NewIslandTrip => destIsland > farthest;
+    bool NewIslandTrip => voyageVisit == null && destIsland > ReachOn(destContinent);
+    /// Where you're paddling to, for the HUD and hints.
+    string VoyageDestName => voyageVisit != null ? $"บ้านของ {visitNameOf(voyageVisit)}" : destContinent != continent ? $"เกาะที่ {destIsland} ({ContinentNames[destContinent]})" : $"เกาะที่ {destIsland}";
+    static string visitNameOf(NetMsg m) => string.IsNullOrEmpty(m.name) ? "เพื่อน" : m.name;
     public float VoyageProgress => voyage == null ? 0f : Mathf.Clamp01(voyage.raft.x / voyage.length);
 
     void StartVoyage()
     {
         LeaveRoom(); // online: you're alone at sea until you reach the next island
-        RememberIsland(); // so you can sail back to it later
+        if (!atHome) RememberIsland(); // so you can sail back to it later (from home: sailing to a friend)
         if (world != null) Destroy(world.gameObject);
         world = new GameObject("Voyage").transform;
         world.SetParent(transform);
@@ -41,10 +44,12 @@ public partial class IslandGame
         player = null; cursor = null; target = null; enemyTarget = null; pond = null; seaSpot = null;
 
         // Later islands are further away; going back along a route you know is quicker.
-        float length = NewIslandTrip ? 36f + 4f * Mathf.Min(island, 6) : 22f + 4f * Mathf.Min(Mathf.Abs(destIsland - island), 4);
+        float length = voyageVisit != null ? 30f
+                     : NewIslandTrip ? 36f + 4f * Mathf.Min(destIsland, 6) : 22f + 4f * Mathf.Min(Mathf.Abs(destIsland - island), 4);
+        if (voyageVisit == null && destContinent != continent) length += 16f; // across the open ocean to another continent
         voyage = new Voyage { length = length };
         BuildIslet(new Vector2(-7f, 0f), biome, 3.5f);                             // the island you're leaving
-        BuildIslet(new Vector2(voyage.length + 7f, 0f), BiomeOf(destIsland), 5f); // where you're heading
+        BuildIslet(new Vector2(voyage.length + 7f, 0f), voyageVisit != null ? Biome.Tropical : BiomeOf(destIsland, destContinent), 5f); // where you're heading
 
         var wavesRoot = new GameObject("Waves").transform;
         wavesRoot.SetParent(world);
@@ -70,7 +75,7 @@ public partial class IslandGame
             SpawnSea(SeaKind.Jellyfish, new Vector2(Random.Range(6f, voyage.length - 3f), Random.Range(-5f, 5f)));
 
         camPos = voyage.raft;
-        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไปเกาะที่ {destIsland} ระวังฉลามด้วย!", 6f);
+        Hint($"พายไปทางตะวันออก (D / ขวา) เพื่อไป{VoyageDestName} ระวังฉลามด้วย!", 6f);
     }
 
     void EndVoyage() => voyage = null; // the world itself is replaced by StartGame

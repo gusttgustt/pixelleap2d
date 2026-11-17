@@ -19,7 +19,7 @@ public partial class IslandGame
 
     public static string PetSpecies(int code) => code switch
     {
-        0 => "หมา", 1 => "แมว", 2 => "กระต่าย", 3 => "นกแก้ว",
+        0 => "หมา", 1 => "แมว", 2 => "กระต่าย", 3 => "นกแก้ว", 4 => "ปลาทอง",
         _ => code >= 100 ? EnemyName((EnemyKind)(code - 100)) : "สัตว์เลี้ยง",
     };
 
@@ -106,6 +106,7 @@ public partial class IslandGame
             1 => r < 0.6 ? Item.RawFish : r < 0.85 ? Item.Feather : Item.GoldCoin,
             2 => r < 0.35 ? Item.Carrot : r < 0.75 ? Item.Berry : Item.Fiber,
             3 => r < 0.4 ? Item.Fruit : r < 0.72 ? Item.Feather : Item.GoldCoin,
+            4 => r < 0.5 ? Item.RawFish : r < 0.85 ? Item.ShellShard : Item.GoldCoin,
             _ => shelly ? (r < 0.5 ? Item.ShellShard : Item.CrabMeat)
                         : r < 0.45 ? Item.Fiber : r < 0.8 ? Item.Berry : Item.Stick,
         };
@@ -126,6 +127,51 @@ public partial class IslandGame
             var gp = ToGui(p.transform.position + Vector3.up * 0.55f, s);
             ShadowLabel(new Rect(gp.x - 60, gp.y - 16, 120, 16), p.petName, st, new Color(1f, 0.8f, 0.88f));
         }
+    }
+
+    // ------------------------------------------------------------------ your first pet
+    /// A new player picks a companion: dog, cat, bird or fish. Asked once per session until chosen
+    /// (remembered in PlayerPrefs; anyone who already owns a pet is never asked).
+    const string StarterPetKey = "starter_pet_chosen";
+    bool starterAsked;
+    static readonly (int code, string label)[] StarterPets =
+    {
+        (0, "หมา: คาบกิ่งไม้ หิน บางทีก็เหรียญทองมาให้"),
+        (1, "แมว: จับปลา และคาบขนนกมาให้"),
+        (3, "นก (นกแก้ว): เก็บผลไม้ ขนนก และเหรียญทอง"),
+        (4, "ปลา (ปลาทองในโหล ลอยตามคุณ): หาปลาและเปลือกหอย"),
+    };
+
+    void TickStarterPet()
+    {
+        if (starterAsked || title || player == null || dead || visiting || voyage != null || Busy || dialog != null) return;
+        if (pets.Count > 0) { starterAsked = true; PlayerPrefs.SetInt(StarterPetKey, 1); return; }
+        if (PlayerPrefs.GetInt(StarterPetKey, 0) != 0) { starterAsked = true; return; }
+        if (Time.time - lastInteract < 1.5f) return; // let the island appear first
+        starterAsked = true;
+        var d = new Dialog { speaker = "เลือกสัตว์เลี้ยงคู่ใจตัวแรก", text = "เพื่อนตัวแรกจะเดินตามคุณไปทุกเกาะ และคาบของมาให้เป็นระยะ\nเลือกได้ 1 ตัวฟรี (ตัวอื่นซื้อเพิ่มได้ที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)" };
+        foreach (var (code, label) in StarterPets)
+        {
+            int c = code;
+            d.options.Add((label, () => ChooseStarterPet(c), true));
+        }
+        d.options.Add(("ไว้ทีหลัง", CloseDialog, true));
+        dialog = d;
+        craftOpen = false; skillsOpen = false; bagOpen = false;
+    }
+
+    void ChooseStarterPet(int code)
+    {
+        CloseDialog();
+        var p = AddPet(code);
+        activePet = pets.IndexOf(p);
+        RespawnPets();
+        PlayerPrefs.SetInt(StarterPetKey, 1);
+        PlayerPrefs.Save();
+        if (petObj != null) Fx.Burst(petObj.transform.position + Vector3.up * 0.4f, new Color(1f, 0.45f, 0.55f), 12, 0.8f, 1.2f, 1f, 2f);
+        Sfx.Play("levelup", 0.5f);
+        Hint($"ได้{PetSpecies(code)}ชื่อ \"{p.name}\" แล้ว! มันจะเดินตามคุณไปทุกที่ กด P เพื่อตั้งชื่อใหม่", 5f);
+        SaveGame();
     }
 
     // ------------------------------------------------------------------ getting pets

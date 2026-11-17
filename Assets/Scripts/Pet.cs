@@ -122,7 +122,8 @@ public class Pet : MonoBehaviour
     {
         height = Mathf.Lerp(height, IslandGame.I.HeightAt(grid), 1f - Mathf.Exp(-12f * Time.deltaTime));
         Vector3 flat = IslandGame.GridToWorld(grid);
-        transform.position = flat + Vector3.up * height;
+        float lift = code == 4 ? 0.16f + 0.04f * Mathf.Sin(Time.time * 2.6f + grid.x) : 0f; // the fish bowl floats
+        transform.position = flat + Vector3.up * (height + lift);
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         int frame = moving ? 1 + ((int)animT & 1) : 0;
         sr.sprite = PixelArt.Pet(code, frame);

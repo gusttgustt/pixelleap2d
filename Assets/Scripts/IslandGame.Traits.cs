@@ -48,7 +48,8 @@ public partial class IslandGame
     void ComputeTraits()
     {
         var r = new System.Random(seed ^ (island * 7777));
-        T = new Traits { name = IslandName(island), axis = (float)r.NextDouble() * Mathf.PI * 2f };
+        T = new Traits { name = IslandName(island + continent * 31), // other continents name their islands differently
+            axis = (float)r.NextDouble() * Mathf.PI * 2f };
         if (island <= 1) { T.landmarks.Add(Landmark.Wreck); return; } // keep the first island simple
 
         T.shape = (Shape)r.Next(System.Enum.GetValues(typeof(Shape)).Length);
