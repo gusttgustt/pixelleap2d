@@ -42,6 +42,8 @@ public partial class IslandGame
     const float AboardLeash = 8f;    // walk further than this from the captain and you're off the boat
 
     bool IsCaptain => crewMates.Count > 0;
+    /// How to climb aboard on this device (phones have no L key).
+    string BoardHow => touchUsed ? "แตะปุ่ม \"ขึ้นเรือ\"" : "กด L (หรือคลิกปุ่ม \"ขึ้นเรือ\")";
     bool InCrew => crewCaptain != 0;
 
     void SendCrew(int to, string ev, int island = 0, int d = 0, float x = 0f, float y = 0f, int look = 0)
@@ -67,7 +69,7 @@ public partial class IslandGame
                 break;
             case "added": // the captain took me on
             case "accepted": // the player I invited said yes
-                if (m.ev == "added") { JoinCrew(m.from, who); Hint($"เป็นลูกเรือของ {who} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้วกด L เพื่อขึ้นเรือ", 5f); }
+                if (m.ev == "added") { JoinCrew(m.from, who); Hint($"เป็นลูกเรือของ {who} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้ว{BoardHow}", 5f); }
                 else { AddMate(m.from, who); crewBoatT = 0f; Hint($"{who} มาเป็นลูกเรือแล้ว", 4f); }
                 break;
             case "no":
@@ -181,13 +183,13 @@ public partial class IslandGame
         }
         if (!NearCaptainOrBoat(BoardReach))
         {
-            Hint(CapBoatHere ? $"เดินไปที่เรือของ {crewCaptainName} (มีป้ายบอกอยู่) หรือไปหาตัวกัปตัน แล้วกด L เพื่อขึ้นเรือ"
-                             : $"เดินไปให้ใกล้กัปตัน {crewCaptainName} ก่อน แล้วกด L เพื่อขึ้นเรือ", 3f);
+            Hint(CapBoatHere ? $"เดินไปที่เรือของ {crewCaptainName} (มีป้ายบอกอยู่) หรือไปหาตัวกัปตัน แล้ว{BoardHow}"
+                             : $"เดินไปให้ใกล้กัปตัน {crewCaptainName} ก่อน แล้ว{BoardHow}", 3f);
             return;
         }
         aboard = true;
         SendCrew(crewCaptain, "board", look: lookCode);
-        Hint("ขึ้นเรือแล้ว! เมื่อกัปตันออกเรือ คุณจะไปด้วย (L อีกครั้งเพื่อลงจากเรือ)", 4f);
+        Hint(touchUsed ? "ขึ้นเรือแล้ว! เมื่อกัปตันออกเรือ คุณจะไปด้วย (แตะ \"ลงจากเรือ\" เพื่อลง)" : "ขึ้นเรือแล้ว! เมื่อกัปตันออกเรือ คุณจะไปด้วย (L อีกครั้งเพื่อลงจากเรือ)", 4f);
         Sfx.Play("pickup", 0.6f);
     }
 
@@ -215,7 +217,7 @@ public partial class IslandGame
         if (aboard)
         {
             if (!remotes.TryGetValue(crewCaptain, out var cap) || cap == null) { aboard = false; Hint("กัปตันออกจากเกาะไปแล้ว รอให้กัปตันกลับมารับ", 4f); }
-            else if (!NearCaptainOrBoat(AboardLeash)) { aboard = false; SendCrew(crewCaptain, "unboard"); Hint("เดินห่างกัปตันและเรือเกินไป ลงจากเรือแล้ว (กลับไปกด L เพื่อขึ้นเรือ)", 4f); }
+            else if (!NearCaptainOrBoat(AboardLeash)) { aboard = false; SendCrew(crewCaptain, "unboard"); Hint($"เดินห่างกัปตันและเรือเกินไป ลงจากเรือแล้ว (กลับไปที่เรือแล้ว{BoardHow})", 4f); }
         }
         if (crewAboard.Count > 0) crewAboard.RemoveWhere(id => !remotes.ContainsKey(id));
     }
@@ -263,11 +265,15 @@ public partial class IslandGame
     {
         if (capBoatSr == null || !capBoatSr.enabled || !CapBoatHere) return;
         var gp = ToGui(capBoatSr.transform.position + Vector3.up * (PixelArt.BoatHeight(capBoatLook) * 0.8f + 0.2f), s);
-        string text = aboard ? $"เรือของ {crewCaptainName} <color=#9dff9d>(คุณอยู่บนเรือ)</color>"
-                    : NearCaptainOrBoat(BoardReach) ? $"เรือของ {crewCaptainName} <color=#ffe27a>กด L ขึ้นเรือ</color>"
-                    : $"เรือของ {crewCaptainName}";
-        float bounce = aboard ? 0f : Mathf.Sin(Time.time * 3f) * 2f;
-        ShadowLabel(new Rect(gp.x - 120, gp.y - 20 + bounce, 240, 18), text, smallCenter, new Color(0.75f, 0.95f, 1f));
+        bool near = NearCaptainOrBoat(BoardReach);
+        string text = aboard ? $"เรือของ {crewCaptainName} <color=#9dff9d>(คุณอยู่บนเรือ)</color>" : $"เรือของ {crewCaptainName}";
+        float bounce = aboard || near ? 0f : Mathf.Sin(Time.time * 3f) * 2f;
+        ShadowLabel(new Rect(gp.x - 120, gp.y - 44 + bounce, 240, 18), text, smallCenter, new Color(0.75f, 0.95f, 1f));
+        if (!aboard && !near) return;
+        var st = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
+        st.normal.textColor = aboard ? Color.white : new Color(1f, 0.9f, 0.4f);
+        var br = new Rect(gp.x - 60, gp.y - 24, 120, 26);
+        if (CrispGUI.Button(br, aboard ? "ลงจากเรือ" : touchUsed ? "ขึ้นเรือ" : "ขึ้นเรือ (L)", st)) ToggleAboard();
     }
 
     /// At sea, every frame after the boat moved. A passenger's boat goes where the captain's is;
@@ -343,10 +349,12 @@ public partial class IslandGame
         var st = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
         st.normal.textColor = aboard ? new Color(0.6f, 1f, 0.7f) : new Color(0.7f, 0.9f, 1f);
         st.hover.textColor = Color.white;
-        string label = InCrew ? (aboard ? $"บนเรือ {crewCaptainName} (L)" : $"ลูกเรือของ {crewCaptainName} (L)")
+        bool canBoard = InCrew && !aboard && NearCaptainOrBoat(BoardReach);
+        string label = InCrew ? (aboard ? $"บนเรือ {crewCaptainName} (L)" : canBoard ? "ขึ้นเรือกัปตัน (L)" : $"ลูกเรือของ {crewCaptainName} (L)")
                      : IsCaptain ? $"ลูกเรือ {crewAboard.Count}/{crewMates.Count} บนเรือ (L)" : "ลูกเรือ (L)";
         var r = new Rect(W - 182, hudButtonsBottom + 4f, 172, 22);
-        if (CrispGUI.Button(r, label, st)) crewOpen = !crewOpen;
+        if (canBoard) st.normal.textColor = new Color(1f, 0.9f, 0.4f);
+        if (CrispGUI.Button(r, label, st)) { if (canBoard) ToggleAboard(); else crewOpen = !crewOpen; }
         hudButtonsBottom = r.yMax;
     }
 
@@ -366,12 +374,13 @@ public partial class IslandGame
         ShadowLabel(new Rect(box.x + 10, box.y + 6, 260, 20), "ลูกเรือ", titleSt, new Color(0.7f, 0.9f, 1f));
         if (CrispGUI.Button(new Rect(box.xMax - 62, box.y + 6, 54, 20), "ปิด", btn)) { crewOpen = false; return; }
 
-        string status = InCrew ? $"ลูกเรือของ <b>{crewCaptainName}</b> · {(aboard ? "<color=#9dff9d>อยู่บนเรือ</color>" : "ยังไม่ขึ้นเรือ (ไปที่เรือหรือตัวกัปตันแล้วกด L)")}"
+        string status = InCrew ? $"ลูกเรือของ <b>{crewCaptainName}</b> · {(aboard ? "<color=#9dff9d>อยู่บนเรือ</color>" : "ยังไม่ขึ้นเรือ")}"
                       : IsCaptain ? $"คุณเป็นกัปตัน · ลูกเรือ {crewMates.Count} คน ขึ้นเรือแล้ว {crewAboard.Count} คน"
                       : raftLevel > 0 ? "ชวนคนบนเกาะนี้มาเป็นลูกเรือของคุณ" : "สมัครเป็นลูกเรือของคนที่มีเรือ";
         if (InCrew && !aboard && remotes.ContainsKey(crewCaptain) && !CapBoatHere)
             status += " <color=#ffb08a>(ไม่เห็นเรือ: ให้กัปตันอัปเดตเกม)</color>";
-        CrispGUI.Label(new Rect(box.x + 10, box.y + 30, box.width - 20, 18), status, line);
+        CrispGUI.Label(new Rect(box.x + 10, box.y + 30, box.width - (InCrew ? 120 : 20), 18), status, line);
+        if (InCrew && CrispGUI.Button(new Rect(box.xMax - 104, box.y + 28, 96, 22), aboard ? "ลงจากเรือ" : "ขึ้นเรือ", btn)) ToggleAboard();
         float y = box.y + 52;
         if (others.Count == 0) CrispGUI.Label(new Rect(box.x + 10, y + 4, box.width - 20, 18), "<color=#b8c0c8>ยังไม่มีผู้เล่นคนอื่นบนเกาะนี้</color>", line);
         foreach (var rp in others)
@@ -414,7 +423,7 @@ public partial class IslandGame
         if (CrispGUI.Button(new Rect(box.x + 30, box.y + 38, 130, 26), crewAsk.ev == "apply" ? "รับเป็นลูกเรือ" : "ตกลง", btn))
         {
             if (crewAsk.ev == "apply") { AddMate(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "added"); crewBoatT = 0.5f; Hint($"{crewAsk.name} เป็นลูกเรือของคุณแล้ว", 3f); }
-            else { JoinCrew(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "accepted"); Hint($"เป็นลูกเรือของ {crewAsk.name} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้วกด L เพื่อขึ้นเรือ", 5f); }
+            else { JoinCrew(crewAsk.id, crewAsk.name); SendCrew(crewAsk.id, "accepted"); Hint($"เป็นลูกเรือของ {crewAsk.name} แล้ว! เดินไปที่เรือของกัปตัน (หรือตัวกัปตัน) แล้ว{BoardHow}", 5f); }
             crewAsk = (0, "", "");
         }
         if (CrispGUI.Button(new Rect(box.xMax - 160, box.y + 38, 130, 26), "ไม่", btn))
