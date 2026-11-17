@@ -445,13 +445,11 @@ public partial class IslandGame
         y += 60;
         if (!CharacterLook.CanChoose)
         {
-            // ready-made characters only: < > steps through Presets[1..]
-            int n = CharacterLook.Presets.Length - 1;
-            int pick = Chooser(x, y, w, "ตัวละคร", Mathf.Max(0, look.preset - 1), n, null, CharacterLook.Presets[Mathf.Max(1, look.preset)]);
-            if (pick + 1 != look.preset) look = new CharacterLook { preset = pick + 1, gender = 1, style = 1 };
-            var note = new GUIStyle(small) { wordWrap = true };
-            ShadowLabel(new Rect(x, y + 34, w, 40), $"กด < > เพื่อเลือกตัวละคร ({look.preset}/{n})  ·  หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม", note, new Color(1f, 1f, 1f, 0.75f));
-            DrawAccount(x, box.y + 176, w); // log in to play the same character anywhere (IslandGame.Account.cs)
+            // ready-made characters only: all of them side by side, tap one to pick it
+            ShadowLabel(new Rect(x, y, w, 20), "ตัวละคร  <size=11>(แตะเพื่อเลือก)</size>", label);
+            DrawCharacterCards(x, y + 20, w, 96);
+            ShadowLabel(new Rect(x, y + 118, w, 18), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม", small, new Color(1f, 1f, 1f, 0.6f));
+            DrawAccount(x, box.y + 216, w); // log in to play the same character anywhere (IslandGame.Account.cs)
         }
         else
         {
@@ -508,6 +506,36 @@ public partial class IslandGame
             buildTimeText = $"อัปเดตล่าสุด {th.Day} {ThaiMonths[th.Month - 1]} {th.Year + 543} เวลา {th:HH:mm} น.";
         }
         return buildTimeText.Length > 0 ? buildTimeText : null;
+    }
+
+    /// The ready-made characters as cards in a row (Presets[1..]): each shows the character and
+    /// its name, the picked one walks and has a gold frame. Tap / click a card to pick it.
+    void DrawCharacterCards(float x, float y, float w, float h)
+    {
+        int n = CharacterLook.Presets.Length - 1;
+        const float gap = 6f;
+        float cw = (w - gap * (n - 1)) / n;
+        var name = new GUIStyle(smallCenter) { wordWrap = true, fontSize = 11 };
+        Vector2 mouse = Event.current.mousePosition;
+        for (int i = 1; i <= n; i++)
+        {
+            var r = new Rect(x + (i - 1) * (cw + gap), y, cw, h);
+            bool picked = look.preset == i, hover = GUI.enabled && r.Contains(mouse);
+            Fill(r, picked ? new Color(1f, 0.85f, 0.3f, 0.95f) : hover ? new Color(1f, 1f, 1f, 0.45f) : new Color(1f, 1f, 1f, 0.15f));
+            var inner = new Rect(r.x + 2, r.y + 2, r.width - 4, r.height - 4);
+            Fill(inner, picked ? new Color(0.25f, 0.45f, 0.25f, 1f) : new Color(0.16f, 0.26f, 0.16f, 1f));
+            int code = new CharacterLook { preset = i, gender = 1, style = 1 }.Code;
+            int frame = picked ? 1 + (int)(Time.time * 8f) % Mathf.Max(1, PixelArt.WalkFrames(code)) : 0;
+            var sprite = PixelArt.Player(0, frame, null, null, code);
+            if (sprite != null) Icon(new Rect(inner.x + 4, inner.y + 3, inner.width - 8, inner.height - 34), sprite);
+            ShadowLabel(new Rect(inner.x, inner.yMax - 30, inner.width, 28), CharacterLook.Presets[i], name,
+                picked ? new Color(1f, 0.9f, 0.55f) : new Color(1f, 1f, 1f, 0.8f));
+            if (GUI.Button(r, GUIContent.none, GUIStyle.none) && !picked)
+            {
+                look = new CharacterLook { preset = i, gender = 1, style = 1 };
+                Sfx.Play("pickup", 0.3f);
+            }
+        }
     }
 
     /// One "< value >" row of the character creator. Shows a colour swatch or a text value.
