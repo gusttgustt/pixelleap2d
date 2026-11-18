@@ -99,8 +99,11 @@ const server = http.createServer((req, res) => {
   let url;
   try { url = decodeURIComponent((req.url || "/").split("?")[0]); } catch (e) { res.writeHead(400); res.end(); return; }
   if (url === "/status") {
+    // the whole picture only on this PC; through the tunnel (Cloudflare adds cf-connecting-ip) just the count
+    const here = !req.headers["cf-connecting-ip"] && /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress || "");
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ online: playingCount(), connected: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }));
+    res.end(JSON.stringify(here ? { online: playingCount(), connected: clients.size, islands: [...rooms].map(([i, r]) => ({ island: i, players: r.order.length })) }
+                                : { online: playingCount() }));
     return;
   }
   const host = (req.headers.host || "").split(":")[0];
@@ -241,7 +244,7 @@ function allowed(socket, size) {
 
 function room(island) {
   let r = rooms.get(island);
-  if (!r) { r = { order: [], events: new Map() }; rooms.set(island, r); }
+  if (!r) { r = { order: [], events: new Map(), emptySince: 0 }; rooms.set(island, r); }
   return r;
 }
 
@@ -261,7 +264,19 @@ function leaveRoom(socket) {
   r.order = r.order.filter(id => id !== socket.pid);
   toRoom(island, { t: "left", from: socket.pid });
   if (wasHost && r.order.length > 0) toRoom(island, { t: "host", host: r.order[0] });
+  if (r.order.length === 0) {
+    if (island < 0 || r.events.size === 0) rooms.delete(island); // a private island keeps nothing here; nothing to remember
+    else r.emptySince = Date.now();                              // an island's changes stay a while for the next visitor
+  }
 }
+
+// Islands nobody has been on for ROOM_KEEP are forgotten (their changes too): the server's memory
+// no longer grows with every island, channel, cave and prison floor ever visited.
+const ROOM_KEEP = 6 * 60 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [island, r] of rooms) if (r.order.length === 0 && now - (r.emptySince || now) > ROOM_KEEP) rooms.delete(island);
+}, 10 * 60 * 1000).unref();
 
 /// World changes still worth telling a newcomer, with how long ago they happened.
 function liveEvents(r) {
@@ -295,7 +310,7 @@ function onMessage(socket, text) {
     if (socket.pid) return;
     clearTimeout(socket.helloTimer);
     socket.pid = nextId++;
-    socket.baseName = String(m.name || "Islander").trim().slice(0, 16) || "Islander";
+    socket.baseName = cleanText(m.name, 16) || "Islander";
     nameCheck(socket);
     clients.set(socket.pid, socket);
     send(socket, { t: "welcome", id: socket.pid, worldSeed: WORLD_SEED });
@@ -306,6 +321,8 @@ function onMessage(socket, text) {
   m.from = socket.pid;          // no one can speak for someone else
   const named = m.t !== "register" && m.t !== "login" && m.t !== "token";
   if (named && m.name !== undefined) m.name = socket.name; // nor go by another name than the one checked at hello
+
+  if (m.t === "chat") { m.text = cleanText(m.text, 80); if (!m.text) return; } // nothing oversized, no rich-text tags
 
   switch (m.t) {
     case "join": {
@@ -435,6 +452,12 @@ function isHostOf(socket) {
   return socket.island < 0 && onHomeOf(socket, socket.pid);
 }
 
+/// Words players type (names, chat): no rich-text tags (< >) that would resize or recolour the
+/// screen for everyone, no control characters, and a sane length.
+function cleanText(v, max) {
+  return String(v == null ? "" : v).replace(/[<>\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
+}
+
 /// The name others see. A player's name is free to choose, but the name of an account
 /// belongs to that account: anyone else using it gets a "?" after it (e.g. "Gust?"), so
 /// nobody can pass as someone else in chat. Logging in to that account takes the "?" away.
@@ -461,6 +484,7 @@ let board = {};                       // "a:<account>" or "g:<guest name>" -> { 
     board = {};
     if (fs.existsSync(file)) { try { fs.renameSync(file, file + ".broken"); } catch (e2) {} console.log("! bounty.json was broken: starting a new board (old one kept as bounty.json.broken)"); }
   }
+  for (const k of Object.keys(board)) if (k.startsWith("g:")) delete board[k]; // guests' posters (anyone could take their name) are gone
 }
 let boardTimer = null;
 function saveBoardSoon() {
@@ -472,9 +496,21 @@ function saveBoardSoon() {
 }
 const boardKey = socket => socket.acct ? "a:" + socket.acct : "g:" + keyOf(socket.name);
 
+const BOUNTY_STEP = 15000000;          // the most a bounty may grow at once (a continent boss's is 3-12 million)
+const BOUNTY_EVERY = 5000;             // ms between rises
+
 function setBounty(socket, m) {
-  const b = Math.max(0, Math.min(2000000000, Math.floor(+m.hits || 0)));
+  // the board everyone sees: logged-in players only (a guest's name isn't theirs to keep), and a
+  // bounty rises no faster than the game can raise it, so a changed game can't top the board at once
+  if (!socket.acct) return;
   const key = boardKey(socket), old = board[key];
+  let b = Math.max(0, Math.min(2000000000, Math.floor(+m.hits || 0)));
+  const was = old ? old.b : 0, now = Date.now();
+  if (b > was) {
+    if (now - (socket.bountyAt || 0) < BOUNTY_EVERY) return;
+    b = Math.min(b, was + BOUNTY_STEP);
+    socket.bountyAt = now;
+  }
   if (socket.acct) delete board["g:" + keyOf(socket.name)]; // played as a guest before making the account
   if (old && old.b === b && old.lk === (m.look | 0) && old.name === socket.name) return;
   board[key] = { name: socket.name, b, lk: m.look | 0, at: Date.now() };
@@ -673,7 +709,7 @@ async function onAccount(socket, m) {
   socket.tries = (socket.tries || 0) + 1;
   if (socket.tries > 20) { send(socket, { t: "auth", hits: 0, why: "ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่" }); return; }
   const name = String(m.name || "").trim(), key = keyOf(name), pass = String(m.text || "").slice(0, 200);
-  const ipId = "ip:" + socket.ip, acctId = "acct:" + key;
+  const ipId = "ip:" + socket.ip, acctId = "acct:" + key + "@" + socket.ip; // wrong passwords from one address lock that address out of the account, not its owner everywhere
   socket.authBusy = true;
   try {
     if (m.t === "register") {
@@ -714,7 +750,7 @@ async function onAccount(socket, m) {
     if (socket.destroyed) return;
     if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) {
       failed(ipId); failed(acctId);
-      if (locked(acctId)) log("! account " + acc.name + " locked for 15 min (wrong passwords, last from " + socket.ip + ")");
+      if (locked(acctId)) log("! account " + acc.name + " locked for 15 min from " + socket.ip + " (wrong passwords)");
       send(socket, { t: "auth", hits: 0, why: locked(ipId) || locked(acctId) ? TOO_MANY : "รหัสผ่านไม่ถูกต้อง" });
       return;
     }

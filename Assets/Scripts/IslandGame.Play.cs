@@ -33,6 +33,7 @@ public partial class IslandGame
 
         if (title) { UpdateTitle(); return; }
         NetPoll();
+        TickReconnect(); // back online after a drop (IslandGame.Reconnect.cs)
         TickCloud(dt); // logged in: the server keeps a copy of the save (IslandGame.Account.cs)
         TickBounty(dt); // milestones and the board of wanted posters (IslandGame.Bounty.cs)
         TickVisit(dt); // online: keep the server's copy of your private island fresh (IslandGame.Visit.cs)

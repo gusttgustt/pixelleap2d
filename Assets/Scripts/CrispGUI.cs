@@ -26,8 +26,10 @@ public static class CrispGUI
     public static void Label(Rect r, GUIContent c, GUIStyle st)
     {
         c = Translated(c);
-        if (!st.wordWrap) st = Fit(r, c, st);
+        int size = st.fontSize, fit = st.wordWrap ? 0 : FitSize(r.width, c, st);
+        if (fit > 0) st.fontSize = fit; // just for this line (the style is shared): put back below
         if (!Draw(r, c, st, false)) GUI.Label(r, c, st);
+        st.fontSize = size;
     }
 
     // ---- Thai / English (Lang.cs): every word is translated here, just before it's drawn
@@ -42,21 +44,24 @@ public static class CrispGUI
     }
 
     /// English runs longer than Thai: a line wider than its box is drawn smaller to fit (down to
-    /// 75% of its size; past that it overflows as before). Thai text is left alone.
-    static readonly Dictionary<(GUIStyle, int), GUIStyle> fitted = new Dictionary<(GUIStyle, int), GUIStyle>();
-    static GUIStyle Fit(Rect r, GUIContent c, GUIStyle st)
+    /// 75% of its size; past that it overflows as before). Thai text is left alone. Returns the size
+    /// to draw at, or 0 for "as it is". The caller sets it on the style and puts it back after, so no
+    /// style is copied; the measured widths are kept, since the same lines come every frame.
+    static readonly Dictionary<(string, int, FontStyle, bool), float> widths = new Dictionary<(string, int, FontStyle, bool), float>();
+    static int FitSize(float width, GUIContent c, GUIStyle st)
     {
-        if (!Lang.English || string.IsNullOrEmpty(c.text) || r.width < 8f || c.image != null) return st;
-        float w = st.CalcSize(c).x;
-        if (w <= r.width + 1f) return st;
+        if (!Lang.English || string.IsNullOrEmpty(c.text) || width < 8f || c.image != null) return 0;
         int size = st.fontSize > 0 ? st.fontSize : 13;
-        int want = Mathf.Max(Mathf.CeilToInt(size * 0.75f), Mathf.FloorToInt(size * (r.width + 1f) / w));
-        if (want >= size) return st;
-        if (fitted.Count > 400) fitted.Clear();
-        if (!fitted.TryGetValue((st, want), out var f)) { f = new GUIStyle(st) { fontSize = want }; fitted[(st, want)] = f; }
-        f.normal.textColor = st.normal.textColor; // ShadowLabel changes the colour on the same style
-        f.hover.textColor = st.hover.textColor;
-        return f;
+        var key = (c.text, size, st.fontStyle, st.richText);
+        if (!widths.TryGetValue(key, out float w))
+        {
+            if (widths.Count > 3000) widths.Clear(); // counters and timers make new lines all the time
+            w = st.CalcSize(c).x;
+            widths[key] = w;
+        }
+        if (w <= width + 1f) return 0;
+        int want = Mathf.Max(Mathf.CeilToInt(size * 0.75f), Mathf.FloorToInt(size * (width + 1f) / w));
+        return want < size ? want : 0;
     }
 
     public static bool Button(Rect r, string text) => Button(r, text, GUI.skin.button);
@@ -68,12 +73,17 @@ public static class CrispGUI
     public static bool Button(Rect r, GUIContent c, GUIStyle st)
     {
         c = Translated(c);
-        st = Fit(new Rect(r.x, r.y, r.width - st.padding.horizontal, r.height), c, st);
-        if (string.IsNullOrEmpty(c.text) || !Scaled(out _)) return GUI.Button(r, c, st);
-        var plain = c.image != null ? new GUIContent(c.image, c.tooltip) : GUIContent.none;
-        bool clicked = GUI.Button(r, plain, st); // the box and the click, as before
-        if (c.image == null) Draw(r, c, st, true); // then the words on top, sharp
-        return clicked;
+        int size = st.fontSize, fit = FitSize(r.width - st.padding.horizontal, c, st);
+        if (fit > 0) st.fontSize = fit; // just for this button: put back below
+        try
+        {
+            if (string.IsNullOrEmpty(c.text) || !Scaled(out _)) return GUI.Button(r, c, st);
+            var plain = c.image != null ? new GUIContent(c.image, c.tooltip) : GUIContent.none;
+            bool clicked = GUI.Button(r, plain, st); // the box and the click, as before
+            if (c.image == null) Draw(r, c, st, true); // then the words on top, sharp
+            return clicked;
+        }
+        finally { st.fontSize = size; }
     }
 
     static bool Scaled(out float s)

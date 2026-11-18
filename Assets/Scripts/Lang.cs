@@ -40,6 +40,17 @@ public static class Lang
 
     public static GUIContent Content(string s) => new GUIContent(Tr(s));
 
+    // players' names: never translated, even when one happens to be a word in the dictionary
+    // (someone called "แมว" stays "แมว", not "Cat") - the game tells us each name it shows
+    static readonly HashSet<string> names = new HashSet<string>();
+    public static void Name(string n)
+    {
+        if (string.IsNullOrEmpty(n) || names.Contains(n)) return;
+        if (names.Count > 1000) names.Clear();
+        names.Add(n);
+        cache.Clear(); // a line with that name may already be cached translated
+    }
+
     static bool HasThai(string s)
     {
         foreach (char c in s) if (c >= '฀' && c <= '๿') return true;
@@ -144,7 +155,7 @@ public static class Lang
             for (int i = 1; i < m.Groups.Count; i++)
             {
                 string v = m.Groups[i].Value;
-                args[i - 1] = HasThai(v) ? (Whole(v, depth + 1) ?? (depth == 0 ? Parts(v) : v)) : v;
+                args[i - 1] = !HasThai(v) || names.Contains(v) ? v : (Whole(v, depth + 1) ?? (depth == 0 ? Parts(v) : v));
             }
             try { return string.Format(p.en, args); } catch (System.FormatException) { return null; }
         }
@@ -174,7 +185,7 @@ public static class Lang
     {
         string lead = s.Substring(0, s.Length - s.TrimStart().Length), trail = s.Substring(s.TrimEnd().Length);
         string core = s.Trim();
-        if (core.Length == 0) return s;
+        if (core.Length == 0 || names.Contains(core)) return s;
         if (exact.TryGetValue(core, out var en)) return lead + en + trail;
         if (pieces == null) return s;
         string cur = core;

@@ -83,6 +83,7 @@ public partial class IslandGame
 
     void OnAuth(NetMsg m)
     {
+        if (reauthPending) { OnReauth(m); return; } // logging in again after a drop (IslandGame.Reconnect.cs)
         if (!title || pendingAuth == null) return;
         bool byToken = pendingAuth == "token";
         pendingAuth = null;

@@ -31,6 +31,7 @@ public class RemotePlayer : MonoBehaviour
     {
         netId = id;
         playerName = string.IsNullOrEmpty(name) ? "ผู้เล่น " + id : name;
+        Lang.Name(playerName);
         atSea = sea;
         sr = gameObject.AddComponent<SpriteRenderer>();
         if (sea)
@@ -64,7 +65,7 @@ public class RemotePlayer : MonoBehaviour
         look = Mathf.Max(0, m.look);
         awaken = (Power)m.aw;
         boatLook = Mathf.Max(0, m.kind);
-        if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
+        if (!string.IsNullOrEmpty(m.name)) { playerName = m.name; Lang.Name(playerName); }
     }
 
     public void Apply(NetMsg m)
@@ -80,7 +81,7 @@ public class RemotePlayer : MonoBehaviour
         outfit = m.outfit > 0 ? (Item)(m.outfit - 1) : (Item?)null;
         level = Mathf.Max(1, m.lv);
         look = Mathf.Max(0, m.look);
-        if (!string.IsNullOrEmpty(m.name)) playerName = m.name;
+        if (!string.IsNullOrEmpty(m.name)) { playerName = m.name; Lang.Name(playerName); }
         bool wasDown = downed;
         downed = m.dn == 1;
         if (downed && !wasDown) IslandGame.I.FriendDowned(this);

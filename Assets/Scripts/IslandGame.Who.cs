@@ -38,6 +38,7 @@ public partial class IslandGame
     {
         onlineTotal = m.hits;
         whoList = m.players;
+        if (whoList != null) foreach (var p in whoList) if (p != null) Lang.Name(p.name); // names stay as typed (Lang.cs)
         // you first, then whoever is where you are, then the rest by place and name
         if (whoList != null)
         {

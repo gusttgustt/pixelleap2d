@@ -62,6 +62,7 @@ public partial class IslandGame
     void KeepCharacter()
     {
         playerName = CleanName(playerName);
+        Lang.Name(playerName); // my own name stays as I typed it in English too
         lookCode = look.Code;
         PlayerPrefs.SetString("playerName", playerName);
         PlayerPrefs.SetInt("look", lookCode);
@@ -152,7 +153,8 @@ public partial class IslandGame
         VisitDisconnected(); // visiting a friend: back home
         foreach (var e in enemies) if (e != null && e.puppet) Destroy(e.gameObject);
         enemies.RemoveAll(e => e == null || e.puppet);
-        if (!title) Hint(kickedWhy != null ? $"{kickedWhy} - เครื่องนี้เล่นออฟไลน์ต่อ (เซฟอยู่ในเครื่องนี้)" : "หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 6f);
+        if (StartReconnect()) Hint("หลุดจากเซิร์ฟเวอร์ - กำลังต่อใหม่...", 4f); // IslandGame.Reconnect.cs
+        else if (!title) Hint(kickedWhy != null ? $"{kickedWhy} - เครื่องนี้เล่นออฟไลน์ต่อ (เซฟอยู่ในเครื่องนี้)" : "หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 6f);
         kickedWhy = null;
     }
 
@@ -214,6 +216,7 @@ public partial class IslandGame
                 serverHomes = false;
                 serverWanted = false; bountyDirty = true; // the board of wanted posters gets my bounty (IslandGame.Bounty.cs)
                 Send(new NetMsg { t = "homes" }); // does this server know private islands? (an older one stays quiet)
+                if (reconnecting) ReconnectWelcomed(); // back online after a drop (IslandGame.Reconnect.cs)
                 break;
 
             case "room":
@@ -352,6 +355,8 @@ public partial class IslandGame
                 break;
 
             case "chat":
+                m.text = CleanPlayerText(m.text, 80); // whatever the server let through: short, no rich-text tags
+                if (m.text.Length == 0) break;
                 string who = remotes.TryGetValue(m.from, out var talker) && talker != null ? talker.playerName : "?";
                 AddChat(who, m.text);
                 if (talker != null) { talker.chat = m.text; talker.chatUntil = Time.time + 6f; }
@@ -544,6 +549,21 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ chat
+    /// Words from another player: at most `max` characters, without < > (rich-text tags would let one
+    /// player resize or recolour everyone's screen) or control characters.
+    static string CleanPlayerText(string s, int max)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        var b = new System.Text.StringBuilder(Mathf.Min(s.Length, max));
+        foreach (char c in s)
+        {
+            if (b.Length >= max) break;
+            if (c == '<' || c == '>' || c < ' ' || c == '') continue;
+            b.Append(c);
+        }
+        return b.ToString().Trim();
+    }
+
     void AddChat(string who, string text)
     {
         if (string.IsNullOrEmpty(text)) return;

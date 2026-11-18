@@ -2013,3 +2013,8 @@ E	ต้องเข้าสู่ระบบใหม่อีกครั้
 E	ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)	Account not found (you can sign up)
 E	รหัสผ่านไม่ถูกต้อง	Wrong password
 E	บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด	This account has newer progress from another device. This device has stopped saving to the account. Go back to the title screen and play online again to load the latest
+E	หลุดจากเซิร์ฟเวอร์ - กำลังต่อใหม่...	Disconnected from the server - reconnecting...
+E	เซิร์ฟเวอร์เพิ่งเริ่มใหม่ - ตอนนี้เล่นออฟไลน์ กลับหน้าแรกแล้วเล่นออนไลน์อีกครั้งเพื่อเจอเพื่อน	The server has just restarted - playing offline now. Go back to the title screen and play online again to meet friends
+E	ต่อเซิร์ฟเวอร์ไม่ได้ - ตอนนี้เล่นออฟไลน์ (กลับหน้าแรกเพื่อเล่นออนไลน์อีกครั้ง)	Can't reach the server - playing offline now (go back to the title screen to play online again)
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)	Reconnected, but you need to log in again (saving on this device for now)
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว	Reconnected

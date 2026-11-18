@@ -148,7 +148,7 @@ public partial class IslandGame
     {
         serverWanted = true;
         wanted.Clear();
-        if (players != null) wanted.AddRange(players);
+        if (players != null) { wanted.AddRange(players); foreach (var p in players) if (p != null) Lang.Name(p.name); }
     }
 
     /// The posters to show, highest bounty first. Mine (c = 1 from the server) shows my bounty as it is now.
