@@ -152,8 +152,11 @@ public partial class IslandGame
         VisitDisconnected(); // visiting a friend: back home
         foreach (var e in enemies) if (e != null && e.puppet) Destroy(e.gameObject);
         enemies.RemoveAll(e => e == null || e.puppet);
-        if (!title) Hint("หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 5f);
+        if (!title) Hint(kickedWhy != null ? $"{kickedWhy} - เครื่องนี้เล่นออฟไลน์ต่อ (เซฟอยู่ในเครื่องนี้)" : "หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์", 6f);
+        kickedWhy = null;
     }
+
+    string kickedWhy; // the server is closing this connection, and why (the same account logged in elsewhere)
 
     void JoinRoom()
     {
@@ -272,6 +275,7 @@ public partial class IslandGame
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
             case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)
             case "who": OnWho(m); break;           // everyone online and where (IslandGame.Who.cs)
+            case "kicked": kickedWhy = string.IsNullOrEmpty(m.why) ? "บัญชีนี้เข้าเล่นจากที่อื่นแล้ว" : m.why; acctName = null; break; // saves stop going to the account
 
             case "p":
                 if (inRoom && voyage == null) AddRemote(m.from, m.name).Apply(m);

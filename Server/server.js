@@ -28,7 +28,8 @@
 //   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
 //                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
 //                        {t:"wanted"}                 -> {t:"wanted", players: [{name, b, lk, c}]}  highest first (c:1 = you)
-//                        {t:"who"}                    -> {t:"who", hits: online, players: [{id, name, isl, c}]}  everyone in the game and their room (c:1 = you; not those still on the title screen)
+//                        {t:"who"}                    -> {t:"who", hits: online, players: [{id, name, isl, c}]}  everyone in the game and their room (c:1 = you; not those still on the title screen, nor gone quiet)
+//   server -> client:     {t:"kicked", why}            this connection is being closed (the same account logged in elsewhere)
 //   Accounts live in DATA_DIR (default Server/data): accounts.json + one file per player's save.
 //   Rooms: adventure islands are 1, 2, 3...; a private island is -(owner*2), its house -(owner*2+1).
 //                        {t:..., to}                  anything else: to one player (to > 0) or the room
@@ -66,7 +67,18 @@ let nextId = 1;
 
 /// Players who have started the game (joined a room at least once). Someone still on the title
 /// screen (choosing a look, logging in) is connected but not counted as online.
-function playingCount() { let n = 0; for (const s of clients.values()) if (s.playing) n++; return n; }
+function playingCount() { let n = 0; for (const s of clients.values()) if (active(s)) n++; return n; }
+
+/// A game in play sends something every few seconds (it asks who's online every 8 s at most).
+/// One that has gone quiet - a phone locked, a tab in the background, a connection that died
+/// without closing - is left out of the online lists after QUIET_HIDE, and cut off after QUIET_DROP.
+const QUIET_HIDE = 45 * 1000, QUIET_DROP = 5 * 60 * 1000;
+function active(s) { return s.playing && Date.now() - (s.lastHeard || 0) < QUIET_HIDE; }
+setInterval(() => {
+  const now = Date.now();
+  for (const s of [...clients.values()])
+    if (now - (s.lastHeard || 0) > QUIET_DROP) { log("! quiet for " + Math.round((now - s.lastHeard) / 1000) + " s, closing " + s.name + " #" + s.pid); s.destroy(); drop(s); }
+}, 30 * 1000).unref();
 
 // ---------- static files (web build) ----------
 
@@ -143,6 +155,7 @@ server.on("upgrade", (req, socket) => {
   socket.bytes = BYTE_BURST;
   socket.lastRefill = Date.now();
   socket.strikes = 0;
+  socket.lastHeard = Date.now();
 
   socket.on("data", chunk => {
     buf = Buffer.concat([buf, chunk]);
@@ -159,6 +172,7 @@ server.on("upgrade", (req, socket) => {
       const payload = Buffer.from(buf.subarray(at, at + len));
       if (masked) for (let i = 0; i < len; i++) payload[i] ^= buf[maskAt + (i & 3)];
       buf = buf.subarray(at + len);
+      socket.lastHeard = Date.now(); // any frame at all: still there
 
       if (op === 0x8) { sendFrame(socket, 0x8, Buffer.alloc(0)); socket.end(); return; }
       if (op === 0x9) { sendFrame(socket, 0xA, payload); continue; }
@@ -334,7 +348,7 @@ function onMessage(socket, text) {
     case "who": {
       // everyone online and where they are (isl = their room: island key, sea, or private island)
       const players = [];
-      for (const [id, s] of clients) if (s.playing) players.push({ id, name: s.name, isl: s.island | 0, c: id === socket.pid ? 1 : 0 });
+      for (const [id, s] of clients) if (active(s) || id === socket.pid) players.push({ id, name: s.name, isl: s.island | 0, c: id === socket.pid ? 1 : 0 });
       send(socket, { t: "who", hits: players.length, players: players.slice(0, 100) });
       return;
     }
@@ -343,7 +357,7 @@ function onMessage(socket, text) {
       return;
     case "homes": {
       const players = [];
-      for (const [id, s] of clients) if (id !== socket.pid && s.home && s.home.text) players.push({ id, name: s.name, c: s.home.c | 0 });
+      for (const [id, s] of clients) if (id !== socket.pid && s.home && s.home.text && active(s)) players.push({ id, name: s.name, c: s.home.c | 0 });
       send(socket, { t: "homes", players: players.slice(0, 40) });
       return;
     }
@@ -507,6 +521,17 @@ function authOk(socket, acc) {
   saveAccountsSoon();
   socket.acct = keyOf(acc.name);
   nameCheck(socket);
+  // one account, one game: an older connection on this account (another device, a tab left open,
+  // one that died without closing) is closed, so it neither shows twice in the lists nor writes
+  // an older save over this one
+  for (const s of [...clients.values()])
+    if (s !== socket && s.acct === socket.acct) {
+      log("  " + acc.name + " logged in again: closing the older connection #" + s.pid);
+      send(s, { t: "kicked", why: "บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว" });
+      s.acct = null; // its saves stop reaching the account right away
+      const old = s;
+      setTimeout(() => { old.destroy(); drop(old); }, 300); // let the message go out first
+    }
   const data = readSave(socket.acct);
   send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "" });
   log("  " + socket.name + " logged in as " + acc.name);

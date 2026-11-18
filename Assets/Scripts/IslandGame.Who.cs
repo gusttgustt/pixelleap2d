@@ -38,6 +38,19 @@ public partial class IslandGame
     {
         onlineTotal = m.hits;
         whoList = m.players;
+        // you first, then whoever is where you are, then the rest by place and name
+        if (whoList != null)
+        {
+            int myRoom = inRoom ? RoomKey : int.MinValue;
+            int Rank(NetPeer p) => p == null ? 3 : p.c == 1 || p.id == myId ? 0 : p.isl != 0 && p.isl == myRoom ? 1 : p.isl == 0 ? 3 : 2;
+            System.Array.Sort(whoList, (a, b) =>
+            {
+                int r = Rank(a).CompareTo(Rank(b));
+                if (r != 0 || a == null || b == null) return r;
+                r = a.isl.CompareTo(b.isl);
+                return r != 0 ? r : string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase);
+            });
+        }
         whoHeardAt = Time.unscaledTime;
         CaveWhoHeard(); // going into a cave waits for this list (IslandGame.Cave.cs)
     }
