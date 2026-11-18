@@ -252,12 +252,18 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ HUD: bag + equipment
-    void DrawBag(float W, float H)
+    Rect BagPanelRect(float W, float H)
     {
         var bar = HotbarRect(W, H);
         float pw = Mathf.Min(W - 20f, 640f);
         float top = 60f, ph = Mathf.Max(220f, bar.y - 10f - top); // never covers the hotbar
-        var panel = new Rect(W / 2f - pw / 2f, top, pw, ph);
+        return new Rect(W / 2f - pw / 2f, top, pw, ph);
+    }
+
+    void DrawBag(float W, float H)
+    {
+        var panel = BagPanelRect(W, H);
+        float pw = panel.width, ph = panel.height;
         Fill(panel, new Color(0.08f, 0.06f, 0.04f, 0.92f));
         Fill(new Rect(panel.x, panel.y, panel.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
         ShadowLabel(new Rect(panel.x + 12, panel.y + 6, 200, 22), "กระเป๋า", label, new Color(1f, 0.85f, 0.3f));

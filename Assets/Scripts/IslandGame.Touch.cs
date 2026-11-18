@@ -27,15 +27,17 @@ public partial class IslandGame
     static Vector2 ActionCenter => new Vector2(GuiW - 82f, GuiH - 120f);
     static Vector2 SmallCenter(TouchBtn b) => b switch
     {
+        // every pair of buttons is at least two tap-radii (2 x 1.3 x SmallR = 65) apart, so a
+        // finger on one can never land on its neighbour (the ⚙ and ☰ above Awaken included)
         TouchBtn.Eat => new Vector2(GuiW - 172f, GuiH - 74f),
-        TouchBtn.Drink => new Vector2(GuiW - 180f, GuiH - 140f),
+        TouchBtn.Drink => new Vector2(GuiW - 182f, GuiH - 144f),
         TouchBtn.Power => new Vector2(GuiW - 120f, GuiH - 200f),
         TouchBtn.PowerAtk => new Vector2(GuiW - 52f, GuiH - 212f),
-        TouchBtn.Awaken => new Vector2(GuiW - 86f, GuiH - 266f), // level 60 (IslandGame.Awaken.cs)
+        TouchBtn.Awaken => new Vector2(GuiW - 92f, GuiH - 272f), // level 60 (IslandGame.Awaken.cs)
         // menus in an arc just above-right of the stick: the left side of the screen above them
         // stays free for the status text and the quest steps (they used to cover it)
         TouchBtn.Bag => new Vector2(198f, GuiH - 152f),
-        TouchBtn.Craft => new Vector2(176f, GuiH - 212f),
+        TouchBtn.Craft => new Vector2(182f, GuiH - 220f),
         // online only, on the right between the E side and the hotbar (IslandGame.ChatMobile.cs / Sticker.cs)
         TouchBtn.Chat => new Vector2(GuiW - 196f, GuiH - 210f),
         TouchBtn.Sticker => new Vector2(GuiW - 254f, GuiH - 164f),
@@ -45,28 +47,93 @@ public partial class IslandGame
 
     bool WhoTouchShown => Online && sailT <= 0f && sleepT <= 0f && (!dead || downed);
 
+    Vector2 TouchCenter(TouchBtn b) => b switch
+    {
+        TouchBtn.Stick => StickCenter,
+        TouchBtn.Action => ActionCenter,
+        TouchBtn.Menu => MenuCenter(GuiW, GuiH),
+        _ => SmallCenter(b),
+    };
+
+    /// How far from its centre a finger still counts as on the button.
+    static float TapRadius(TouchBtn b) => b switch
+    {
+        TouchBtn.Stick => StickR * 1.5f,
+        TouchBtn.Action => ActionR * 1.15f,
+        TouchBtn.Menu => MenuR * 1.3f,
+        _ => SmallR * 1.3f,
+    };
+
+    /// The one rule for whether a touch control is on screen. Drawing and tapping both ask it,
+    /// so an invisible button can never swallow a tap meant for something under it.
+    bool TouchShown(TouchBtn b)
+    {
+        if (!ShowTouch || b == TouchBtn.None) return false;
+        if (b == TouchBtn.Menu) return MenuShown && !PanelCovers(TouchCenter(b), TapRadius(b)); // ☰ (IslandGame.Menu.cs)
+        if (menuOpen) return false; // the open menu: taps go to its buttons
+        if (b == TouchBtn.Who) return WhoTouchShown && (dialog == null || dead) && !PanelCovers(TouchCenter(b), TapRadius(b));
+        if (whoOpen) return false; // the list covers the middle: taps go to its buttons
+        if (dialog != null && !dead) return b == TouchBtn.Action; // talking: only E, so the dialog's choices stay free
+        if (b == TouchBtn.Chat || b == TouchBtn.Sticker)
+            return Shared && (!dead || downed) && sailT <= 0f && !PanelCovers(TouchCenter(b), TapRadius(b));
+        if (dead || sailT > 0f || sleepT > 0f) return false;
+        if (settingsOpen || wantedOpen || helpOpen) return false; // a big panel in the middle: its own buttons only
+        bool on = b switch
+        {
+            TouchBtn.Power or TouchBtn.PowerAtk => power != Power.None,
+            TouchBtn.Awaken => CanAwaken,
+            TouchBtn.Stick or TouchBtn.Action or TouchBtn.Eat or TouchBtn.Drink or TouchBtn.Craft or TouchBtn.Skills or TouchBtn.Bag => true,
+            _ => false,
+        };
+        return on && !PanelCovers(TouchCenter(b), TapRadius(b));
+    }
+
+    // the open bag / crafting / skills / build panel: touch controls that would sit on it step aside
+    // (each panel has its own X), so they neither hide its rows nor catch the taps meant for them
+    int panelFrame = -1;
+    readonly List<Rect> openPanels = new List<Rect>();
+
+    bool PanelCovers(Vector2 c, float r)
+    {
+        if (panelFrame != Time.frameCount)
+        {
+            panelFrame = Time.frameCount;
+            openPanels.Clear();
+            float W = GuiW, H = GuiH;
+            if (bagOpen) openPanels.Add(BagPanelRect(W, H));
+            if (craftOpen) openPanels.Add(CraftPanelRect(W, H, out _));
+            if (skillsOpen) openPanels.Add(SkillsPanelRect(W));
+            if (buildOpen && !Busy) openPanels.Add(BuildPanelRect(W, H));
+        }
+        foreach (var p in openPanels)
+        {
+            var q = new Vector2(Mathf.Clamp(c.x, p.xMin, p.xMax), Mathf.Clamp(c.y, p.yMin, p.yMax));
+            if ((q - c).magnitude < r) return true;
+        }
+        return false;
+    }
+
+    // tested in this order; the stick's wide grab area goes last so the arc of small buttons by it wins
+    static readonly TouchBtn[] HitOrder =
+    {
+        TouchBtn.Menu, TouchBtn.Who, TouchBtn.Action, TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills,
+        TouchBtn.Power, TouchBtn.PowerAtk, TouchBtn.Bag, TouchBtn.Awaken, TouchBtn.Chat, TouchBtn.Sticker, TouchBtn.Stick,
+    };
+
     TouchBtn HitTest(Vector2 p)
     {
-        if (MenuShown && (p - MenuCenter(GuiW, GuiH)).magnitude < MenuR * 1.3f) return TouchBtn.Menu; // ☰ (IslandGame.Menu.cs)
-        if (menuOpen) return TouchBtn.None; // taps go to the menu's buttons
-        if (WhoTouchShown && (p - SmallCenter(TouchBtn.Who)).magnitude < SmallR * 1.3f) return TouchBtn.Who;
-        if (whoOpen) return TouchBtn.None; // the list is open: taps go to its buttons, not the controls under it
-        if (dead)
+        // the nearest shown button whose tap circle holds the finger (not just the first in the list)
+        TouchBtn best = TouchBtn.None; float bestD = float.MaxValue;
+        foreach (var b in HitOrder)
         {
-            if (downed && Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
-            if (downed && Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
-            return TouchBtn.None;
+            if (!TouchShown(b)) continue;
+            float d = (p - TouchCenter(b)).magnitude, r = TapRadius(b);
+            if (d >= r) continue;
+            if (b == TouchBtn.Stick && best != TouchBtn.None) break; // a small button by the stick wins
+            float rel = d / r;
+            if (rel < bestD) { bestD = rel; best = b; }
         }
-        if ((p - ActionCenter).magnitude < ActionR * 1.15f) return TouchBtn.Action;
-        if (dialog != null) return TouchBtn.None; // talking: only E (it closes / goes on); taps reach the dialog's own buttons
-        // the small buttons first: the menu arc sits close to the stick's grab area
-        foreach (var b in new[] { TouchBtn.Eat, TouchBtn.Drink, TouchBtn.Craft, TouchBtn.Skills, TouchBtn.Power, TouchBtn.PowerAtk, TouchBtn.Bag })
-            if ((b != TouchBtn.Power && b != TouchBtn.PowerAtk || power != Power.None) && (p - SmallCenter(b)).magnitude < SmallR * 1.3f) return b;
-        if (CanAwaken && (p - SmallCenter(TouchBtn.Awaken)).magnitude < SmallR * 1.3f) return TouchBtn.Awaken;
-        if (Shared && (p - SmallCenter(TouchBtn.Chat)).magnitude < SmallR * 1.3f) return TouchBtn.Chat;
-        if (Shared && (p - SmallCenter(TouchBtn.Sticker)).magnitude < SmallR * 1.3f) return TouchBtn.Sticker;
-        if ((p - StickCenter).magnitude < StickR * 1.5f) return TouchBtn.Stick;
-        return TouchBtn.None;
+        return best;
     }
 
     /// Called first thing in Update: reads every finger and turns it into game input.
@@ -148,77 +215,42 @@ public partial class IslandGame
     void DrawTouchControls()
     {
         if (!ShowTouch) return;
-        if (MenuShown) DrawBurger(MenuCenter(GuiW, GuiH), menuOpen); // ☰ (IslandGame.Menu.cs)
-        if (menuOpen) return; // the open menu: keep the other controls out of its way
-        if (WhoTouchShown && (dialog == null || dead))
+        if (TouchShown(TouchBtn.Menu)) DrawBurger(MenuCenter(GuiW, GuiH), menuOpen); // ☰ (IslandGame.Menu.cs)
+        if (TouchShown(TouchBtn.Who))
             TouchCircle(SmallCenter(TouchBtn.Who), SmallR, $"CH{channel}", new Color(0.6f, 1f, 0.65f), whoOpen, 12);
-        if (whoOpen) return; // the list covers the middle: keep the controls out of its way
-        if (dialog != null && !dead) // talking: only the E button, so the dialog's choices aren't covered
-        {
-            TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
-            return;
-        }
-        if (Shared && (!dead || downed) && sailT <= 0f) // chat with friends on the island (IslandGame.ChatMobile.cs)
-        {
+        if (TouchShown(TouchBtn.Chat)) // chat with friends on the island (IslandGame.ChatMobile.cs)
             TouchCircle(SmallCenter(TouchBtn.Chat), SmallR, "แชต", new Color(0.7f, 0.9f, 1f), chatOpen, 12);
+        if (TouchShown(TouchBtn.Sticker))
+        {
             TouchCircle(SmallCenter(TouchBtn.Sticker), SmallR, null, new Color(1f, 0.75f, 0.85f), stickerOpen, 0);
             var face = StickerTex("aka_laugh");
             var c0 = SmallCenter(TouchBtn.Sticker);
             if (face != null) GUI.DrawTexture(new Rect(c0.x - SmallR + 5f, c0.y - SmallR + 5f, SmallR * 2f - 10f, SmallR * 2f - 10f), face, ScaleMode.ScaleToFit);
         }
-        if (dead || sailT > 0f || sleepT > 0f) return;
 
-        // joystick
-        var c = StickCenter;
-        TouchCircle(c, StickR, null, new Color(1f, 1f, 1f, 0.5f), false, 0);
-        TouchCircle(c + stickKnob, 24f, null, new Color(1f, 1f, 1f, 0.85f), fingerOn.ContainsValue(TouchBtn.Stick), 0);
-
-        // action button: shows what E would do right now
-        TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
-        if (power != Power.None) // dim while recharging
-            TouchCircle(SmallCenter(TouchBtn.Power), SmallR + 3f, "พลัง", new Color(1f, 0.85f, 0.3f, PowerReady >= 1f ? 1f : 0.35f), PowerReady >= 1f, 12);
-        if (power != Power.None)
-            TouchCircle(SmallCenter(TouchBtn.PowerAtk), SmallR + 3f, "ท่าพิเศษ", new Color(1f, 0.55f, 0.35f, PowerAttackReady >= 1f ? 1f : 0.35f), PowerAttackReady >= 1f, 10);
-        if (CanAwaken)
-            TouchCircle(SmallCenter(TouchBtn.Awaken), SmallR + 3f, Awakened ? $"{awakenT:0}" : "ปลุกพลัง", Color.Lerp(PowerColor(power), Color.white, 0.2f) * new Color(1f, 1f, 1f, AwakenReady >= 1f ? 1f : 0.35f), Awakened, 10);
-        TouchCircle(SmallCenter(TouchBtn.Bag), SmallR, "กระเป๋า", new Color(0.95f, 0.85f, 0.6f), bagOpen, 10);
-        TouchCircle(SmallCenter(TouchBtn.Eat), SmallR, "กิน", new Color(1f, 0.7f, 0.35f), false, 12);
-        TouchCircle(SmallCenter(TouchBtn.Drink), SmallR, "ดื่ม", new Color(0.55f, 0.85f, 1f), false, 12);
-        TouchCircle(SmallCenter(TouchBtn.Craft), SmallR, "สร้าง", new Color(0.75f, 1f, 0.7f), craftOpen, 11);
-        TouchCircle(SmallCenter(TouchBtn.Skills), SmallR, "สกิล", new Color(0.8f, 0.7f, 1f), skillsOpen, 11);
-    }
-
-    /// With a mouse (no touch screen): two big round buttons in the bottom-right corner for the
-    /// special power (R) and the special move (T), dimmed with a countdown while recharging.
-    void DrawMousePowerButtons(float W, float H)
-    {
-        if (ShowTouch || title || dead || (player == null && voyage == null) || power == Power.None) return;
-        if (sailT > 0f || sleepT > 0f || homeT > 0f || dialog != null || craftOpen || skillsOpen || bagOpen || buildOpen) return;
-        if (menuOpen || settingsOpen || wantedOpen || whoOpen) return; // a panel sits over this corner: its clicks must not land here
-        var atk = new Vector2(W - 64f, H - 150f);
-        var pow = new Vector2(W - 152f, H - 132f);
-        MouseRoundButton(pow, 32f, "พลัง", "R", PowerReady, PowerCooldown, new Color(1f, 0.85f, 0.3f), () => UsePower());
-        MouseRoundButton(atk, 40f, "ท่าพิเศษ", "T", PowerAttackReady, PowerAttackCooldown, new Color(1f, 0.55f, 0.35f), () => UsePowerAttack());
-        if (CanAwaken) // level 60 (IslandGame.Awaken.cs)
-            MouseRoundButton(new Vector2(W - 118f, H - 224f), 30f, Awakened ? $"{awakenT:0} วิ" : "ปลุกพลัง", "Y", AwakenReady, AwakenRecharge,
-                Color.Lerp(PowerColor(power), Color.white, 0.2f), UseAwaken);
-    }
-
-    void MouseRoundButton(Vector2 c, float r, string text, string key, float ready, float cooldown, Color col, System.Action act)
-    {
-        var e = Event.current;
-        bool over = (e.mousePosition - c).magnitude < r;
-        if (over && e.type == EventType.MouseDown && e.button == 0)
+        if (TouchShown(TouchBtn.Stick))
         {
-            e.Use();
-            if (!chatOpen && !Busy) act();
+            var c = StickCenter;
+            TouchCircle(c, StickR, null, new Color(1f, 1f, 1f, 0.5f), false, 0);
+            TouchCircle(c + stickKnob, 24f, null, new Color(1f, 1f, 1f, 0.85f), fingerOn.ContainsValue(TouchBtn.Stick), 0);
         }
-        bool ok = ready >= 1f;
-        TouchCircle(c, r, null, new Color(col.r, col.g, col.b, ok ? 1f : 0.35f), ok && over, 0);
-        var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = r > 35f ? 13 : 12, fontStyle = FontStyle.Bold };
-        string sub = ok ? $"[{key}]" : $"{Mathf.CeilToInt((1f - ready) * cooldown)} วิ";
-        ShadowLabel(new Rect(c.x - r, c.y - r, r * 2f, r * 2f - 12f), text, st, ok ? col : new Color(col.r, col.g, col.b, 0.6f));
-        ShadowLabel(new Rect(c.x - r, c.y - r + 16f, r * 2f, r * 2f - 12f), sub, new GUIStyle(st) { fontSize = 11 }, new Color(1f, 1f, 1f, ok ? 0.85f : 0.6f));
+        // action button: shows what E would do right now
+        if (TouchShown(TouchBtn.Action)) TouchCircle(ActionCenter, ActionR, "E", new Color(1f, 0.85f, 0.3f), touchActionHeld, 22);
+        // the power buttons: dimmed with the seconds left while recharging
+        if (TouchShown(TouchBtn.Power))
+            TouchCircle(SmallCenter(TouchBtn.Power), SmallR + 3f, PowerReady >= 1f ? "พลัง" : $"{Mathf.CeilToInt(powerCd)}",
+                new Color(1f, 0.85f, 0.3f, PowerReady >= 1f ? 1f : 0.35f), PowerReady >= 1f, 12);
+        if (TouchShown(TouchBtn.PowerAtk))
+            TouchCircle(SmallCenter(TouchBtn.PowerAtk), SmallR + 3f, PowerAttackReady >= 1f ? "ท่าพิเศษ" : $"{Mathf.CeilToInt(powerAtkCd)}",
+                new Color(1f, 0.55f, 0.35f, PowerAttackReady >= 1f ? 1f : 0.35f), PowerAttackReady >= 1f, PowerAttackReady >= 1f ? 10 : 12);
+        if (TouchShown(TouchBtn.Awaken))
+            TouchCircle(SmallCenter(TouchBtn.Awaken), SmallR + 3f, Awakened ? $"{awakenT:0}" : AwakenReady >= 1f ? "ปลุกพลัง" : $"{Mathf.CeilToInt(awakenCd)}",
+                Color.Lerp(PowerColor(power), Color.white, 0.2f) * new Color(1f, 1f, 1f, AwakenReady >= 1f ? 1f : 0.35f), Awakened, Awakened || AwakenReady < 1f ? 12 : 10);
+        if (TouchShown(TouchBtn.Bag)) TouchCircle(SmallCenter(TouchBtn.Bag), SmallR, "กระเป๋า", new Color(0.95f, 0.85f, 0.6f), bagOpen, 10);
+        if (TouchShown(TouchBtn.Eat)) TouchCircle(SmallCenter(TouchBtn.Eat), SmallR, "กิน", new Color(1f, 0.7f, 0.35f), false, 12);
+        if (TouchShown(TouchBtn.Drink)) TouchCircle(SmallCenter(TouchBtn.Drink), SmallR, "ดื่ม", new Color(0.55f, 0.85f, 1f), false, 12);
+        if (TouchShown(TouchBtn.Craft)) TouchCircle(SmallCenter(TouchBtn.Craft), SmallR, "สร้าง", new Color(0.75f, 1f, 0.7f), craftOpen, 11);
+        if (TouchShown(TouchBtn.Skills)) TouchCircle(SmallCenter(TouchBtn.Skills), SmallR, "ตัวละคร", new Color(0.8f, 0.7f, 1f), skillsOpen, 10);
     }
 
     static Texture2D ringTex, discTex;

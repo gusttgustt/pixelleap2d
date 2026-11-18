@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// Special fruits: a rare glowing tree on some islands bears one kind of fruit per island type.
@@ -310,22 +311,123 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ HUD
     /// "Power: Dash Lv 2 [R]" with a cooldown bar and level progress.
+    /// The HUD shows the powers as a row of small icons (the fruit, dimmed from the top while it
+    /// recharges, with the seconds left). Every detail - level, damage, reach, cooldowns - lives in
+    /// the character window's "พลังผลไม้" tab (DrawPowerInfo).
     float DrawPowerHud(float y)
     {
         if (power == Power.None) return y;
-        float ready = PowerCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(powerCd / PowerCooldown);
-        string lv = powerLv >= 5 ? "Lv 5 (สูงสุด)" : $"Lv {powerLv}  ({powerXp}/{PowerXpNeed[powerLv]})";
-        Bar(new Rect(14, y + 2, 180, 12), ready, ready >= 1f ? new Color(1f, 0.8f, 0.25f) : new Color(0.55f, 0.5f, 0.35f),
-            ready >= 1f ? $"พลัง{PowerName(power)} {lv} [R]" : $"พลัง{PowerName(power)} {lv}");
-        y += 18f;
-        float atk = PowerAttackReady;
-        Bar(new Rect(14, y + 2, 180, 10), atk, atk >= 1f ? PowerColor(power) : new Color(0.45f, 0.42f, 0.38f),
-            atk >= 1f ? $"ท่าพิเศษ: {PowerAttackName(power)} [T]" : $"ท่าพิเศษ: {PowerAttackName(power)}");
-        y += 19f;
-        if (Invisible) { ShadowLabel(new Rect(14, y, 300, 18), $"ล่องหนอยู่ {invisibleT:0.0} วิ", small, new Color(0.75f, 0.7f, 1f)); y += 19f; }
-        if (Bubbled) { ShadowLabel(new Rect(14, y, 300, 18), $"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง", small, new Color(0.6f, 0.9f, 1f)); y += 19f; }
-        y = DrawAwakenHud(y);
-        return y;
+        const float sz = 34f, gap = 5f;
+        var fruit = PixelArt.Icon(FruitOf(power));
+        var pc = PowerColor(power);
+        bool keys = !touchUsed;
+        float x = 14f;
+        CdIcon(new Rect(x, y + 2, sz, sz), fruit, "พลัง", keys ? "R" : null, PowerReady, powerCd, new Color(1f, 0.85f, 0.3f), false); x += sz + gap;
+        CdIcon(new Rect(x, y + 2, sz, sz), fruit, "ท่า", keys ? "T" : null, PowerAttackReady, powerAtkCd, new Color(1f, 0.55f, 0.35f), false); x += sz + gap;
+        if (CanAwaken)
+        {
+            var r = new Rect(x, y + 2, sz, sz);
+            if (Awakened) // the awakening is on: the time left, glowing
+            {
+                CdIcon(r, fruit, "ปลุก", null, 1f, 0f, Color.Lerp(pc, Color.white, 0.35f + 0.25f * Mathf.Sin(Time.time * 8f)), true);
+                ShadowLabel(r, $"{awakenT:0}", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 15, fontStyle = FontStyle.Bold }, Color.white);
+                if (Awaken2 && !ultimateUsed) // the finishing move is waiting: Y again
+                    ShadowLabel(new Rect(r.xMax - 11, r.y - 4, 14, 14), "★", new GUIStyle(small) { fontSize = 12 }, new Color(1f, 0.9f, 0.35f, 0.6f + 0.4f * Mathf.Sin(Time.time * 6f)));
+            }
+            else CdIcon(r, fruit, "ปลุก", keys ? "Y" : null, AwakenReady, awakenCd, Color.Lerp(pc, Color.white, 0.2f), true);
+            x += sz + gap;
+        }
+        // what the power is doing right now: a small badge each, with the time / hits left
+        if (Invisible) { StatusBadge(new Rect(x, y + 6, 28, 28), $"{invisibleT:0}", "ล่องหน", new Color(0.75f, 0.7f, 1f)); x += 33f; }
+        if (Bubbled) { StatusBadge(new Rect(x, y + 6, 28, 28), $"x{bubbleHits}", "โล่", new Color(0.6f, 0.9f, 1f)); x += 33f; }
+        return y + sz + 8f;
+    }
+
+    /// One cooldown icon: the fruit in a frame, a dark curtain over the part still recharging,
+    /// the seconds left in the middle, the key in the corner and a tiny name along the bottom.
+    void CdIcon(Rect r, Sprite icon, string name, string key, float ready, float secondsLeft, Color col, bool glow)
+    {
+        bool ok = ready >= 1f;
+        Fill(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), ok ? new Color(col.r, col.g, col.b, 0.95f) : new Color(0.35f, 0.33f, 0.3f, 0.9f));
+        Fill(r, new Color(0.05f, 0.05f, 0.08f, 0.85f));
+        if (glow && ok) Fill(r, new Color(col.r, col.g, col.b, 0.25f));
+        if (icon != null)
+        {
+            GUI.color = ok ? Color.white : new Color(0.6f, 0.6f, 0.6f, 0.8f);
+            Icon(new Rect(r.x + 4, r.y + 2, r.width - 8, r.height - 10), icon);
+            GUI.color = Color.white;
+        }
+        if (!ok)
+        {
+            Fill(new Rect(r.x, r.y, r.width, r.height * Mathf.Clamp01(1f - ready)), new Color(0f, 0f, 0f, 0.55f));
+            ShadowLabel(r, $"{Mathf.CeilToInt(Mathf.Max(0f, secondsLeft))}", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 15, fontStyle = FontStyle.Bold }, Color.white);
+        }
+        ShadowLabel(new Rect(r.x, r.y, r.width, r.height + 1), name, new GUIStyle(small) { fontSize = 9, alignment = TextAnchor.LowerCenter }, ok ? col : new Color(0.8f, 0.8f, 0.8f));
+        if (key != null) ShadowLabel(new Rect(r.x + 2, r.y - 1, 12, 12), key, new GUIStyle(small) { fontSize = 9, alignment = TextAnchor.UpperLeft }, new Color(1f, 1f, 1f, ok ? 0.95f : 0.6f));
+    }
+
+    void StatusBadge(Rect r, string text, string name, Color col)
+    {
+        Fill(new Rect(r.x - 1, r.y - 1, r.width + 2, r.height + 2), new Color(col.r, col.g, col.b, 0.9f));
+        Fill(r, new Color(0.05f, 0.05f, 0.1f, 0.85f));
+        ShadowLabel(new Rect(r.x, r.y - 4, r.width, r.height), text, new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontSize = 11, fontStyle = FontStyle.Bold }, col);
+        ShadowLabel(new Rect(r.x, r.y, r.width, r.height + 1), name, new GUIStyle(small) { fontSize = 8, alignment = TextAnchor.LowerCenter }, new Color(0.85f, 0.85f, 0.85f));
+    }
+
+    /// The character window's "พลังผลไม้" tab: everything about the fruit's power, its special
+    /// move, the awakening and the finishing move (what the HUD used to spell out in long bars).
+    void DrawPowerInfo(Rect r)
+    {
+        if (power == Power.None)
+        {
+            CrispGUI.Label(new Rect(r.x + 10, r.y + 10, r.width - 20, 60),
+                "<color=#cccccc>ยังไม่มีพลังผลไม้\nกินผลไม้พิเศษจากต้นไม้เรืองแสงบนเกาะ เพื่อรับพลัง (มีได้ทีละพลัง)</color>", new GUIStyle(label) { wordWrap = true, richText = true });
+            return;
+        }
+        var pc = PowerColor(power);
+        bool keys = !touchUsed;
+        // header: the fruit, the power's level and the uses towards the next one
+        Fill(new Rect(r.x, r.y, r.width, 54f), new Color(pc.r, pc.g, pc.b, 0.15f));
+        Icon(new Rect(r.x + 6, r.y + 5, 44, 44), PixelArt.Icon(FruitOf(power)));
+        ShadowLabel(new Rect(r.x + 58, r.y + 4, r.width - 64, 22), $"<b>พลัง{PowerName(power)}</b>  Lv {powerLv}{(powerLv >= 5 ? " (สูงสุด)" : "")}", label, Color.Lerp(pc, Color.white, 0.3f));
+        if (powerLv < 5)
+        {
+            var bar = new Rect(r.x + 58, r.y + 32, r.width - 180, 10);
+            Fill(bar, new Color(0f, 0f, 0f, 0.5f));
+            Fill(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01((float)powerXp / PowerXpNeed[powerLv]), bar.height), pc);
+            ShadowLabel(new Rect(bar.xMax + 8, r.y + 27, 120, 18), $"ใช้อีก {Mathf.Max(0, PowerXpNeed[powerLv] - powerXp)} ครั้ง ถึง Lv {powerLv + 1}", small, new Color(0.85f, 0.85f, 0.85f));
+        }
+        else ShadowLabel(new Rect(r.x + 58, r.y + 28, r.width - 64, 18), "ฝึกพลังครบทุกขั้นแล้ว", small, new Color(1f, 0.85f, 0.3f));
+
+        string Cd(float ready, float left, float full) => ready >= 1f ? $"<color=#8fe38f>พร้อม</color> · คูลดาวน์ {full:0.#} วิ"
+                                                                       : $"<color=#ffd84d>อีก {Mathf.CeilToInt(left)} วิ</color> · คูลดาวน์ {full:0.#} วิ";
+        var rows = new List<(string head, string state, string what, bool on)>
+        {
+            ($"พลัง{PowerName(power)}" + (keys ? "  [R / คลิกขวา]" : ""), Cd(PowerReady, powerCd, PowerCooldown), PowerDesc(power), true),
+            ($"ท่าพิเศษ: {PowerAttackName(power)}" + (keys ? "  [T]" : ""), Cd(PowerAttackReady, powerAtkCd, PowerAttackCooldown),
+                $"ดาเมจ {AwakenDmg(PowerAttackDamage)} · ระยะ {PowerAttackRadius:0.#} ช่อง (แรงและไกลขึ้นตามเลเวลพลัง)", true),
+            ($"ปลุกพลัง: {AwakenName(power)}" + (keys && CanAwaken ? "  [Y]" : ""),
+                !CanAwaken ? $"<color=#ff9a8a>ได้ตอนเลเวล {AwakenLevel}</color>" : Awakened ? $"<color=#8fe38f>เปิดอยู่ อีก {awakenT:0} วิ</color>" : Cd(AwakenReady, awakenCd, AwakenRecharge),
+                $"{AwakenDesc(power)} · นาน {AwakenDuration:0} วิ ระหว่างนั้นสกิลคูลดาวน์ {AwakenSkillCd} วิ แรงขึ้น x{(Awaken2 ? 2.4f : 1.75f)}", CanAwaken),
+            ($"ท่าไม้ตาย: {UltimateName(power)}", !Awaken2 ? $"<color=#ff9a8a>ได้ตอนเลเวล {Awaken2Level}</color>" : !Awakened ? "ใช้ระหว่างปลุกพลัง" : ultimateUsed ? "ใช้ไปแล้วรอบนี้" : "<color=#8fe38f>พร้อม</color>",
+                (keys ? "ระหว่างปลุกพลังกด Y อีกครั้ง" : "ระหว่างปลุกพลังแตะปุ่มปลุกพลังอีกครั้ง") + $": ระเบิดพลังรอบตัว ดาเมจ {AwakenDmg(20 + 8 * powerLv)} (ครั้งเดียวต่อการปลุก)", Awaken2),
+        };
+        float y = r.y + 60f;
+        foreach (var (head, state, what, on) in rows)
+        {
+            var row = new Rect(r.x, y, r.width, 52f);
+            Fill(row, on ? new Color(1f, 1f, 1f, 0.07f) : new Color(1f, 1f, 1f, 0.03f));
+            if (on) Fill(new Rect(row.x, row.y, 3f, row.height), pc);
+            CrispGUI.Label(new Rect(row.x + 10, row.y + 4, row.width - 170, 20), on ? $"<b>{head}</b>" : $"<color=#999999><b>{head}</b></color>", label);
+            CrispGUI.Label(new Rect(row.xMax - 170, row.y + 6, 164, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight, richText = true });
+            CrispGUI.Label(new Rect(row.x + 10, row.y + 23, row.width - 16, 30), $"<color=#cccccc>{what}</color>", new GUIStyle(small) { wordWrap = true, richText = true });
+            y += 56f;
+        }
+        // what is on right now
+        var now = new List<string>();
+        if (Invisible) now.Add($"ล่องหนอยู่ {invisibleT:0.0} วิ");
+        if (Bubbled) now.Add($"โล่ฟองสบู่: กันได้อีก {bubbleHits} ครั้ง");
+        if (now.Count > 0) ShadowLabel(new Rect(r.x + 6, y + 2, r.width - 12, 18), "ตอนนี้: " + string.Join(" · ", now), small, new Color(0.75f, 0.9f, 1f));
     }
 
     public float PowerReady => power == Power.None ? 0f : PowerCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(powerCd / PowerCooldown);

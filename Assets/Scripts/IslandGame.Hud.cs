@@ -340,7 +340,7 @@ public partial class IslandGame
     {
         ("WASD", "เดิน"), ("E / Space", "ใช้ เก็บ คุย โจมตี"), ("คลิกซ้าย", "เหมือนกด E"), ("คลิกขวา", "ใช้พลัง R ถ้าติด CD ใช้ท่า T แล้วปลุกพลัง Y"), ("Tab / C", "ประดิษฐ์"), ("B", "กระเป๋า"),
         ("1-8", "ช่องลัด"), ("F", "กินอาหาร"), ("Q", "ดื่มจากกระบอกน้ำ"), ("X", "ดับกองไฟ"),
-        ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("Y", "ปลุกพลังผลไม้ (เลเวล 60)"), ("K", "สกิล"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
+        ("R", "ใช้พลังผลไม้"), ("T", "ท่าพิเศษ"), ("Y", "ปลุกพลังผลไม้ (เลเวล 60)"), ("K", "ตัวละคร: สกิลและพลังผลไม้"), ("P", "สัตว์เลี้ยง / จับสัตว์"),
         ("H", "เกาะส่วนตัว / กลับไปผจญภัย"), ("G", "สร้าง / รื้อ"), ("V", "เยี่ยมบ้านเพื่อน"), ("Enter", "แชท"),
         ("J", "ป้ายประกาศค่าหัว"), ("O", "ใครออนไลน์อยู่ที่ไหน"), ("M", "เปิด/ปิดเสียง"), ("F5", "เซฟ"), ("ล้อเมาส์", "ซูม"), ("F1", "เปิด/ปิดหน้านี้"),
     };
@@ -593,7 +593,6 @@ public partial class IslandGame
             if (CrispGUI.Button(new Rect(W / 2f - 140f, H - 80, 280f, 46f), btnText, again)) Respawn();
         }
         DrawStickerPanel(W, H);      // chat stickers (IslandGame.Sticker.cs)
-        DrawMousePowerButtons(W, H); // big R / T buttons for the mouse (IslandGame.Touch.cs)
         DrawMouseWhoButton(W, H);    // the CH button: who's online and channels (IslandGame.Who.cs)
         DrawTouchControls();
         DrawMenu(W, H); // the ☰ menu, bottom right (IslandGame.Menu.cs)
@@ -605,7 +604,7 @@ public partial class IslandGame
     /// sides (touch joystick and buttons, the mouse's power buttons), so nothing covers the words.
     void DrawHint(float W, float H)
     {
-        float side = ShowTouch ? 232f : power != Power.None ? 196f : 10f;
+        float side = ShowTouch ? 232f : 10f;
         float w = Mathf.Max(280f, W - side * 2f);
         var st = new GUIStyle(labelCenter) { wordWrap = true };
         float h = Mathf.Max(22f, st.CalcHeight(new GUIContent(hint), w));
@@ -985,28 +984,41 @@ public partial class IslandGame
     }
     float gritReadyAt; // awakened "Never Give Up": when it can save you again
 
+    /// The character window (K): skills, awakened skills, level rewards, and the fruit's powers.
+    /// Every tab is the same height (the eight-row skill list), so the box never jumps.
+    Rect SkillsPanelRect(float W)
+    {
+        const float pw = 440f, rowH = 40f;
+        int n = Mathf.Max(BaseSkills, SkillInfo.Length - BaseSkills);
+        return new Rect(W / 2f - pw / 2f, 54f, pw, 94f + n * (rowH + 4f));
+    }
+
     void DrawSkills(float W, float H)
     {
         const float pw = 440f, rowH = 40f;
         int first = skillsTab == 0 ? 0 : BaseSkills, n = skillsTab == 0 ? BaseSkills : SkillInfo.Length - BaseSkills;
-        var panel = new Rect(W / 2f - pw / 2f, 54f, pw, 94f + n * (rowH + 4f));
+        var panel = SkillsPanelRect(W);
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
-        ShadowLabel(new Rect(panel.x + 12, panel.y + 6, pw, 22), $"สกิล - เลเวล {level}   <color=#ffd84d>{skillPoints} แต้ม</color>", label);
-        ShadowLabel(new Rect(panel.x + 12, panel.y + 26, pw, 18), $"XP {xp}/{XpToNext(level)} - ล้มสัตว์ร้ายเพื่อเลเวลอัป  (K ปิด, กดตัวเลขเพื่ออัป)", small, new Color(0.85f, 0.85f, 0.85f));
+        ShadowLabel(new Rect(panel.x + 12, panel.y + 6, pw, 22), $"ตัวละคร - เลเวล {level}   <color=#ffd84d>{skillPoints} แต้มสกิล</color>", label);
+        ShadowLabel(new Rect(panel.x + 12, panel.y + 26, pw - 50, 18), touchUsed ? $"XP {xp}/{XpToNext(level)} - ล้มสัตว์ร้ายเพื่อเลเวลอัป"
+            : $"XP {xp}/{XpToNext(level)} - ล้มสัตว์ร้ายเพื่อเลเวลอัป  (K ปิด, กดตัวเลขเพื่ออัป)", small, new Color(0.85f, 0.85f, 0.85f));
+        if (CrispGUI.Button(new Rect(panel.xMax - 34, panel.y + 6, 26, 22), "X")) { skillsOpen = false; return; }
 
-        // tabs: the basic eight, and the awakened eight from level 60
+        // tabs: the basic eight, the awakened eight from level 60, level rewards, the fruit's powers
         bool awake = level >= AwakenLevel;
-        string[] tabs = { "พื้นฐาน", awake ? "ปลุกพลัง ★" : $"ปลุกพลัง (เลเวล {AwakenLevel})", "รางวัลเลเวล" };
+        string[] tabs = { "พื้นฐาน", awake ? "ปลุกพลัง ★" : $"ปลุกพลัง (Lv {AwakenLevel})", "รางวัลเลเวล", "พลังผลไม้" };
+        float tw = (pw - 16f) / tabs.Length;
         for (int t = 0; t < tabs.Length; t++)
         {
-            var tr = new Rect(panel.x + 8 + t * 141f, panel.y + 48, 137f, 26f);
-            var ts = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+            var tr = new Rect(panel.x + 8 + t * tw, panel.y + 48, tw - 4f, 26f);
+            var ts = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
             ts.normal.textColor = skillsTab == t ? new Color(1f, 0.85f, 0.3f) : new Color(0.8f, 0.8f, 0.8f);
             if (skillsTab == t) Fill(new Rect(tr.x - 2, tr.y - 2, tr.width + 4, tr.height + 4), new Color(1f, 0.85f, 0.3f, 0.5f));
             if (CrispGUI.Button(tr, tabs[t], ts)) skillsTab = t;
         }
         if (skillsTab == 2) { DrawLevelRewards(new Rect(panel.x + 8, panel.y + 80, pw - 16, panel.height - 88)); return; }
+        if (skillsTab == 3) { DrawPowerInfo(new Rect(panel.x + 8, panel.y + 80, pw - 16, panel.height - 88)); return; }
         if (!awake && skillsTab == 1)
             ShadowLabel(new Rect(panel.x + 12, panel.y + 76, pw - 24, 18), "<color=#ff9a8a>ดูได้ อัปได้ตอนเลเวล 60</color>", small);
 
@@ -1100,19 +1112,29 @@ public partial class IslandGame
         }
     }
 
+    const float CraftRowH = 52f, CraftHeadH = 22f, CraftHeaderH = 86f;
+
+    /// The crafting panel's box (the touch controls keep off it, IslandGame.Touch.cs).
+    Rect CraftPanelRect(float W, float H, out float contentH)
+    {
+        const float pw = 360f, top = 64f;
+        var view = CraftView(); // the workbench has its own list (IslandGame.House.cs)
+        int tab = Mathf.Clamp(CurrentTab, 0, CraftTabs.Length - 1);
+        // rows plus a header wherever the category changes (only while showing every tab)
+        contentH = 0f;
+        for (int i = 0; i < view.Count; i++) contentH += (tab == 0 && (i == 0 || RecipeCat(view[i]) != RecipeCat(view[i - 1])) ? CraftHeadH : 0f) + CraftRowH + 4f;
+        if (view.Count == 0) contentH = 40f;
+        return new Rect(W - pw - 14, top, pw, Mathf.Min(H - top - 130f, contentH + CraftHeaderH + 6f));
+    }
+
     void DrawCrafting(float W, float H)
     {
         if (benchOpen && !inHouse) { craftOpen = false; benchOpen = false; return; } // the home list only works inside your house
-        const float pw = 360f, rowH = 52f, headH = 22f, top = 64f;
-        var view = CraftView(); // the workbench has its own list (IslandGame.House.cs)
+        const float pw = 360f, rowH = CraftRowH, headH = CraftHeadH, headerH = CraftHeaderH;
+        var view = CraftView();
         var tabs = CraftTabs;
         int tab = Mathf.Clamp(CurrentTab, 0, tabs.Length - 1);
-        // rows plus a header wherever the category changes (only while showing every tab)
-        float contentH = 0f;
-        for (int i = 0; i < view.Count; i++) contentH += (tab == 0 && (i == 0 || RecipeCat(view[i]) != RecipeCat(view[i - 1])) ? headH : 0f) + rowH + 4f;
-        if (view.Count == 0) contentH = 40f;
-        const float headerH = 86f;
-        var panel = new Rect(W - pw - 14, top, pw, Mathf.Min(H - top - 130f, contentH + headerH + 6f));
+        var panel = CraftPanelRect(W, H, out float contentH);
         Color accent = benchOpen ? new Color(1f, 0.78f, 0.45f) : new Color(0.6f, 0.95f, 1f);
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
@@ -1122,7 +1144,8 @@ public partial class IslandGame
             benchOpen ? "<color=#cccccc>ทำได้ในบ้านเท่านั้น · [ ] เปลี่ยนหมวด · ตัวเลขสร้าง</color>"
                       : "<color=#cccccc>ของใช้ในบ้านทำที่โต๊ะช่างในบ้าน · [ ] เปลี่ยนหมวด</color>", small);
         var fire = benchOpen ? null : FireInReach();
-        if (fire != null && CrispGUI.Button(new Rect(panel.xMax - 92, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
+        if (fire != null && CrispGUI.Button(new Rect(panel.xMax - 126, panel.y + 5, 84, 22), "ดับกองไฟ (X)", new GUIStyle(GUI.skin.button) { fontSize = 11 })) { PutOutFire(fire); return; }
+        if (CrispGUI.Button(new Rect(panel.xMax - 34, panel.y + 5, 26, 22), "X")) { craftOpen = false; benchOpen = false; return; }
 
         // category tabs
         float tx = panel.x + 6, ty = panel.y + 46, tw = (pw - 12f) / tabs.Length;

@@ -13,7 +13,7 @@ public partial class IslandGame
     static Rect GearRect(float W) => new Rect(W - 40f, 6f, 32f, 28f); // title screen
 
     /// In the game: a round ⚙ in the bottom-right row with ☰, the bag and skills (IslandGame.Menu.cs).
-    Vector2 SettingsCenter(float W, float H) => MenuCenter(W, H) + new Vector2(ShowTouch ? -54f : -162f, 0f);
+    Vector2 SettingsCenter(float W, float H) => MenuCenter(W, H) + new Vector2(ShowTouch ? -58f : -162f, 0f);
 
     /// Title screen: under the gear. In the game: the middle of the screen, where no button sits
     /// under it (so its clicks can't reach the hotbar or the power buttons).
@@ -38,6 +38,7 @@ public partial class IslandGame
         if (!title)
         {
             var c = SettingsCenter(W, H);
+            if (PanelCovers(c, MenuR * 1.3f)) return; // an open panel sits here: its rows, not the gear, get the taps
             var e = Event.current;
             bool lit = (e.mousePosition - c).magnitude < MenuR;
             if (lit && e.type == EventType.MouseDown && e.button == 0) { e.Use(); if (!chatOpen) ToggleSettings(); }

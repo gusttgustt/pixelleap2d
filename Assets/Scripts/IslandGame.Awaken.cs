@@ -271,17 +271,4 @@ public partial class IslandGame
                 break;
         }
     }
-
-    float DrawAwakenHud(float y)
-    {
-        if (!CanAwaken) return y;
-        var c = PowerColor(power);
-        float ready = AwakenReady;
-        string text = Awakened ? $"ปลุกพลัง{(Awaken2 ? "ขั้น 2" : "")}: {AwakenName(power)} เหลือ {awakenT:0.0} วิ" + (Awaken2 && !ultimateUsed ? $" · ท่าไม้ตาย [Y]" : "")
-                    : ready >= 1f ? $"ปลุกพลัง: {AwakenName(power)} [Y]"
-                    : $"ปลุกพลัง: {AwakenName(power)} ({Mathf.CeilToInt(awakenCd)} วิ)";
-        float fill = Awakened ? awakenT / AwakenDuration : ready;
-        Bar(new Rect(14, y + 2, 180, 10), fill, Awakened || ready >= 1f ? Color.Lerp(c, Color.white, Awakened ? 0.35f + 0.25f * Mathf.Sin(Time.time * 8f) : 0f) : new Color(0.45f, 0.42f, 0.38f), text);
-        return y + 19f;
-    }
 }

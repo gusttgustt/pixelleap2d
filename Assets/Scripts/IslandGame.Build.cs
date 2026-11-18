@@ -513,6 +513,14 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ HUD
+    Rect BuildPanelRect(float W, float H)
+    {
+        const float cell = 50f, gap = 4f;
+        float w = Palette.Length * (cell + gap) - gap;
+        float x0 = W / 2f - w / 2f, y0 = HotbarRect(W, H).y - cell - 64f;
+        return new Rect(x0 - 10, y0 - 26, w + 20, cell + 84f); // the same box DrawBuildPanel draws
+    }
+
     void DrawBuildPanel(float W, float H)
     {
         var bar = HotbarRect(W, H);
