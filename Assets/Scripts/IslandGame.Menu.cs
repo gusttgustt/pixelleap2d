@@ -10,8 +10,9 @@ public partial class IslandGame
     bool menuOpen;
     static Texture2D burgerTex;
 
-    /// Where the ☰ button is (HUD units): above the CH button.
-    Vector2 MenuCenter(float W, float H) => ShowTouch ? new Vector2(W - 36f, H - 320f) : new Vector2(W - 40f, H - 318f);
+    /// Where the ☰ button is (HUD units). Mouse: the very bottom-right corner, with skills and
+    /// the bag in a row to its left. Phones: above the CH button (the corner is the E button's).
+    Vector2 MenuCenter(float W, float H) => ShowTouch ? new Vector2(W - 36f, H - 320f) : new Vector2(W - 32f, H - 32f);
     const float MenuR = 24f;
 
     bool MenuShown => !title && player != null && voyage == null && !dead && homeT <= 0f && sailT <= 0f && sleepT <= 0f && dialog == null;
@@ -59,9 +60,9 @@ public partial class IslandGame
             if (over && e.type == EventType.MouseDown && e.button == 0) { e.Use(); ToggleMenu(); }
             DrawBurger(c, menuOpen || over);
             // bag and skills, in a row to the left of ☰ (phones have their own, by the stick)
-            QuickButton(c + new Vector2(-56f, 0f), "สกิล", "K", new Color(0.8f, 0.7f, 1f), skillsOpen,
+            QuickButton(c + new Vector2(-54f, 0f), "สกิล", "K", new Color(0.8f, 0.7f, 1f), skillsOpen,
                 () => { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; menuOpen = false; });
-            QuickButton(c + new Vector2(-112f, 0f), "กระเป๋า", "B", new Color(0.95f, 0.85f, 0.6f), bagOpen,
+            QuickButton(c + new Vector2(-108f, 0f), "กระเป๋า", "B", new Color(0.95f, 0.85f, 0.6f), bagOpen,
                 () => { ToggleBag(); menuOpen = false; });
         }
         if (!menuOpen) return;
