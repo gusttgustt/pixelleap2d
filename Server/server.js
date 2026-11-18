@@ -63,7 +63,13 @@ const WORLD_SEED = (() => {
 })();
 
 // ---------- limits (against people trying to break the server) ----------
-const MAX_CLIENTS = 300;              // connections in all
+const MAX_CLIENTS = 300;              // players (said hello) in all
+const MAX_GUESTS = 240;               // ... of them not logged in: the rest is kept for accounts, so a crowd of
+                                      // made-up guests can't lock real players out (new accounts are slow to make)
+const LOGIN_WITHIN = 15000;           // ms a guest let in over MAX_GUESTS has to log in (a saved token takes a moment)
+const OVER_PER_IP = 2;                // such guests waiting to log in, per address
+const MAX_PENDING = 60, PENDING_PER_IP = 4; // connections that haven't said hello yet: a pool of their own,
+                                      // so a flood of silent connections doesn't take players' places
 const MAX_PER_IP = 12;                // connections from one address (friends at one house share one)
 const MSG_RATE = 80, MSG_BURST = 300;              // messages per second (a player sends ~20)
 const BYTE_RATE = 256 * 1024, BYTE_BURST = 12 * 1024 * 1024; // bytes per second (a save or a home island is big, but rare)
@@ -189,13 +195,18 @@ server.on("upgrade", (req, socket) => {
     socket.end("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n");
     return;
   }
-  if (sockets.size >= MAX_CLIENTS || (perIp.get(ip) || 0) >= MAX_PER_IP) {
+  let pendingHere = 0, oldest = null, waiting = 0;
+  for (const s of sockets) if (!s.pid) { waiting++; if (s.ip === ip) pendingHere++; if (!oldest || s.connectedAt < oldest.connectedAt) oldest = s; }
+  if (pendingHere >= PENDING_PER_IP || (perIp.get(ip) || 0) >= MAX_PER_IP) {
     socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
     return;
   }
+  // the silent ones' pool is full: the one silent longest goes (a real game says hello at once)
+  if (waiting >= MAX_PENDING && oldest) oldest.destroy();
   sockets.add(socket);
   perIp.set(ip, (perIp.get(ip) || 0) + 1);
   socket.ip = ip;
+  socket.connectedAt = now;
   socket.once("close", () => {
     sockets.delete(socket);
     const n = (perIp.get(ip) || 1) - 1;
@@ -374,6 +385,7 @@ function onMessage(socket, text) {
   if (m.t === "hello") {
     if (socket.pid) return;
     clearTimeout(socket.helloTimer);
+    if (!roomForPlayer(socket)) { socket.destroy(); return; } // the game goes offline and tries again later
     socket.pid = nextId++;
     socket.baseName = cleanText(m.name, 16) || "Islander";
     nameCheck(socket);
@@ -918,6 +930,34 @@ async function onAccount(socket, m) {
   } finally {
     socket.authBusy = false;
   }
+}
+
+/// Room for one more player saying hello? A player with an account says hello first and logs in
+/// right after, so when the guests' share is full a newcomer still comes in "on trial": it has
+/// LOGIN_WITHIN to log in or it's closed. Those on trial have a pool of their own; when it's full
+/// the one waiting longest goes (a real player's saved login takes a moment, a bot's wait never ends).
+let fullLogAt = 0;
+const onTrial = [];                   // sockets let in over MAX_GUESTS, oldest first
+function roomForPlayer(socket) {
+  for (let i = onTrial.length - 1; i >= 0; i--) if (onTrial[i].destroyed || onTrial[i].acct || !onTrial[i].pid) onTrial.splice(i, 1);
+  let guests = 0, settled = 0;
+  for (const s of clients.values()) if (!onTrial.includes(s)) { settled++; if (!s.acct) guests++; }
+  const fullLog = why => { if (Date.now() - fullLogAt > 60000) { fullLogAt = Date.now(); log("! server " + why + " (" + clients.size + " players, " + guests + " guests): turning newcomers away"); } };
+  if (settled >= MAX_CLIENTS) { fullLog("full"); return false; }
+  if (guests < MAX_GUESTS) return true;
+  if (onTrial.filter(s => s.ip === socket.ip).length >= OVER_PER_IP) { fullLog("full of guests"); return false; }
+  if (onTrial.length >= MAX_PENDING) { const old = onTrial.shift(); old.destroy(); }
+  onTrial.push(socket);
+  fullLog("full of guests");
+  setTimeout(() => {
+    const i = onTrial.indexOf(socket);
+    if (i < 0) return;                // logged in, or gone
+    onTrial.splice(i, 1);
+    if (socket.destroyed || socket.acct || !socket.pid) return;
+    let g = 0; for (const s of clients.values()) if (!s.acct && !onTrial.includes(s) && s !== socket) g++;
+    if (g >= MAX_GUESTS) socket.destroy(); // a guest's place came free meanwhile: stays
+  }, LOGIN_WITHIN);
+  return true;
 }
 
 function drop(socket) {
