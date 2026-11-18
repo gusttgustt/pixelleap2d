@@ -48,9 +48,19 @@ const WEB_ROOT = path.resolve(__dirname, "..", "docs");
 const MAX_FRAME = 4 * 1024 * 1024;   // game messages are tiny; a save (accounts) or a private island are the big ones
 const MAX_SAVE = 3500000;             // characters of save text kept per player
 const MAX_EVENTS = 4000;              // remembered world changes per island
-const WORLD_SEED = crypto.randomInt(1, 2 ** 31 - 1); // every island layout comes from this
-
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, "data"));
+
+// Every island layout online comes from this. It's kept in DATA_DIR/world.json, so a restart keeps
+// the same islands (before, a new one each start reshaped every island and games that reconnected
+// after a restart no longer matched). Delete world.json to get a new world.
+const WORLD_SEED = (() => {
+  const file = path.join(DATA_DIR, "world.json");
+  try { const s = JSON.parse(fs.readFileSync(file, "utf8")).seed | 0; if (s > 0) return s; } catch (e) {}
+  const seed = crypto.randomInt(1, 2 ** 31 - 1);
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(file, JSON.stringify({ seed, made: new Date().toISOString() })); }
+  catch (e) { console.log("! world.json not written: " + e.message + " (the islands will change at the next start)"); }
+  return seed;
+})();
 
 // ---------- limits (against people trying to break the server) ----------
 const MAX_CLIENTS = 300;              // connections in all
