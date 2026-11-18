@@ -41,16 +41,18 @@ public abstract class NetLink
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
         string page = Application.absoluteURL ?? "";
-        int q = page.IndexOf("server=", StringComparison.Ordinal);
-        if (q >= 0)
-        {
-            string v = page.Substring(q + 7);
-            int amp = v.IndexOf('&');
-            return Uri.UnescapeDataString(amp >= 0 ? v.Substring(0, amp) : v);
-        }
         try
         {
             var u = new Uri(page);
+            // only the real "server" setting in the query (not "myserver=" or one after #), and only
+            // a server of ours: anything else could send the player's password to someone else's machine
+            foreach (string part in u.Query.TrimStart('?').Split('&'))
+                if (part.StartsWith("server=", StringComparison.Ordinal))
+                {
+                    string v = Uri.UnescapeDataString(part.Substring(7));
+                    if (AllowedServer(v, u.Host)) return v;
+                    break;
+                }
             bool ours = u.Host.EndsWith("trycloudflare.com") || u.Host == "localhost" || u.Host == "127.0.0.1";
             if (ours) return (u.Scheme == "https" ? "wss://" : "ws://") + u.Authority + "/ws";
         }
@@ -62,6 +64,15 @@ public abstract class NetLink
             if (args[i] == "-server") return args[i + 1];
         return PublishedUrl() ?? LocalUrl;
 #endif
+    }
+
+    /// A server the game may talk to: a Cloudflare tunnel (wss://<name>.trycloudflare.com/ws) or a
+    /// server.js on the same computer / network as the page (pageHost).
+    public static bool AllowedServer(string url, string pageHost)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var s) || s.AbsolutePath != "/ws" || !string.IsNullOrEmpty(s.UserInfo)) return false;
+        if (s.Scheme == "wss" && s.Host.EndsWith(".trycloudflare.com", StringComparison.OrdinalIgnoreCase)) return true;
+        return (s.Scheme == "ws" || s.Scheme == "wss") && string.Equals(s.Host, pageHost, StringComparison.OrdinalIgnoreCase);
     }
 
 #if !(UNITY_WEBGL && !UNITY_EDITOR)
@@ -78,7 +89,7 @@ public abstract class NetLink
             using (var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) })
             {
                 string t = http.GetStringAsync(LinkFileUrl + "?t=" + DateTime.UtcNow.Ticks).Result.Trim();
-                published = t.StartsWith("ws://") || t.StartsWith("wss://") ? t : null;
+                published = AllowedServer(t, "127.0.0.1") ? t : null;
             }
         }
         catch { published = null; }

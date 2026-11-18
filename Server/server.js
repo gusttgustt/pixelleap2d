@@ -68,7 +68,10 @@ const MAX_PER_IP = 12;                // connections from one address (friends a
 const MSG_RATE = 80, MSG_BURST = 300;              // messages per second (a player sends ~20)
 const BYTE_RATE = 256 * 1024, BYTE_BURST = 12 * 1024 * 1024; // bytes per second (a save or a home island is big, but rare)
 const MAX_STRIKES = 400;              // messages dropped for going too fast, then cut off
-const HELLO_WITHIN = 15000;           // ms to say hello after connecting
+const HELLO_WITHIN = 10000;           // ms to say hello after connecting
+const CONNECTS_PER_MIN = 30;          // new connections from one address per minute (reconnects are a few)
+const FRAME_BEFORE_HELLO = 16 * 1024; // the biggest message before hello (hello, a login: tiny)
+const FRAME_GUEST = 2 * 1024 * 1024;  // ... before logging in (a guest's home island is the big one)
 const SAVE_EVERY = 5000;              // ms between save writes per account (the game sends every 8 s)
 const MAX_ACCOUNTS = 5000;
 const REGISTER_PER_IP = 3, REGISTER_ALL = 30, REGISTER_WINDOW = 60 * 60 * 1000; // new accounts per hour
@@ -136,14 +139,56 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// a request that never finishes its headers (slowloris) is cut off instead of held open
+server.headersTimeout = 10000;
+server.requestTimeout = 20000;
+
 // ---------- WebSocket (RFC 6455, text frames only) ----------
 
+/// Web pages allowed to open the game connection: the game on GitHub Pages, the game served through
+/// a Cloudflare tunnel, and this PC / home network. A browser always says which page it is on
+/// (Origin), so another website can't use its visitors' browsers to play or read the lists.
+/// No Origin at all is the desktop build / editor. (A program of its own can say any Origin it
+/// likes: this keeps other web pages out, not a changed game.) More with ALLOW_ORIGINS="a,b".
+const GAME_ORIGIN = (() => { try { return new URL(GAME_URL).origin; } catch (e) { return ""; } })();
+const EXTRA_ORIGINS = String(process.env.ALLOW_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+function originOk(origin) {
+  if (origin === undefined) return true;
+  if (origin === GAME_ORIGIN || EXTRA_ORIGINS.includes(origin)) return true;
+  let u;
+  try { u = new URL(origin); } catch (e) { return false; }
+  if (u.protocol === "https:" && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname)) return true;
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const h = u.hostname;
+  return h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /^192\.168\.\d+\.\d+$/.test(h) || /^10\.\d+\.\d+\.\d+$/.test(h);
+}
+
+const connects = new Map();           // address -> recent connection times
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, list] of connects) { const l = list.filter(t => now - t < 60000); if (l.length) connects.set(ip, l); else connects.delete(ip); }
+}, 60 * 1000).unref();
+
 server.on("upgrade", (req, socket) => {
+  socket.on("error", () => {});
   if ((req.url || "").split("?")[0] !== "/ws" || (req.headers.upgrade || "").toLowerCase() !== "websocket") {
     socket.destroy();
     return;
   }
   const ip = ipOf(req);
+  if (!originOk(req.headers.origin)) {
+    log("! refused a connection from page " + String(req.headers.origin).slice(0, 80) + " (" + ip + ")");
+    socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+    return;
+  }
+  const now = Date.now(), recent = (connects.get(ip) || []).filter(t => now - t < 60000);
+  recent.push(now);
+  connects.set(ip, recent);
+  if (recent.length > CONNECTS_PER_MIN) {
+    if (recent.length === CONNECTS_PER_MIN + 1) log("! too many connections from " + ip + " (" + CONNECTS_PER_MIN + " a minute)");
+    socket.end("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n");
+    return;
+  }
   if (sockets.size >= MAX_CLIENTS || (perIp.get(ip) || 0) >= MAX_PER_IP) {
     socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
     return;
@@ -181,7 +226,7 @@ server.on("upgrade", (req, socket) => {
       let len = buf[1] & 0x7f, at = 2;
       if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); at = 4; }
       else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); at = 10; }
-      if (len > MAX_FRAME) { socket.destroy(); return; }
+      if (len > frameLimit(socket)) { socket.destroy(); return; }
       const maskAt = at;
       if (masked) at += 4;
       if (buf.length < at + len) return;
@@ -196,19 +241,26 @@ server.on("upgrade", (req, socket) => {
       if (op === 0x1 || op === 0x2 || op === 0x0) {
         parts.push(payload);
         partsLen += payload.length;
-        if (partsLen > MAX_FRAME || parts.length > 1000) { socket.destroy(); return; } // a message in endless pieces
+        if (partsLen > frameLimit(socket) || parts.length > 1000) { socket.destroy(); return; } // a message in endless pieces
         if (!fin) continue;
         const text = Buffer.concat(parts).toString("utf8");
         parts = [];
         partsLen = 0;
         if (!allowed(socket, text.length)) { if (socket.destroyed) return; continue; }
-        onMessage(socket, text);
+        try { onMessage(socket, text); }
+        catch (e) { log("! bad message from " + (socket.name || "?") + " (" + socket.ip + "): " + e.message); } // one odd message must not stop the server
       }
     }
   });
   socket.on("close", () => drop(socket));
   socket.on("error", () => drop(socket));
 });
+
+/// The biggest message a connection may send: tiny before hello, a guest's home island before
+/// logging in, a whole save after. Someone who never logs in can't make the server hold megabytes.
+function frameLimit(socket) {
+  return !socket.pid ? FRAME_BEFORE_HELLO : socket.acct ? MAX_FRAME : FRAME_GUEST;
+}
 
 function sendFrame(socket, op, payload) {
   if (socket.destroyed) return;
@@ -333,6 +385,12 @@ function onMessage(socket, text) {
   if (named && m.name !== undefined) m.name = socket.name; // nor go by another name than the one checked at hello
 
   if (m.t === "chat") { m.text = cleanText(m.text, 80); if (!m.text) return; } // nothing oversized, no rich-text tags
+  if (m.t === "hit") {
+    // a blow on the host's creature (passed on below): the host's game caps it too (AllowHit)
+    m.dmg = num(m.dmg, 0, 100000);
+    m.id = m.id | 0;
+    if (typeof m.ev !== "string" || m.ev.length > 16) delete m.ev;
+  }
 
   switch (m.t) {
     case "join": {
@@ -436,6 +494,16 @@ function onMessage(socket, text) {
       if (m.hits > 0) { m.name = socket.name; send(s, m); }
       return;
     }
+    case "p":
+    case "sp": {
+      // how I look and where I am, ~10 times a second: only the fields the game uses, each within
+      // what a real game can send, so a changed game can't show level 99999 or garbage to everyone
+      if (!socket.island) return;
+      const p = playerUpdate(m);
+      if (!p) return;
+      toRoom(socket.island, p, socket.pid);
+      return;
+    }
     case "node":
     case "spawn":
       if (!socket.island) return;
@@ -453,6 +521,34 @@ function onMessage(socket, text) {
 }
 
 const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
+
+/// A number within lo..hi (anything else - text, NaN, Infinity, missing - becomes lo, or 0 if inside).
+function num(v, lo, hi) {
+  v = +v;
+  if (!Number.isFinite(v)) return Math.max(lo, Math.min(hi, 0));
+  return Math.max(lo, Math.min(hi, v));
+}
+const int = (v, lo, hi) => Math.floor(num(v, lo, hi));
+
+const MAX_LEVEL = 999, MAX_POS = 5000;
+
+/// A player's "p" (on an island) or "sp" (a boat at sea) update, rebuilt from only the fields
+/// the game sends (IslandGame.Net.cs NetTick / SeaTick), each clamped. null = not worth passing on.
+function playerUpdate(m) {
+  const sea = m.t === "sp";
+  const x = +m.x, y = +m.y;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const p = {
+    t: m.t, from: m.from, name: m.name, // already swapped for the checked name above
+    x: sea ? num(x, -1, 2) : num(x, -MAX_POS, MAX_POS), y: num(y, -MAX_POS, MAX_POS),
+    d: int(m.d, 0, 7), f: int(m.f, 0, 63), fl: int(m.fl, 0, 1),
+    hat: int(m.hat, 0, 4096), outfit: int(m.outfit, 0, 4096),
+    lv: int(m.lv, 1, MAX_LEVEL), look: int(m.look, 0, 2000000), aw: int(m.aw, 0, 255),
+  };
+  if (sea) { p.kind = int(m.kind, 0, 255); p.hits = int(m.hits, 0, 1); }
+  else { p.pet = int(m.pet, 0, 100000); p.dn = int(m.dn, 0, 1); }
+  return p;
+}
 
 /// The room's host: the first in it, or on a private island its owner (the owner's game runs it).
 function isHostOf(socket) {

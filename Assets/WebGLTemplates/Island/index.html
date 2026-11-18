@@ -221,20 +221,37 @@
 
     // Which server to play on. The PC running Server/start-online.bat writes its current address
     // into server.txt next to this page (the free tunnel address changes every time it starts).
-    // A server given in the address (?server=...) wins, except an old tunnel address, which is
-    // swapped for the latest one so bookmarks keep working.
+    // A server given in the address (?server=...) is used only if it is one of ours: a Cloudflare
+    // tunnel (wss://<name>.trycloudflare.com/ws) or the same computer/network the page came from.
+    // Anything else is thrown away, so a link like ?server=wss://someone-else/ws can't send your
+    // password to another machine. An old tunnel address is swapped for the latest one.
+    function okServer(s) {
+      var u;
+      try { u = new URL(s); } catch (e) { return false; }
+      if (u.pathname !== "/ws" || u.username || u.password) return false;
+      if (u.protocol === "wss:" && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname)) return true;
+      return (u.protocol === "ws:" || u.protocol === "wss:") && u.hostname === location.hostname; // a server.js on this PC / LAN
+    }
     function pickServer(then) {
       var host = location.hostname, params = new URLSearchParams(location.search), cur = params.get("server") || "";
+      // the game reads "server=" anywhere in the address: drop every other copy (?myserver=, #server=)
+      var dirty = false;
+      Array.from(params.keys()).forEach(function (k) { if (k !== "server" && /server/i.test(k)) { params.delete(k); dirty = true; } });
+      if (cur && !okServer(cur)) { params.delete("server"); cur = ""; dirty = true; }
+      var hash = /server/i.test(location.hash) ? "" : location.hash;
+      if (hash !== location.hash) dirty = true;
+      var write = function () {
+        var q = params.toString();
+        history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + hash);
+      };
+      if (dirty) write();
       if (host === "localhost" || host === "127.0.0.1" || /trycloudflare\.com$/.test(host)) return then();
       if (cur && !/trycloudflare\.com/.test(cur)) return then();
       fetch("server.txt?t=" + Date.now(), { cache: "no-store" })
         .then(function (r) { return r.ok ? r.text() : ""; })
         .then(function (t) {
           t = (t || "").trim();
-          if (/^wss?:\/\/\S+$/.test(t) && t !== cur) {
-            params.set("server", t);
-            history.replaceState(null, "", location.pathname + "?" + params.toString() + location.hash);
-          }
+          if (okServer(t) && t !== cur) { params.set("server", t); write(); }
         })
         .catch(function () {})
         .then(then);
