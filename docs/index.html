@@ -200,9 +200,9 @@
     var buildUrl = "Build";
     var config = {
       arguments: [],
-      dataUrl: buildUrl + "/docs.data.unityweb?v=20261118085700",
-      frameworkUrl: buildUrl + "/docs.framework.js.unityweb?v=20261118085700",
-      codeUrl: buildUrl + "/docs.wasm.unityweb?v=20261118085700",
+      dataUrl: buildUrl + "/docs.data.unityweb?v=20261118113500",
+      frameworkUrl: buildUrl + "/docs.framework.js.unityweb?v=20261118113500",
+      codeUrl: buildUrl + "/docs.wasm.unityweb?v=20261118113500",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DefaultCompany",
       productName: "Island Survival",
@@ -259,7 +259,7 @@
 
     pickServer(function () {
     var script = document.createElement("script");
-    script.src = buildUrl + "/docs.loader.js?v=20261118085700";
+    script.src = buildUrl + "/docs.loader.js?v=20261118113500";
     script.onload = function () {
       createUnityInstance(canvas, config, function (p) {
         document.getElementById("fill").style.width = (100 * p) + "%";
