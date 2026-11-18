@@ -290,8 +290,16 @@ function sendFrame(socket, op, payload) {
   if (len < 126) head = Buffer.from([0x80 | op, len]);
   else if (len < 65536) { head = Buffer.alloc(4); head[0] = 0x80 | op; head[1] = 126; head.writeUInt16BE(len, 2); }
   else { head = Buffer.alloc(10); head[0] = 0x80 | op; head[1] = 127; head.writeBigUInt64BE(BigInt(len), 2); }
+  // A connection that doesn't read what it is sent (asking for big answers and never taking them)
+  // would keep it all waiting in memory here until the server runs out: past SEND_BACKLOG, closed.
+  // (The biggest real answer, a login with a whole save, is ~7 MB.)
+  if (socket.writableLength + len > SEND_BACKLOG) {
+    if (!socket.backlogLogged) { socket.backlogLogged = true; log("! " + (socket.name || "?") + " #" + (socket.pid || 0) + " (" + socket.ip + ") isn't reading what it is sent: closed"); }
+    socket.destroy(); drop(socket); return;
+  }
   socket.write(Buffer.concat([head, payload]));
 }
+const SEND_BACKLOG = 16 * 1024 * 1024;
 
 function send(socket, obj) { if (socket) sendFrame(socket, 0x1, Buffer.from(JSON.stringify(obj), "utf8")); }
 
@@ -418,6 +426,10 @@ function onMessage(socket, text) {
     m.id = m.id | 0;
     if (typeof m.ev !== "string" || m.ev.length > 16) delete m.ev;
   }
+
+  // asks with big answers (someone's whole island, the lists, a room's world changes): a few at a time
+  const ASK = ASK_LIMITS[m.t];
+  if (ASK && !bucket(socket, "ask_" + m.t, ASK[0], ASK[1])) return;
 
   switch (m.t) {
     case "join": {
@@ -619,6 +631,9 @@ function onMessage(socket, text) {
   }
 }
 
+const ASK_LIMITS = {                  // [per second, burst]
+  visit: [0.5, 3], homes: [1, 3], who: [1, 3], wanted: [1, 3], join: [2, 6],
+};
 const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
 const NODE_EVENTS = new Set(["deplete", "remove", "stump", "hits", "set"]); // what ApplyEvent knows
 const EVENT_RATE = 6, EVENT_BURST = 40; // world changes one player may send per second
