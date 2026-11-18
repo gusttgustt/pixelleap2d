@@ -23,7 +23,10 @@
 //                        {t:"register"|"login", name, text: password} or {t:"token", name, text: token}
 //                                                     -> {t:"auth", hits:1, name, ev: token, text: save, room: keep}
 //                                                        or {t:"auth", hits:0, why}
-//                        {t:"save", text, room}       the logged-in player's save (and kept home island)
+//                        {t:"save", text, room, ver}  the logged-in player's save (and kept home island). ver = the
+//                                                     version it builds on: a save from a device that missed newer ones
+//                                                     (another device played meanwhile) is refused -> {t:"saveold", ver}
+//                                                     otherwise -> {t:"saved", ver} (the new version)
 //                        {t:"logout", ev: token}
 //   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
 //                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
@@ -329,7 +332,14 @@ function onMessage(socket, text) {
       if (!socket.acct || !accounts[socket.acct]) return;
       const text = String(m.text || ""), keep = String(m.room || "");
       if (text.length > MAX_SAVE || keep.length > MAX_SAVE) return;
-      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now() }));
+      const cur = saveVersion(socket.acct);
+      // a game from before save versions sends none: taken as before. Otherwise the save must build
+      // on the newest one, or it would put back progress another device has already moved past.
+      if (m.ver !== undefined && (m.ver | 0) !== cur) { send(socket, { t: "saveold", ver: cur }); return; }
+      const ver = cur + 1;
+      saveVersions.set(socket.acct, ver);
+      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver }));
+      send(socket, { t: "saved", ver });
       return;
     }
     case "logout": {
@@ -407,9 +417,22 @@ function onMessage(socket, text) {
       return;
     default:
       if (!socket.island) return;
+      // what only the room's host may say: the creatures (en), their bites (dmg), who killed one
+      // (kill), the clock. Anyone else sending them is cheating (or out of date): dropped.
+      if (HOST_ONLY.has(m.t) && !isHostOf(socket)) return;
       if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); }
       else toRoom(socket.island, m, socket.pid);
   }
+}
+
+const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
+
+/// The room's host: the first in it, or on a private island its owner (the owner's game runs it).
+function isHostOf(socket) {
+  const r = rooms.get(socket.island);
+  if (!r) return false;
+  if (r.order[0] === socket.pid) return true;
+  return socket.island < 0 && onHomeOf(socket, socket.pid);
 }
 
 /// The name others see. A player's name is free to choose, but the name of an account
@@ -532,9 +555,18 @@ function authOk(socket, acc) {
       const old = s;
       setTimeout(() => { old.destroy(); drop(old); }, 300); // let the message go out first
     }
+  const pending = saveTimers.get(socket.acct); // a save still waiting to be written: on disk first,
+  if (pending && pending.timer) { clearTimeout(pending.timer); pending.write(); } // so this login gets the newest
   const data = readSave(socket.acct);
-  send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "" });
+  send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.acct) });
   log("  " + socket.name + " logged in as " + acc.name);
+}
+
+// Every accepted save gets the next version number (kept in the save file too).
+const saveVersions = new Map();        // account -> newest version
+function saveVersion(key) {
+  if (!saveVersions.has(key)) saveVersions.set(key, readSave(key).ver | 0);
+  return saveVersions.get(key);
 }
 
 // A save is written at most every SAVE_EVERY ms per account (the newest one wins).

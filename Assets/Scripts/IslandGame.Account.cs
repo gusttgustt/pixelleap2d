@@ -15,6 +15,14 @@ public partial class IslandGame
     float authSentAt;
     bool cloudDirty, cloudHooked;
     float cloudPushT;
+    // The account save's version on the server, as this device knows it. Every accepted save makes a
+    // new one; a device that missed one (another device played meanwhile) gets "saveold" instead of
+    // putting older progress back. Remembered per account, so a login can tell whether this device's
+    // own save still follows on from the server's or has been overtaken.
+    int cloudVer;
+    bool cloudWaiting, cloudStale; // a save is on its way / the server has newer progress than this device
+    float cloudWaitT;
+    static string VerKey(string acct) => "cloudVer:" + (acct ?? "").ToLowerInvariant();
 
     bool LoggedIn => acctName != null && Online;
     static string SavedToken => PlayerPrefs.GetString("acctToken", "");
@@ -99,18 +107,25 @@ public partial class IslandGame
         PlayerPrefs.SetString("acctUser", m.name);
         PlayerPrefs.SetString("acctToken", m.ev ?? "");
 
-        // the newer of the account's save and this device's wins
         var cloud = SaveSystem.Parse(m.text);
         var local = SaveSystem.Read();
         string owner = PlayerPrefs.GetString("saveOwner", "");
         bool guest = owner.Length == 0;                       // played without logging in on this device
         bool localMine = guest || owner == m.name.ToLowerInvariant();
+        // This device's save may only replace the account's if it follows on from the version the
+        // server has now: if another device has saved since (the version moved on), the server's wins,
+        // however new this device's clock says its save is. A game from before versions has none
+        // remembered (-1): then, once, the newer save wins as before.
+        int baseVer = PlayerPrefs.GetInt(VerKey(m.name), -1);
+        bool follows = baseVer < 0 ? true : baseVer == m.ver;
+        cloudVer = m.ver; cloudWaiting = false; cloudStale = false;
         SaveData start;
         // the account's character wins over a guest's (maybe someone else's) progress; a guest's
         // progress only fills an account that has nothing yet
-        if (cloud != null && (local == null || guest || !localMine || cloud.savedAt >= local.savedAt))
+        if (cloud != null && (local == null || guest || !localMine || !follows || cloud.savedAt >= local.savedAt))
         {
             SaveSystem.WriteRaw(m.text, m.room);
+            PlayerPrefs.SetInt(VerKey(m.name), m.ver); // this device now holds the server's version
             start = cloud;
         }
         else if (local != null && localMine)
@@ -141,10 +156,29 @@ public partial class IslandGame
     void TickCloud(float dt)
     {
         cloudPushT -= dt;
-        if (!cloudDirty || !LoggedIn || cloudPushT > 0f) return;
+        if (cloudWaiting && (cloudWaitT -= dt) <= 0f) cloudWaiting = false; // no answer: try again
+        if (!cloudDirty || !LoggedIn || cloudStale || cloudWaiting || cloudPushT > 0f) return;
         cloudDirty = false;
         cloudPushT = 8f; // at most every 8 seconds (the game autosaves every 30)
-        Send(new NetMsg { t = "save", text = SaveSystem.RawSave(), room = SaveSystem.RawKeep() });
+        cloudWaiting = true; cloudWaitT = 20f; // the next save builds on the version this one gets
+        Send(new NetMsg { t = "save", text = SaveSystem.RawSave(), room = SaveSystem.RawKeep(), ver = cloudVer });
+    }
+
+    /// The server took the save: it's version m.ver now.
+    void OnSaved(NetMsg m)
+    {
+        cloudWaiting = false;
+        cloudVer = m.ver;
+        if (acctName != null) { PlayerPrefs.SetInt(VerKey(acctName), cloudVer); PlayerPrefs.Save(); }
+    }
+
+    /// The server has newer progress than this device (it played on another device after this one
+    /// loaded): this device stops sending, so it can't put the older progress back.
+    void OnSaveOld(NetMsg m)
+    {
+        cloudWaiting = false;
+        cloudStale = true;
+        Hint("บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด", 8f);
     }
 
     void DrawAccount(float x, float y, float w)

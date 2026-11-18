@@ -275,6 +275,8 @@ public partial class IslandGame
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
             case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)
             case "who": OnWho(m); break;           // everyone online and where (IslandGame.Who.cs)
+            case "saved": OnSaved(m); break;       // the account save was taken (IslandGame.Account.cs)
+            case "saveold": OnSaveOld(m); break;   // ... or refused: another device has newer progress
             case "kicked": kickedWhy = string.IsNullOrEmpty(m.why) ? "บัญชีนี้เข้าเล่นจากที่อื่นแล้ว" : m.why; acctName = null; break; // saves stop going to the account
 
             case "p":
@@ -307,11 +309,14 @@ public partial class IslandGame
                 if (!IsHost) break;
                 var target = enemies.Find(e => e != null && !e.puppet && e.netId == m.id);
                 if (target == null) break;
+                if (m.ev == "catch") { CatchFromNet(target, m.from); break; } // a pet net (IslandGame.Pet.cs)
+                int allowed = AllowHit(m.from, m.dmg);
+                if (allowed <= 0) break;
                 Vector2 from = remotes.TryGetValue(m.from, out var hitter) && hitter != null ? hitter.grid : target.grid;
                 Vector3 at = target.transform.position;
                 var kind = target.kind;
                 int xpGain = target.xp;
-                if (target.Hit(Mathf.RoundToInt(m.dmg), from))
+                if (target.Hit(allowed, from))
                 {
                     enemies.Remove(target);
                     Send(new NetMsg { t = "kill", id = m.id, by = m.from, kind = (int)kind, hits = xpGain, x = at.x, y = at.y });
@@ -320,6 +325,7 @@ public partial class IslandGame
                 break;
 
             case "kill":
+                if (m.from != hostId) break; // only the host decides what died (anyone else: a cheat or a stale game)
                 var dead = enemies.Find(e => e != null && e.netId == m.id);
                 Vector3 where = dead != null ? dead.transform.position : new Vector3(m.x, m.y, 0f);
                 if (dead != null)
@@ -333,7 +339,8 @@ public partial class IslandGame
                 break;
 
             case "dmg":
-                if (m.to == myId) DamagePlayer(m.dmg, m.why);
+                // a creature's bite comes from the host's game only, and never more than any creature can do
+                if (m.to == myId && m.from == hostId && m.from != myId) DamagePlayer(Mathf.Clamp(m.dmg, 0f, MaxNetBite), m.why);
                 break;
 
             case "rev": // a friend brought me back (IslandGame.Revive.cs)
@@ -490,6 +497,25 @@ public partial class IslandGame
             if (d < bd) { bd = d; best = r.grid; who = r.netId; }
         }
         return (best, who);
+    }
+
+    // ---- what other players' games may do to mine (the server relays; these checks keep a cheat in check)
+    const float MaxNetBite = 2500f;    // more than the strongest boss bite (Void Titan alone, last island, ~250)
+    const float MaxNetHit = 4000f;     // more than one awakened finishing move with the best gear (~2900)
+    const float NetHitPerSec = 6500f;  // about the best a fully geared, awakened player deals to one creature
+    readonly Dictionary<int, (float budget, float at)> hitBudget = new Dictionary<int, (float, float)>();
+
+    /// How much of a hit from another player to apply: never more than one hit can do, nor more per
+    /// second than the strongest player can, so a changed game can't one-shot a boss.
+    int AllowHit(int from, float dmg)
+    {
+        if (!(dmg > 0f)) return 0;
+        float now = Time.unscaledTime;
+        if (!hitBudget.TryGetValue(from, out var b)) b = (NetHitPerSec, now);
+        float budget = Mathf.Min(NetHitPerSec, b.budget + (now - b.at) * NetHitPerSec);
+        float take = Mathf.Min(Mathf.Min(dmg, MaxNetHit), budget);
+        hitBudget[from] = (budget - take, now);
+        return Mathf.FloorToInt(take);
     }
 
     public void NetDamage(int who, float amount, string why) => Send(new NetMsg { t = "dmg", to = who, dmg = amount, why = why });

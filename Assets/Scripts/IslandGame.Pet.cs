@@ -30,6 +30,18 @@ public partial class IslandGame
 
     bool CatchTarget(Enemy e) => e != null && Tameable(e.kind) && !e.alpha;
 
+    /// I'm the host and another player's net caught one of my creatures. Only a tameable creature
+    /// below half health can be caught (as on their side); it leaves for everyone, with no loot or XP
+    /// (by = -1). Anything else is refused: a net must not be a way to delete a boss.
+    void CatchFromNet(Enemy target, int from)
+    {
+        if (!CatchTarget(target) || target.hp * 2 > target.maxHp) return;
+        enemies.Remove(target);
+        Vector3 at = target.transform.position;
+        Send(new NetMsg { t = "kill", id = target.netId, by = -1, kind = (int)target.kind, x = at.x, y = at.y });
+        Destroy(target.gameObject);
+    }
+
     // ------------------------------------------------------------------ save data
     void LoadPets(SaveData d)
     {
@@ -213,7 +225,7 @@ public partial class IslandGame
             return;
         }
         enemies.Remove(e);
-        if (e.puppet) Send(new NetMsg { t = "hit", to = hostId, id = e.netId, dmg = 99999 }); // the host's creature: it goes for everyone
+        if (e.puppet) Send(new NetMsg { t = "hit", to = hostId, id = e.netId, ev = "catch" }); // the host's creature: the host checks it and it goes for everyone
         else if (Shared) Send(new NetMsg { t = "kill", id = e.netId, by = -1, kind = (int)e.kind, x = at.x, y = at.y });
         Destroy(e.gameObject);
         var pet = AddPet(100 + (int)e.kind);

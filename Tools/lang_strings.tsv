@@ -57,23 +57,24 @@ E	มะพร้าว!	Enemy.cs:405
 E	ปืนใหญ่!	Enemy.cs:413
 E	หนวดฟาด!	Enemy.cs:423
 E	เศษแก้วสะท้อน!	Enemy.cs:562
-E	ใส่ชื่อบัญชีอย่างน้อย 3 ตัว	IslandGame.Account.cs:27
-E	ใส่รหัสผ่านอย่างน้อย 4 ตัว	IslandGame.Account.cs:28
-E	กำลังสมัครบัญชี...	IslandGame.Account.cs:32
-E	กำลังเข้าสู่ระบบ...	IslandGame.Account.cs:32
-E	ออกจากระบบแล้ว	IslandGame.Account.cs:42
-E	เซิร์ฟเวอร์นี้ยังไม่รองรับบัญชีผู้เล่น เล่นแบบไม่ล็อกอินไปก่อน	IslandGame.Account.cs:62
-E	ต้องเข้าสู่ระบบใหม่ (ตอนนี้เล่นแบบไม่ล็อกอิน เซฟอยู่ในเครื่องนี้)	IslandGame.Account.cs:89
-E	เข้าสู่ระบบไม่สำเร็จ	IslandGame.Account.cs:92
-T	เข้าสู่ระบบแล้ว: {0} เล่นตัวนี้ต่อจากเครื่องไหนก็ได้	IslandGame.Account.cs:130
-E	บัญชีผู้เล่น  <size=11>(เล่นตัวเดิมได้จากทุกเครื่อง)</size>	IslandGame.Account.cs:153
-T	เข้าสู่ระบบเป็น <b>{0}</b>	IslandGame.Account.cs:158
-E	ออกจากระบบ	IslandGame.Account.cs:159
-E	กด "เล่นออนไลน์" แล้วจะได้ตัวละครจากบัญชีนี้	IslandGame.Account.cs:160
-E	ชื่อบัญชี	IslandGame.Account.cs:164
-E	รหัสผ่าน	IslandGame.Account.cs:167
-E	เข้าสู่ระบบ	IslandGame.Account.cs:171
-E	สมัครบัญชีใหม่	IslandGame.Account.cs:172
+E	ใส่ชื่อบัญชีอย่างน้อย 3 ตัว	IslandGame.Account.cs:35
+E	ใส่รหัสผ่านอย่างน้อย 4 ตัว	IslandGame.Account.cs:36
+E	กำลังสมัครบัญชี...	IslandGame.Account.cs:40
+E	กำลังเข้าสู่ระบบ...	IslandGame.Account.cs:40
+E	ออกจากระบบแล้ว	IslandGame.Account.cs:50
+E	เซิร์ฟเวอร์นี้ยังไม่รองรับบัญชีผู้เล่น เล่นแบบไม่ล็อกอินไปก่อน	IslandGame.Account.cs:70
+E	ต้องเข้าสู่ระบบใหม่ (ตอนนี้เล่นแบบไม่ล็อกอิน เซฟอยู่ในเครื่องนี้)	IslandGame.Account.cs:97
+E	เข้าสู่ระบบไม่สำเร็จ	IslandGame.Account.cs:100
+T	เข้าสู่ระบบแล้ว: {0} เล่นตัวนี้ต่อจากเครื่องไหนก็ได้	IslandGame.Account.cs:145
+E	บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด	IslandGame.Account.cs:181
+E	บัญชีผู้เล่น  <size=11>(เล่นตัวเดิมได้จากทุกเครื่อง)</size>	IslandGame.Account.cs:187
+T	เข้าสู่ระบบเป็น <b>{0}</b>	IslandGame.Account.cs:192
+E	ออกจากระบบ	IslandGame.Account.cs:193
+E	กด "เล่นออนไลน์" แล้วจะได้ตัวละครจากบัญชีนี้	IslandGame.Account.cs:194
+E	ชื่อบัญชี	IslandGame.Account.cs:198
+E	รหัสผ่าน	IslandGame.Account.cs:201
+E	เข้าสู่ระบบ	IslandGame.Account.cs:205
+E	สมัครบัญชีใหม่	IslandGame.Account.cs:206
 E	พันสายฟ้าฟาด	IslandGame.Awaken.cs:39
 E	ราตรีนิรันดร์	IslandGame.Awaken.cs:39
 E	ป่าพิโรธ	IslandGame.Awaken.cs:39
@@ -968,12 +969,12 @@ T	เรือของ {0} แล่นเข้ามาในทะเลน�
 T	{0} มาถึงเกาะแล้ว	IslandGame.Net.cs:249
 T	เรือของ {0} แล่นออกไปแล้ว	IslandGame.Net.cs:258
 T	{0} ออกจากเกาะไปแล้ว	IslandGame.Net.cs:258
-E	บัญชีนี้เข้าเล่นจากที่อื่นแล้ว	IslandGame.Net.cs:278
-E	ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว	IslandGame.Net.cs:470
-E	นกอัสนีร่วงลงแล้ว! พายุเบาลง	IslandGame.Net.cs:471
-E	กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว	IslandGame.Net.cs:472
-E	ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ	IslandGame.Net.cs:473
-E	อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร	IslandGame.Net.cs:474
+E	บัญชีนี้เข้าเล่นจากที่อื่นแล้ว	IslandGame.Net.cs:280
+E	ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว	IslandGame.Net.cs:477
+E	นกอัสนีร่วงลงแล้ว! พายุเบาลง	IslandGame.Net.cs:478
+E	กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว	IslandGame.Net.cs:479
+E	ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ	IslandGame.Net.cs:480
+E	อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร	IslandGame.Net.cs:481
 E	น้ำแข็ง	IslandGame.NewPowers.cs:55
 E	กระจก	IslandGame.NewPowers.cs:55
 E	วายุ	IslandGame.NewPowers.cs:55
@@ -1054,54 +1055,54 @@ E	กระต่าย	IslandGame.Pet.cs:22
 E	นกแก้ว	IslandGame.Pet.cs:22
 E	ปลาทอง	IslandGame.Pet.cs:22
 E	สัตว์เลี้ยง	IslandGame.Pet.cs:23
-T	{0}คาบ{1}มาให้!	IslandGame.Pet.cs:114
-E	หมา: คาบกิ่งไม้ หิน บางทีก็เหรียญทองมาให้	IslandGame.Pet.cs:139
-E	แมว: จับปลา และคาบขนนกมาให้	IslandGame.Pet.cs:140
-E	นก (นกแก้ว): เก็บผลไม้ ขนนก และเหรียญทอง	IslandGame.Pet.cs:141
-E	ปลา (ปลาทองในโหล ลอยตามคุณ): หาปลาและเปลือกหอย	IslandGame.Pet.cs:142
-E	เลือกสัตว์เลี้ยงคู่ใจตัวแรก	IslandGame.Pet.cs:152
-E	เพื่อนตัวแรกจะเดินตามคุณไปทุกเกาะ และคาบของมาให้เป็นระยะ\nเลือกได้ 1 ตัวฟรี (ตัวอื่นซื้อเพิ่มได้ที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)	IslandGame.Pet.cs:152
-E	ไว้ทีหลัง	IslandGame.Pet.cs:158
-T	ได้{0}ชื่อ "{1}" แล้ว! มันจะเดินตามคุณไปทุกที่ กด P เพื่อตั้งชื่อใหม่	IslandGame.Pet.cs:173
-E	ต้องมีตาข่ายจับสัตว์ (ประดิษฐ์ได้ใน Tab หรือซื้อที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)	IslandGame.Pet.cs:200
-E	กด P	IslandGame.Pet.cs:201
-E	แตะตาข่ายในช่องลัด	IslandGame.Pet.cs:201
-T	{0}ยังแรงดีอยู่ ตีให้เลือดเหลือไม่ถึงครึ่งก่อน แล้วค่อย{1}	IslandGame.Pet.cs:201
-T	มีสัตว์เลี้ยงครบ {0} ตัวแล้ว ปล่อยบางตัวคืนธรรมชาติก่อน (P)	IslandGame.Pet.cs:202
-T	{0}ดิ้นหลุดตาข่าย!	IslandGame.Pet.cs:211
-T	จับ{0}ได้!	IslandGame.Pet.cs:220
-T	จับ{0}มาเลี้ยงได้แล้ว! ชื่อ "{1}"	IslandGame.Pet.cs:223
-E	 มันจะเดินตามคุณไปทุกที่	IslandGame.Pet.cs:223
-E	 มันจะไปรออยู่ที่บ้านบนเกาะส่วนตัว	IslandGame.Pet.cs:223
-E	 (กด P เพื่อตั้งชื่อ)	IslandGame.Pet.cs:223
-T	สัตว์เลี้ยงของคุณ ({0}/{1})	IslandGame.Pet.cs:240
-E	ยังไม่มีสัตว์เลี้ยงเลย\n	IslandGame.Pet.cs:243
-E	• ซื้อลูกหมา ลูกแมว กระต่าย หรือนกแก้ว ได้ที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว (H)\n	IslandGame.Pet.cs:244
-E	• หรือจับสัตว์ป่า: ทำตาข่ายจับสัตว์ (Tab) ตีสัตว์ให้เลือดเหลือไม่ถึงครึ่ง แล้วยืนหันหน้าไปหามันกด P	IslandGame.Pet.cs:245
-T	{0} ({1}) กำลังเดินตามคุณ และจะคาบของมาให้เป็นครั้งคราว	IslandGame.Pet.cs:247
-E	ตอนนี้ไม่มีตัวไหนเดินตามคุณ	IslandGame.Pet.cs:247
-E	\nตัวอื่นๆ เล่นอยู่แถวบ้านบนเกาะส่วนตัว เลือกตัวที่ต้องการเพื่อพาไปด้วย ตั้งชื่อ หรือปล่อย	IslandGame.Pet.cs:248
-E	  - เดินตามอยู่	IslandGame.Pet.cs:253
-T	{0}กำลังเดินตามคุณไปทุกที่	IslandGame.Pet.cs:265
-T	{0}กำลังเล่นอยู่แถวบ้านบนเกาะส่วนตัว	IslandGame.Pet.cs:265
-T	ให้{0}กลับไปพักที่บ้าน	IslandGame.Pet.cs:266
-T	พา{0}ไปด้วย	IslandGame.Pet.cs:267
-E	ตั้งชื่อใหม่	IslandGame.Pet.cs:268
-T	ปล่อย{0}คืนธรรมชาติ...	IslandGame.Pet.cs:269
-E	◀ กลับ	IslandGame.Pet.cs:270
-T	{0}มาเดินด้วยแล้ว!	IslandGame.Pet.cs:280
-E	ส่งสัตว์เลี้ยงกลับไปพักที่บ้านแล้ว	IslandGame.Pet.cs:280
-E	ปล่อยคืนธรรมชาติ	IslandGame.Pet.cs:288
-T	ปล่อย{0} ({1}) ไปจริงๆ เหรอ? มันจะไม่กลับมาอีกแล้ว	IslandGame.Pet.cs:288
-T	ใช่ ปล่อย{0}ไป	IslandGame.Pet.cs:289
-T	ลาก่อน {0}...	IslandGame.Pet.cs:296
-E	ไม่ เก็บไว้	IslandGame.Pet.cs:299
-T	ตั้งชื่อ{0}ของคุณ	IslandGame.Pet.cs:316
-T	พิมพ์ชื่อใหม่ให้{0} (ไม่เกิน {1} ตัวอักษร)\n\n\n	IslandGame.Pet.cs:316
-E	บันทึกชื่อ (Enter)	IslandGame.Pet.cs:317
-E	ยกเลิก (Esc)	IslandGame.Pet.cs:318
-E	ชื่อว่างไม่ได้นะ	IslandGame.Pet.cs:337
-T	ตั้งชื่อใหม่แล้ว: {0}!	IslandGame.Pet.cs:342
+T	{0}คาบ{1}มาให้!	IslandGame.Pet.cs:126
+E	หมา: คาบกิ่งไม้ หิน บางทีก็เหรียญทองมาให้	IslandGame.Pet.cs:151
+E	แมว: จับปลา และคาบขนนกมาให้	IslandGame.Pet.cs:152
+E	นก (นกแก้ว): เก็บผลไม้ ขนนก และเหรียญทอง	IslandGame.Pet.cs:153
+E	ปลา (ปลาทองในโหล ลอยตามคุณ): หาปลาและเปลือกหอย	IslandGame.Pet.cs:154
+E	เลือกสัตว์เลี้ยงคู่ใจตัวแรก	IslandGame.Pet.cs:164
+E	เพื่อนตัวแรกจะเดินตามคุณไปทุกเกาะ และคาบของมาให้เป็นระยะ\nเลือกได้ 1 ตัวฟรี (ตัวอื่นซื้อเพิ่มได้ที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)	IslandGame.Pet.cs:164
+E	ไว้ทีหลัง	IslandGame.Pet.cs:170
+T	ได้{0}ชื่อ "{1}" แล้ว! มันจะเดินตามคุณไปทุกที่ กด P เพื่อตั้งชื่อใหม่	IslandGame.Pet.cs:185
+E	ต้องมีตาข่ายจับสัตว์ (ประดิษฐ์ได้ใน Tab หรือซื้อที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว)	IslandGame.Pet.cs:212
+E	กด P	IslandGame.Pet.cs:213
+E	แตะตาข่ายในช่องลัด	IslandGame.Pet.cs:213
+T	{0}ยังแรงดีอยู่ ตีให้เลือดเหลือไม่ถึงครึ่งก่อน แล้วค่อย{1}	IslandGame.Pet.cs:213
+T	มีสัตว์เลี้ยงครบ {0} ตัวแล้ว ปล่อยบางตัวคืนธรรมชาติก่อน (P)	IslandGame.Pet.cs:214
+T	{0}ดิ้นหลุดตาข่าย!	IslandGame.Pet.cs:223
+T	จับ{0}ได้!	IslandGame.Pet.cs:232
+T	จับ{0}มาเลี้ยงได้แล้ว! ชื่อ "{1}"	IslandGame.Pet.cs:235
+E	 มันจะเดินตามคุณไปทุกที่	IslandGame.Pet.cs:235
+E	 มันจะไปรออยู่ที่บ้านบนเกาะส่วนตัว	IslandGame.Pet.cs:235
+E	 (กด P เพื่อตั้งชื่อ)	IslandGame.Pet.cs:235
+T	สัตว์เลี้ยงของคุณ ({0}/{1})	IslandGame.Pet.cs:252
+E	ยังไม่มีสัตว์เลี้ยงเลย\n	IslandGame.Pet.cs:255
+E	• ซื้อลูกหมา ลูกแมว กระต่าย หรือนกแก้ว ได้ที่ร้านสัตว์เลี้ยงในตลาดเกาะส่วนตัว (H)\n	IslandGame.Pet.cs:256
+E	• หรือจับสัตว์ป่า: ทำตาข่ายจับสัตว์ (Tab) ตีสัตว์ให้เลือดเหลือไม่ถึงครึ่ง แล้วยืนหันหน้าไปหามันกด P	IslandGame.Pet.cs:257
+T	{0} ({1}) กำลังเดินตามคุณ และจะคาบของมาให้เป็นครั้งคราว	IslandGame.Pet.cs:259
+E	ตอนนี้ไม่มีตัวไหนเดินตามคุณ	IslandGame.Pet.cs:259
+E	\nตัวอื่นๆ เล่นอยู่แถวบ้านบนเกาะส่วนตัว เลือกตัวที่ต้องการเพื่อพาไปด้วย ตั้งชื่อ หรือปล่อย	IslandGame.Pet.cs:260
+E	  - เดินตามอยู่	IslandGame.Pet.cs:265
+T	{0}กำลังเดินตามคุณไปทุกที่	IslandGame.Pet.cs:277
+T	{0}กำลังเล่นอยู่แถวบ้านบนเกาะส่วนตัว	IslandGame.Pet.cs:277
+T	ให้{0}กลับไปพักที่บ้าน	IslandGame.Pet.cs:278
+T	พา{0}ไปด้วย	IslandGame.Pet.cs:279
+E	ตั้งชื่อใหม่	IslandGame.Pet.cs:280
+T	ปล่อย{0}คืนธรรมชาติ...	IslandGame.Pet.cs:281
+E	◀ กลับ	IslandGame.Pet.cs:282
+T	{0}มาเดินด้วยแล้ว!	IslandGame.Pet.cs:292
+E	ส่งสัตว์เลี้ยงกลับไปพักที่บ้านแล้ว	IslandGame.Pet.cs:292
+E	ปล่อยคืนธรรมชาติ	IslandGame.Pet.cs:300
+T	ปล่อย{0} ({1}) ไปจริงๆ เหรอ? มันจะไม่กลับมาอีกแล้ว	IslandGame.Pet.cs:300
+T	ใช่ ปล่อย{0}ไป	IslandGame.Pet.cs:301
+T	ลาก่อน {0}...	IslandGame.Pet.cs:308
+E	ไม่ เก็บไว้	IslandGame.Pet.cs:311
+T	ตั้งชื่อ{0}ของคุณ	IslandGame.Pet.cs:328
+T	พิมพ์ชื่อใหม่ให้{0} (ไม่เกิน {1} ตัวอักษร)\n\n\n	IslandGame.Pet.cs:328
+E	บันทึกชื่อ (Enter)	IslandGame.Pet.cs:329
+E	ยกเลิก (Esc)	IslandGame.Pet.cs:330
+E	ชื่อว่างไม่ได้นะ	IslandGame.Pet.cs:349
+T	ตั้งชื่อใหม่แล้ว: {0}!	IslandGame.Pet.cs:354
 E	ลูกปืนใหญ่!	IslandGame.Pirate.cs:114
 E	ปืนใหญ่จากเรือโจรสลัด! หลบวงสีแดง	IslandGame.Pirate.cs:116
 E	เรือรบโจรสลัดเงียบเสียงแล้ว	IslandGame.Pirate.cs:122
@@ -2004,13 +2005,13 @@ T	{0} ร้านช่างไม้	Villager.cs:53
 T	{0} ร้านรับซื้อของ	Villager.cs:54
 T	{0} ร้านอุปกรณ์ประมง	Villager.cs:55
 T	{0} ร้านสัตว์เลี้ยง	Villager.cs:56
-E	บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว	server.js:530
-E	ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่	server.js:637
-E	ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่	server.js:642
-E	ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค	server.js:648
-E	รหัสผ่านต้องยาวอย่างน้อย 4 ตัว	server.js:649
-E	ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ	server.js:650
-E	สมัครบัญชีใหม่มากเกินไปแล้ว ลองใหม่ภายหลัง	server.js:655
-E	ต้องเข้าสู่ระบบใหม่อีกครั้ง	server.js:674
-E	ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)	server.js:680
-E	รหัสผ่านไม่ถูกต้อง	server.js:686
+E	บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว	server.js:553
+E	ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่	server.js:669
+E	ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่	server.js:674
+E	ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค	server.js:680
+E	รหัสผ่านต้องยาวอย่างน้อย 4 ตัว	server.js:681
+E	ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ	server.js:682
+E	สมัครบัญชีใหม่มากเกินไปแล้ว ลองใหม่ภายหลัง	server.js:687
+E	ต้องเข้าสู่ระบบใหม่อีกครั้ง	server.js:706
+E	ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)	server.js:712
+E	รหัสผ่านไม่ถูกต้อง	server.js:718

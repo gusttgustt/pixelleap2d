@@ -2012,3 +2012,4 @@ E	สมัครบัญชีใหม่มากเกินไปแล้
 E	ต้องเข้าสู่ระบบใหม่อีกครั้ง	Please log in again
 E	ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)	Account not found (you can sign up)
 E	รหัสผ่านไม่ถูกต้อง	Wrong password
+E	บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด	This account has newer progress from another device. This device has stopped saving to the account. Go back to the title screen and play online again to load the latest
