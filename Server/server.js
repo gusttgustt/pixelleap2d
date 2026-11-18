@@ -526,11 +526,15 @@ function onMessage(socket, text) {
       return;
     }
     case "hnode": {
-      // A private island changed (m.id = its owner): everyone on it sees it, and the owner gets it
-      // wherever they are, so a friend's help on the farm is kept even while the owner is away.
-      // Only the owner, or someone standing on that private island, may change it.
+      // A private island changed (m.id = its owner): everyone on it sees it, and the owner gets it.
+      // Only the owner, or someone standing on that private island while the owner is there too
+      // (outside or in the house): nobody changes a farm behind its owner's back.
       const owner = m.id | 0;
-      if (owner <= 0 || (owner !== socket.pid && !onHomeOf(socket, owner))) return;
+      if (owner <= 0) return;
+      if (owner !== socket.pid) {
+        const o = clients.get(owner);
+        if (!onHomeOf(socket, owner) || !o || !onHomeOf(o, owner)) return;
+      }
       // the whole island (ev "full": big, as big as a shared home) or only what just changed (small)
       const one = m.to > 0, full = m.ev === "full" && owner === socket.pid;
       const h = { t: "hnode", from: socket.pid, id: owner, text: String(m.text || "").slice(0, full ? 400000 : 100000),
