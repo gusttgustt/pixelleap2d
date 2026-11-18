@@ -728,7 +728,7 @@ public partial class IslandGame
             EnemyKind.AntQueen => (Item.Chitin, 10),
             _ => (Item.CrabMeat, 1),
         };
-        QuestKill(kind);
+        QuestKill(kind, at);
         BossDown(kind);
         if (kind == EnemyKind.Captain) AddBounty(CaptainBounty, at + Vector3.up * 1f, null); // the pirate warship's captain: the government notices
         if (kind == EnemyKind.Snowman) SplitSnowman(WorldDeltaToGrid(at)); // bursts into snowlings

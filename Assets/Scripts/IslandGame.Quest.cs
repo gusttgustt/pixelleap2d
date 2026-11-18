@@ -56,19 +56,148 @@ public partial class IslandGame
         flags.Remove("acc:" + q.id);
         Sfx.Play("levelup", 0.6f);
         Fx.Burst(PlayerPos + Vector3.up * 0.5f, new Color(1f, 0.85f, 0.3f), 18, 1.4f, 2f, 1f, 3f);
+        QuestBanner("ภารกิจสำเร็จ!", $"{q.title}  ·  รางวัล: {q.rewardText}", new Color(0.5f, 1f, 0.55f));
         q.reward?.Invoke();
         SaveGame();
     }
 
+    void AcceptQuest(Villager v, Quest q)
+    {
+        flags.Add("acc:" + q.id);
+        if (q.id.StartsWith("local") && q.help.Length > 0) PlaceLostBundle();
+        Sfx.Play("levelup", 0.35f);
+        QuestBanner("รับภารกิจแล้ว!", q.title, new Color(1f, 0.82f, 0.3f));
+        OpenDialog(v, $"ขอบใจ! ภารกิจ \"{q.title}\" ดูความคืบหน้าได้ที่มุมขวาบน" +
+            (q.kill.Length > 0 ? "\nตัวที่ต้องปราบจะมี<color=#ff6b5e><b>ป้ายแดง \"เป้าหมาย\"</b></color>อยู่เหนือหัว" : ""));
+    }
+
     /// A creature died by your hand: count it for every accepted quest that wants it.
-    void QuestKill(EnemyKind kind)
+    void QuestKill(EnemyKind kind, Vector3 at)
     {
         if (kind == EnemyKind.ShroomKing) flags.Add("king" + island);
+        var wanted = QuestTargets(); // before counting: was this one a target?
+        var readyBefore = new HashSet<string>();
+        foreach (var q in IslandQuests()) if (QuestReady(q)) readyBefore.Add(q.id);
         foreach (var f in flags)
         {
             if (!f.StartsWith("acc:")) continue;
             string key = f.Substring(4) + "|" + (int)kind;
             questKills[key] = (questKills.TryGetValue(key, out var n) ? n : 0) + 1;
+        }
+        if (!wanted.TryGetValue(kind, out var w)) return;
+        int have = w.have + 1;
+        Popup($"เป้าหมาย {Mathf.Min(have, w.need)}/{w.need}", at + Vector3.up * 0.9f, new Color(1f, 0.55f, 0.45f));
+        foreach (var q in IslandQuests())
+            if (!readyBefore.Contains(q.id) && QuestReady(q))
+            {
+                QuestBanner("ภารกิจพร้อมส่ง!", $"{q.title}  ·  กลับไปคุยกับคนที่มี ? เหนือหัว", new Color(0.5f, 1f, 0.55f));
+                return;
+            }
+        if (have >= w.need) QuestBanner($"ปราบ{EnemyName(kind)}ครบแล้ว!", "ทำส่วนที่เหลือของภารกิจต่อ (ดูมุมขวาบน)", new Color(1f, 0.82f, 0.3f));
+    }
+
+    /// Accepted quests of the people on this island.
+    List<Quest> IslandQuests()
+    {
+        var list = new List<Quest>();
+        foreach (var v in villagers)
+        {
+            if (v == null) continue;
+            if (v.role == VillagerRole.Doctor) // she has a chain of quests: any accepted one counts
+            {
+                foreach (var dq in DoctorQuests()) if (Accepted(dq) && !Done(dq)) list.Add(dq);
+                continue;
+            }
+            var q = QuestOf(v);
+            if (q != null && Accepted(q)) list.Add(q);
+        }
+        return list;
+    }
+
+    /// The creatures your accepted quests still want, with how many so far.
+    Dictionary<EnemyKind, (int have, int need)> QuestTargets()
+    {
+        var d = new Dictionary<EnemyKind, (int, int)>();
+        if (voyage != null) return d;
+        foreach (var q in IslandQuests())
+            foreach (var k in q.kill)
+            {
+                int h = Kills(q, k.kind);
+                if (h < k.n) d[k.kind] = (h, k.n);
+            }
+        return d;
+    }
+
+    /// A quest person whose quest is ready to hand in ("?" over their head instead of "!").
+    bool ReadyToHandIn(Villager v)
+    {
+        var q = v.role == VillagerRole.Weaver || v.role == VillagerRole.Child ? null : QuestOf(v);
+        return q != null && Accepted(q) && QuestReady(q);
+    }
+
+    /// The quest's title, reward and objectives for the conversation box, in colour.
+    string QuestBlock(Quest q)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"<size=15><color=#ffd84d><b>ภารกิจ: {q.title}</b></color></size>\n<color=#8fe38f><b>รางวัล:</b></color> {q.rewardText}");
+        foreach (var line in QuestLines(q))
+            sb.Append(line.StartsWith("✓") ? $"\n<color=#8fe38f>{line}</color>" : $"\n{line}");
+        return sb.ToString();
+    }
+
+    // ------------------------------------------------------------------ quest banner and targets
+    string questBanner, questBannerSub;
+    Color questBannerCol;
+    float questBannerT0 = -99f;
+    const float QuestBannerTime = 3.5f;
+
+    void QuestBanner(string text, string sub, Color col)
+    {
+        questBanner = text; questBannerSub = sub; questBannerCol = col; questBannerT0 = Time.time;
+    }
+
+    /// A big line in the upper middle of the screen: quest accepted, ready, done.
+    void DrawQuestBanner(float W, float H)
+    {
+        float t = Time.time - questBannerT0;
+        if (questBanner == null || t > QuestBannerTime) return;
+        float a = t < 0.2f ? t / 0.2f : t > QuestBannerTime - 0.6f ? (QuestBannerTime - t) / 0.6f : 1f;
+        float pop = t < 0.2f ? Mathf.Lerp(1.3f, 1f, t / 0.2f) : 1f;
+        float bw = Mathf.Min(W - 20f, 480f), bh = string.IsNullOrEmpty(questBannerSub) ? 46f : 68f;
+        var box = new Rect(W / 2f - bw / 2f, H * 0.2f, bw, bh);
+        var c = questBannerCol; c.a = a;
+        Fill(box, new Color(0.04f, 0.04f, 0.07f, 0.85f * a));
+        Fill(new Rect(box.x, box.y, box.width, 3f), c);
+        Fill(new Rect(box.x, box.yMax - 3f, box.width, 3f), c);
+        var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.RoundToInt(24f * pop), fontStyle = FontStyle.Bold, wordWrap = false };
+        ShadowLabel(new Rect(box.x, box.y + 6f, bw, 34f), questBanner, st, c);
+        if (!string.IsNullOrEmpty(questBannerSub))
+            ShadowLabel(new Rect(box.x + 8f, box.y + 40f, bw - 16f, 22f), questBannerSub, new GUIStyle(st) { fontSize = 13, wordWrap = true }, new Color(1f, 1f, 1f, a));
+    }
+
+    /// A red "เป้าหมาย 1/3" tag over every creature an accepted quest still wants.
+    void DrawQuestTargets(float s)
+    {
+        if (Event.current.type != EventType.Repaint || dialog != null || dead) return;
+        var want = QuestTargets();
+        if (want.Count == 0) return;
+        var st = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontSize = 11, fontStyle = FontStyle.Bold };
+        float pulse = 0.75f + 0.25f * Mathf.Sin(Time.time * 6f);
+        var red = new Color(0.85f * pulse + 0.15f, 0.12f, 0.1f, 0.9f);
+        foreach (var e in enemies)
+        {
+            if (e == null || !want.TryGetValue(e.kind, out var w)) continue;
+            var gp = ToGui(e.transform.position + Vector3.up * 0.55f, s);
+            float bob = Mathf.Sin(Time.time * 4f + e.transform.position.x * 3f) * 2f;
+            string txt = $"เป้าหมาย {w.have}/{w.need}";
+            float tw = st.CalcSize(new GUIContent(txt)).x + 12f;
+            var r = new Rect(gp.x - tw / 2f, gp.y - 28f + bob, tw, 17f);
+            Fill(new Rect(r.x - 1f, r.y - 1f, r.width + 2f, r.height + 2f), new Color(0f, 0f, 0f, 0.6f));
+            Fill(r, red);
+            // a little arrow pointing down at it
+            Fill(new Rect(gp.x - 4f, r.yMax, 8f, 2f), red);
+            Fill(new Rect(gp.x - 2f, r.yMax + 2f, 4f, 2f), red);
+            ShadowLabel(r, txt, st, Color.white);
         }
     }
 
@@ -349,14 +478,14 @@ public partial class IslandGame
                      : "แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน";
         if (!Accepted(q))
         {
-            d.text = text ?? $"{intro}\n<b>{q.title}</b>  รางวัล: {q.rewardText}\n{string.Join("\n", QuestLines(q))}";
-            d.options.Add(($"รับภารกิจ: {q.title}", () => { flags.Add("acc:" + q.id); if (q.id.StartsWith("local") && q.help.Length > 0) PlaceLostBundle(); OpenDialog(v, $"ขอบใจ! ภารกิจ \"{q.title}\" ดูความคืบหน้าได้ที่มุมขวาบน"); }, true));
+            d.text = text ?? $"{intro}\n\n{QuestBlock(q)}";
+            d.options.Add(($"รับภารกิจ: {q.title}", () => AcceptQuest(v, q), true));
         }
         else
         {
             bool ready = QuestReady(q);
-            d.text = text ?? $"<b>{q.title}</b>  รางวัล: {q.rewardText}\n{string.Join("\n", QuestLines(q))}";
-            d.options.Add((ready ? $"ส่งภารกิจ: {q.title} ★" : "ยังทำไม่ครบ", () => { TurnIn(q); CloseDialog(); }, ready));
+            d.text = text ?? (ready ? "<color=#8fe38f><b>ทำครบแล้ว! ส่งภารกิจได้เลย</b></color>\n\n" : "") + QuestBlock(q);
+            d.options.Add((ready ? $"ส่งภารกิจ: {q.title} ★" : "ยังทำไม่ครบ (ดูรายการด้านบน)", () => { TurnIn(q); CloseDialog(); }, ready));
         }
         return true;
     }

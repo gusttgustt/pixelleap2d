@@ -47,7 +47,10 @@ public partial class IslandGame
                 var g = WalkableNear(player.grid + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (1.8f + (i % 3) * 1.2f));
                 var e = new GameObject("Boar").AddComponent<Enemy>();
                 e.transform.SetParent(world);
-                e.Init(EnemyKind.Boar, g, tier, ++enemyCounter);
+                var want = QuestTargets(); // a creature an accepted quest wants, if any (testing quest hunts)
+                var kind = EnemyKind.Boar;
+                foreach (var k in want.Keys) { kind = k; break; }
+                e.Init(kind, g, tier, ++enemyCounter);
                 enemies.Add(e);
             }
         if (kb.f4Key.wasPressedThisFrame) Time.timeScale = Time.timeScale < 1f ? 1f : 0.12f;
@@ -56,6 +59,11 @@ public partial class IslandGame
             int n = 0;
             foreach (var v in villagers)
             {
+                if (v != null && v.role == VillagerRole.Doctor) // all of hers, not just the next one
+                {
+                    foreach (var dq in DoctorQuests()) if (!Done(dq) && flags.Add("acc:" + dq.id)) n++;
+                    continue;
+                }
                 var q = v != null ? QuestOf(v) : null;
                 if (q != null && !Done(q) && flags.Add("acc:" + q.id)) n++;
             }

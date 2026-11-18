@@ -477,6 +477,7 @@ public partial class IslandGame
         if (voyage != null)
             foreach (var c in voyage.creatures)
                 if (c != null && c.enabled && c.hp < c.maxHp) HpBar(c.transform.position + Vector3.up * (c.Tall + 0.1f), c.hp, c.maxHp, s);
+        DrawQuestTargets(s); // red tags over the creatures your quests want (IslandGame.Quest.cs)
 
         if (!craftOpen && !skillsOpen && !dead && !Busy && !buildOpen) DrawPrompt(s);
 
@@ -499,17 +500,20 @@ public partial class IslandGame
         DrawBountyFlash(W);
         BuildPointerEvent(s); // a click / tap on the ground places right there
 
-        // "!" over the weaver while she has something to teach
+        // over people with something for you: a gold "!" (a quest to take, a lesson), a green "?" (a quest ready to hand in)
         foreach (var v in villagers)
             if (v != null && HasNews(v) && dialog == null)
             {
                 var gp = ToGui(v.transform.position + Vector3.up * 0.95f, s);
                 float bounce = Mathf.Sin(Time.time * 4f) * 2f;
-                ShadowLabel(new Rect(gp.x - 10, gp.y - 22 + bounce, 20, 22), "!", titleCenter, new Color(1f, 0.85f, 0.3f));
+                bool hand = ReadyToHandIn(v);
+                ShadowLabel(new Rect(gp.x - 12, gp.y - 26 + bounce, 24, 26), hand ? "?" : "!", new GUIStyle(titleCenter) { fontSize = 26 },
+                    hand ? new Color(0.5f, 1f, 0.55f) : new Color(1f, 0.85f, 0.3f));
             }
         if (wantedOpen) DrawWanted(W, H); // IslandGame.Bounty.cs (over the "!" marks)
         if (whoOpen) DrawWho(W, H);       // who's online and where (IslandGame.Who.cs)
         if (dialog != null) DrawDialog(W, H);
+        DrawQuestBanner(W, H); // quest accepted / ready / done (IslandGame.Quest.cs)
 
         if (Time.time < hintUntil) DrawHint(W, H);
         if (!touchUsed) DrawKeyBar(W, H);
@@ -870,7 +874,18 @@ public partial class IslandGame
             var o = d.options[i];
             GUI.enabled = o.enabled;
             var r = new Rect(box.x + 14, optY + i * (optH + 3f), pw - 28, optH);
-            if (CrispGUI.Button(r, $"{i + 1}.  {o.label}", new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 })) o.act();
+            var ost = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, fontSize = 12 };
+            // taking or handing in a quest: a glowing frame and big coloured words, so it can't be missed
+            bool take = o.label.StartsWith("รับภารกิจ"), give = o.label.StartsWith("ส่งภารกิจ");
+            if (o.enabled && (take || give))
+            {
+                var gc = take ? new Color(1f, 0.8f, 0.25f) : new Color(0.45f, 1f, 0.5f);
+                float p = 0.5f + 0.5f * Mathf.Sin(Time.time * 5f);
+                Fill(new Rect(r.x - 3f, r.y - 3f, r.width + 6f, r.height + 6f), new Color(gc.r, gc.g, gc.b, 0.35f + 0.5f * p));
+                ost.fontSize = 14; ost.fontStyle = FontStyle.Bold;
+                ost.normal.textColor = gc; ost.hover.textColor = Color.white;
+            }
+            if (CrispGUI.Button(r, $"{i + 1}.  {o.label}", ost)) o.act();
             GUI.enabled = true;
             if (d.icons != null && i < d.icons.Length && d.icons[i] != null) Icon(new Rect(r.xMax - 70f, r.y + 2f, 64f, optH - 4f), d.icons[i]);
         }
