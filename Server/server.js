@@ -252,6 +252,7 @@ server.on("upgrade", (req, socket) => {
       }
     }
   });
+  socket.on("end", () => socket.destroy()); // the other side hung up without a close frame: done here too (or it stays half-open, holding a place, until the quiet timeout)
   socket.on("close", () => drop(socket));
   socket.on("error", () => drop(socket));
 });
