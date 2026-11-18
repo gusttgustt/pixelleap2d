@@ -332,7 +332,7 @@ public partial class IslandGame
         bool narrow = r.width < 150f;
         var top = new GUIStyle(small) { fontSize = narrow ? 9 : 10, richText = true, wordWrap = false };
         string tag = $"<b>{c + 1}</b>  {ContinentWeather[c]}";
-        float tw = Mathf.Min(r.width - 8f, top.CalcSize(new GUIContent(tag)).x + 10f);
+        float tw = Mathf.Min(r.width - 8f, top.CalcSize(Lang.Content(tag)).x + 10f);
         Fill(new Rect(4, 4, tw, 16), new Color(0f, 0f, 0f, 0.65f));
         ShadowLabel(new Rect(9, 4, tw - 6, 16), tag, top, new Color(1f, 0.95f, 0.8f));
         float lh = Mathf.Min(34f, r.height * 0.42f);

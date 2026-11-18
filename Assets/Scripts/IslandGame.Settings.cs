@@ -23,7 +23,7 @@ public partial class IslandGame
         return title ? new Rect(W - 290f, 38f, 282f, h) : new Rect(W / 2f - 141f, Mathf.Max(8f, H / 2f - h / 2f - 40f), 282f, h);
     }
 
-    int SettingsRows => title ? 2 : (touchUsed ? 4 : 5); // sound, full screen [, weather, zoom] [, keys]
+    int SettingsRows => title ? 3 : (touchUsed ? 5 : 6); // language, sound, full screen [, weather, zoom] [, keys]
 
     void ToggleSettings()
     {
@@ -85,9 +85,21 @@ public partial class IslandGame
             var st = new GUIStyle(btn);
             st.normal.textColor = on ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 0.6f, 0.55f);
             st.hover.textColor = st.normal.textColor;
-            if (CrispGUI.Button(new Rect(bx, y, 98, 24), on ? "เปิด" : "ปิด", st)) flip();
+            if (CrispGUI.Button(new Rect(bx, y, 98, 24), on ? Lang.Pick("เปิด", "On") : Lang.Pick("ปิด", "Off"), st)) flip(); // "ปิด" alone means "Close" elsewhere
             y += 30f;
         }
+
+        // the language: written in both, so whoever can't read the other one still finds it (Lang.cs)
+        Lang.Raw++;
+        ShadowLabel(new Rect(x, y + 3, 120, 20), "ภาษา / Language", name);
+        var th = new GUIStyle(btn); th.normal.textColor = th.hover.textColor = !Lang.English ? new Color(1f, 0.85f, 0.3f) : new Color(0.75f, 0.75f, 0.75f);
+        var en = new GUIStyle(btn); en.normal.textColor = en.hover.textColor = Lang.English ? new Color(1f, 0.85f, 0.3f) : new Color(0.75f, 0.75f, 0.75f);
+        bool toTh = CrispGUI.Button(new Rect(bx - 40, y, 66, 24), !Lang.English ? "● ไทย" : "ไทย", th);
+        bool toEn = CrispGUI.Button(new Rect(bx + 30, y, 68, 24), Lang.English ? "● English" : "English", en);
+        Lang.Raw--;
+        if (toTh && Lang.English) Lang.Set(false);
+        if (toEn && !Lang.English) Lang.Set(true);
+        y += 30f;
 
         Toggle("เสียง  <size=11><color=#aaaaaa>(M)</color></size>", !Sfx.Muted, Sfx.ToggleMute);
         Toggle("เต็มจอ", Screen.fullScreen, () => Screen.fullScreen = !Screen.fullScreen);

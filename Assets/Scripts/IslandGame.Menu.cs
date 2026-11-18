@@ -61,7 +61,7 @@ public partial class IslandGame
             if (over && e.type == EventType.MouseDown && e.button == 0) { e.Use(); ToggleMenu(); }
             DrawBurger(c, menuOpen || over);
             // bag and skills, in a row to the left of ☰ (phones have their own, by the stick)
-            QuickButton(c + new Vector2(-54f, 0f), "ตัวละคร", "K", new Color(0.8f, 0.7f, 1f), skillsOpen,
+            QuickButton(c + new Vector2(-54f, 0f), Lang.Pick("ตัวละคร", "Skills"), "K", new Color(0.8f, 0.7f, 1f), skillsOpen,
                 () => { skillsOpen = !skillsOpen; craftOpen = false; bagOpen = false; menuOpen = false; });
             QuickButton(c + new Vector2(-108f, 0f), "กระเป๋า", "B", new Color(0.95f, 0.85f, 0.6f), bagOpen,
                 () => { ToggleBag(); menuOpen = false; });

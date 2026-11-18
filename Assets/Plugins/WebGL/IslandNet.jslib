@@ -64,7 +64,7 @@ mergeInto(LibraryManager.library, {
       input.type = "text"; input.maxLength = 80; input.enterKeyHint = "send"; input.autocomplete = "off";
       input.style.cssText = "flex:1;min-width:0;font-size:16px;padding:10px;border-radius:8px;border:1px solid #886;background:#fff8e8;color:#222;";
       var send = document.createElement("button");
-      send.textContent = "ส่ง";
+      send.textContent = Module.isLang === "en" ? "Send" : "ส่ง";
       send.style.cssText = "font-size:16px;font-weight:bold;padding:0 16px;border-radius:8px;border:0;background:#e6c050;color:#2a1a08;";
       var cancel = document.createElement("button");
       cancel.textContent = "✕";
@@ -117,6 +117,15 @@ mergeInto(LibraryManager.library, {
     c.result = null;
     c.box.style.display = "none";
     c.input.blur();
+  },
+
+  // Thai / English (Lang.cs): remembered for the page around the game (index.html), which
+  // swaps its own words (loading line, full-screen button, what's new) when it hears it.
+  IS_SetLang: function (langPtr) {
+    var lang = UTF8ToString(langPtr) === "en" ? "en" : "th";
+    Module.isLang = lang;
+    try { localStorage.setItem("islandLang", lang); } catch (e) {}
+    try { if (typeof window.islandSetLang === "function") window.islandSetLang(lang); } catch (e) {}
   },
 
   IS_WsClose: function (h) {

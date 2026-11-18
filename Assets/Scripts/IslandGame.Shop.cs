@@ -215,7 +215,7 @@ public partial class IslandGame
         Icon(new Rect(box.xMax - 178, box.y + 8, 20, 20), PixelArt.Icon(Item.GoldCoin));
         ShadowLabel(new Rect(box.xMax - 154, box.y + 8, 80, 22), $"{coins}", label, new Color(1f, 0.85f, 0.3f));
         if (CrispGUI.Button(new Rect(box.xMax - 72, box.y + 6, 62, 24), "ปิด (E)", btn)) { CloseDialog(); return; }
-        float textH = Mathf.Min(48f, wrap.CalcHeight(new GUIContent(d.text), pw - 28f));
+        float textH = Mathf.Min(48f, wrap.CalcHeight(Lang.Content(d.text), pw - 28f));
         CrispGUI.Label(new Rect(box.x + 14, box.y + 32, pw - 28, textH), $"<color=#f0e6d0>{d.text}</color>", wrap);
         float y = box.y + 36f + textH;
 

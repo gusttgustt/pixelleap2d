@@ -190,7 +190,7 @@ public partial class IslandGame
             var gp = ToGui(e.transform.position + Vector3.up * 0.55f, s);
             float bob = Mathf.Sin(Time.time * 4f + e.transform.position.x * 3f) * 2f;
             string txt = $"เป้าหมาย {w.have}/{w.need}";
-            float tw = st.CalcSize(new GUIContent(txt)).x + 12f;
+            float tw = st.CalcSize(Lang.Content(txt)).x + 12f;
             var r = new Rect(gp.x - tw / 2f, gp.y - 28f + bob, tw, 17f);
             Fill(new Rect(r.x - 1f, r.y - 1f, r.width + 2f, r.height + 2f), new Color(0f, 0f, 0f, 0.6f));
             Fill(r, red);

@@ -407,6 +407,7 @@ public partial class IslandGame : MonoBehaviour
     void Awake()
     {
         I = this;
+        Lang.Init(); // Thai or English (Lang.cs)
         SetupCamera();
         SetupSun();
         Sfx.Init(gameObject);

@@ -95,7 +95,7 @@ public partial class IslandGame
         // between the status bars (left) and the menu buttons (right), wrapping long advice onto two lines
         float w = Mathf.Min(460f, W - 2f * 222f);
         var st = new GUIStyle(labelCenter) { fontSize = 13, wordWrap = true, clipping = TextClipping.Clip };
-        float h = Mathf.Max(26f, st.CalcHeight(new GUIContent(text), w - 12f) + 4f);
+        float h = Mathf.Max(26f, st.CalcHeight(Lang.Content(text), w - 12f) + 4f);
         var r = new Rect(W / 2f - w / 2f, y, w, h);
         Fill(r, new Color(0f, 0f, 0f, 0.65f));
         Fill(new Rect(r.x, r.y, 4f, r.height), col);

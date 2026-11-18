@@ -441,7 +441,7 @@ public partial class IslandGame
                : caveBossDown ? $"คุกใต้ทะเล {PrisonFloorName} · ผ่านแล้ว! " + (prisonFloor == PrisonSpecial ? "เดินไปที่แสงเพื่อขึ้นผิวน้ำ" : "ลงบันไดไปชั้นถัดไป")
                : $"คุกใต้ทะเล {PrisonFloorName} · นักโทษเหลือ {left} · ผู้คุมรออยู่สุดทาง")
             : caveBossDown ? "ถ้ำปลอดภัยแล้ว · เดินไปที่แสงเพื่อออก" : $"สัตว์ร้ายเหลือ {left} ตัว · เจ้าแห่งถ้ำรออยู่สุดทาง";
-        float tw = st.CalcSize(new GUIContent(text)).x + 10f;
+        float tw = st.CalcSize(Lang.Content(text)).x + 10f;
         const float clearOf = 308f; // right of the status bars and the sky dial
         ShadowLabel(new Rect(Mathf.Max(W / 2f - tw / 2f, clearOf), 40f, tw, 18f), text, st, new Color(0.9f, 0.8f, 1f)); // under the online line
         if (boss == null) return;

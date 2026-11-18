@@ -99,7 +99,7 @@ public partial class IslandGame
         var st = new GUIStyle(small) { wordWrap = true, richText = true, fontSize = 12 };
         float tw = 250f;
         float th = 10f;
-        foreach (var l in lines) th += st.CalcHeight(new GUIContent(l), tw - 16f) + 1f;
+        foreach (var l in lines) th += st.CalcHeight(Lang.Content(l), tw - 16f) + 1f;
         Vector2 m = Event.current.mousePosition;
         float x = m.x + 18f, y = m.y + 12f;
         if (x + tw > W - 4f) x = m.x - tw - 10f;
@@ -111,7 +111,7 @@ public partial class IslandGame
         float ly = y + 5f;
         foreach (var l in lines)
         {
-            float lh = st.CalcHeight(new GUIContent(l), tw - 16f);
+            float lh = st.CalcHeight(Lang.Content(l), tw - 16f);
             ShadowLabel(new Rect(x + 8f, ly, tw - 16f, lh), l, st);
             ly += lh + 1f;
         }

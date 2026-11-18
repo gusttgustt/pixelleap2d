@@ -299,23 +299,71 @@ public partial class IslandGame
     void InitStyles()
     {
         if (label != null) return;
+        ClearSkin(); // solid, high-contrast buttons, panels and text boxes everywhere
         label = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, richText = true, clipping = TextClipping.Overflow, wordWrap = false };
         label.normal.textColor = Color.white;
         labelCenter = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
-        small = new GUIStyle(label) { fontSize = 12, fontStyle = FontStyle.Normal };
+        small = new GUIStyle(label) { fontSize = 13, fontStyle = FontStyle.Normal };
         smallRight = new GUIStyle(small) { alignment = TextAnchor.LowerRight, fontStyle = FontStyle.Bold };
         smallCenter = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter };
         titleCenter = new GUIStyle(labelCenter) { fontSize = 28 };
     }
 
+    /// Text over the world: a dark edge on two sides (below-right and above-left), so it reads on
+    /// sand, grass, water and snow alike.
     static void ShadowLabel(Rect r, string text, GUIStyle style, Color? col = null)
     {
         Color c = col ?? Color.white;
-        style.normal.textColor = new Color(0f, 0f, 0f, 0.75f * c.a);
+        style.normal.textColor = new Color(0f, 0f, 0f, 0.6f * c.a);
+        CrispGUI.Label(new Rect(r.x - 0.7f, r.y - 0.7f, r.width, r.height), text, style);
+        style.normal.textColor = new Color(0f, 0f, 0f, 0.9f * c.a);
         CrispGUI.Label(new Rect(r.x + 1, r.y + 1, r.width, r.height), text, style);
         style.normal.textColor = c;
         CrispGUI.Label(r, text, style);
         style.normal.textColor = Color.white;
+    }
+
+    // ------------------------------------------------------------------ a clearer skin
+    /// Unity's default skin is light grey, see-through boxes with grey words: hard to read over the
+    /// game. Buttons become solid dark navy with a light frame and white words (a gold frame under
+    /// the pointer), panels nearly opaque, text boxes dark with a bright frame.
+    static bool skinDone;
+    static void ClearSkin()
+    {
+        if (skinDone) return;
+        skinDone = true;
+        var sk = GUI.skin;
+        Texture2D Tex(Color fill, Color edge)
+        {
+            var t = new Texture2D(6, 6, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color[36];
+            for (int y = 0; y < 6; y++) for (int x = 0; x < 6; x++) px[y * 6 + x] = x == 0 || y == 0 || x == 5 || y == 5 ? edge : fill;
+            t.SetPixels(px); t.Apply();
+            return t;
+        }
+        var b = sk.button;
+        b.normal.background = Tex(new Color(0.12f, 0.14f, 0.2f, 0.97f), new Color(0.62f, 0.68f, 0.8f, 1f));
+        b.hover.background = Tex(new Color(0.19f, 0.23f, 0.32f, 0.98f), new Color(1f, 0.85f, 0.4f, 1f));
+        b.active.background = Tex(new Color(0.32f, 0.27f, 0.12f, 1f), new Color(1f, 0.9f, 0.5f, 1f));
+        b.focused.background = b.normal.background;
+        b.onNormal.background = b.active.background; b.onHover.background = b.active.background; b.onActive.background = b.active.background;
+        b.border = new RectOffset(2, 2, 2, 2);
+        b.normal.textColor = new Color(0.96f, 0.96f, 0.98f); b.hover.textColor = Color.white; b.active.textColor = new Color(1f, 0.95f, 0.7f);
+        b.focused.textColor = b.normal.textColor; b.onNormal.textColor = b.active.textColor; b.onHover.textColor = Color.white;
+        if (b.fontSize == 0) b.fontSize = 13;
+        b.richText = true;
+        var box = sk.box;
+        box.normal.background = Tex(new Color(0.07f, 0.08f, 0.11f, 0.9f), new Color(0.36f, 0.4f, 0.48f, 0.95f));
+        box.border = new RectOffset(2, 2, 2, 2);
+        box.normal.textColor = Color.white;
+        var tf = sk.textField;
+        tf.normal.background = Tex(new Color(0.04f, 0.05f, 0.07f, 0.96f), new Color(0.55f, 0.6f, 0.72f, 1f));
+        tf.hover.background = Tex(new Color(0.06f, 0.07f, 0.1f, 0.97f), new Color(0.8f, 0.85f, 0.95f, 1f));
+        tf.focused.background = Tex(new Color(0.06f, 0.07f, 0.1f, 0.98f), new Color(1f, 0.85f, 0.4f, 1f));
+        tf.onNormal.background = tf.normal.background; tf.onFocused.background = tf.focused.background;
+        tf.border = new RectOffset(2, 2, 2, 2);
+        tf.normal.textColor = tf.hover.textColor = tf.focused.textColor = Color.white;
+        sk.label.normal.textColor = Color.white;
     }
 
     static void Fill(Rect r, Color c)
@@ -325,12 +373,18 @@ public partial class IslandGame
         GUI.color = Color.white;
     }
 
+    static GUIStyle barLeft;
     void Bar(Rect r, float v, Color col, string text)
     {
         Fill(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), new Color(0f, 0f, 0f, 0.55f));
         if (v < 0.25f) col = Color.Lerp(col, Color.white, 0.35f * (0.5f + 0.5f * Mathf.Sin(Time.time * 8f))); // blink when low
         Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(v), r.height), col);
-        ShadowLabel(new Rect(r.x, r.y - 2, r.width, r.height + 4), text, smallCenter);
+        // words longer than the bar start at its left end and run on to the right, never off the screen's edge
+        var shown = Lang.Tr(text);
+        bool wide = smallCenter.CalcSize(new GUIContent(shown)).x > r.width;
+        Lang.Raw++;
+        ShadowLabel(wide ? new Rect(r.x + 3, r.y - 2, 600, r.height + 4) : new Rect(r.x, r.y - 2, r.width, r.height + 4), shown, wide ? barLeft ??= new GUIStyle(smallCenter) { alignment = TextAnchor.MiddleLeft } : smallCenter);
+        Lang.Raw--;
     }
 
     // ------------------------------------------------------------------ controls
@@ -361,16 +415,19 @@ public partial class IslandGame
         do
         {
             total = 10f;
-            foreach (var k in list) total += st.CalcSize(new GUIContent(k)).x + 19f;
+            foreach (var k in list) total += st.CalcSize(Lang.Content(k)).x + 19f;
             if (total <= room || list.Count <= 2) break;
             list.RemoveAt(list.Count - 2);
         } while (true);
-        foreach (var k in list)
+        foreach (var key in list)
         {
+            string k = Lang.Tr(key); // the whole "key what" line, then split (the key is the first word)
             float w = st.CalcSize(new GUIContent(k)).x + 14f;
             Fill(new Rect(x, y, w, 20f), new Color(0f, 0f, 0f, 0.45f));
-            int sp = k.IndexOf(' ');
+            int sp = Mathf.Max(0, k.IndexOf(' '));
+            Lang.Raw++;
             ShadowLabel(new Rect(x, y, w, 20f), $"<color=#ffd84d><b>{k.Substring(0, sp)}</b></color>{k.Substring(sp)}", st);
+            Lang.Raw--;
             x += w + 5f;
         }
         if (!helpOpen) return;
@@ -401,6 +458,7 @@ public partial class IslandGame
         if (!title && player == null && voyage == null) return;
         GameFont.Apply();
         InitStyles();
+        Lang.Raw = 0; // a draw cut short last time must not leave the translation off
         TouchSwallowEvents();
         float s = HudScale; // the HUD is designed for a virtual screen at least 820 x 540
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f));
@@ -607,7 +665,7 @@ public partial class IslandGame
         float side = ShowTouch ? 232f : 10f;
         float w = Mathf.Max(280f, W - side * 2f);
         var st = new GUIStyle(labelCenter) { wordWrap = true };
-        float h = Mathf.Max(22f, st.CalcHeight(new GUIContent(hint), w));
+        float h = Mathf.Max(22f, st.CalcHeight(Lang.Content(hint), w));
         ShadowLabel(new Rect(W / 2f - w / 2f, H - 90f - h, w, h), hint, st, new Color(1f, 0.92f, 0.5f));
     }
 
@@ -685,14 +743,14 @@ public partial class IslandGame
         if (built != null) ShadowLabel(new Rect(14, 8, 320, 18), built, small, new Color(1f, 1f, 1f, 0.7f)); // top left, clear of the sound button
     }
 
-    static string buildTimeText;
+    static string buildTimeText, buildTimeEn;
     static readonly string[] ThaiMonths = { "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค." };
 
     /// "อัปเดตล่าสุด ..." from the build stamp (Resources/BuildVersion.txt, UTC yyyyMMddHHmmss),
     /// shown in Thai time (UTC+7) - the web player often has no time zone of its own.
     static string BuildTimeText()
     {
-        if (buildTimeText != null) return buildTimeText.Length > 0 ? buildTimeText : null;
+        if (buildTimeText != null) return buildTimeText.Length == 0 ? null : Lang.English ? buildTimeEn : buildTimeText;
         buildTimeText = "";
         var asset = Resources.Load<TextAsset>("BuildVersion");
         string v = asset != null ? asset.text.Trim() : "";
@@ -701,8 +759,11 @@ public partial class IslandGame
         {
             var th = utc.AddHours(7);
             buildTimeText = $"อัปเดตล่าสุด {th.Day} {ThaiMonths[th.Month - 1]} {th.Year + 543} เวลา {th:HH:mm} น.";
+            buildTimeEn = $"Last updated {th.Day} {th.ToString("MMM", System.Globalization.CultureInfo.InvariantCulture)} {th.Year} at {th:HH:mm} (Thai time)"; // the Christian year in English
         }
-        return buildTimeText.Length > 0 ? buildTimeText : null;
+        if (buildTimeText.Length == 0) return null;
+        if (Lang.English) return buildTimeEn; // no Thai in it: drawn as it is
+        return buildTimeText;
     }
 
     /// The ready-made characters as cards in a row (Presets[1..]): each shows the character and
@@ -760,11 +821,13 @@ public partial class IslandGame
         {
             if (r == null || r.hidden) continue;
             var gp = ToGui(r.transform.position + Vector3.up * 0.85f, s);
+            Lang.Raw++; // a player's name and words: never translated (Lang.cs)
             ShadowLabel(new Rect(gp.x - 70, gp.y - 18, 140, 18), $"{r.playerName}  <size=10>Lv {r.level}</size>", smallCenter, new Color(0.7f, 0.9f, 1f));
+            Lang.Raw--;
             if (r.downed) DrawReviveTag(r, gp); // knocked out: a friend can bring them back (IslandGame.Revive.cs)
-            else if (Time.time < r.chatUntil) ChatBubble(gp, r.chat);
+            else if (Time.time < r.chatUntil) { Lang.Raw++; ChatBubble(gp, r.chat); Lang.Raw--; }
         }
-        if (Time.time < myChatUntil && player != null) ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat);
+        if (Time.time < myChatUntil && player != null) { Lang.Raw++; ChatBubble(ToGui(player.transform.position + Vector3.up * 0.85f, s), myChat); Lang.Raw--; }
         DrawCaptainBoatTag(s); // crew: the captain's boat (IslandGame.Crew.cs)
     }
 
@@ -884,7 +947,7 @@ public partial class IslandGame
         float optH = d.icons != null ? 40f : 26f;
         var textStyle = new GUIStyle(small) { wordWrap = true, fontSize = 12, richText = true };
         // the box grows with the text (quest objectives can take a few lines)
-        float textH = Mathf.Max(40f, textStyle.CalcHeight(new GUIContent(d.text), pw - 28f) + 6f);
+        float textH = Mathf.Max(40f, textStyle.CalcHeight(Lang.Content(d.text), pw - 28f) + 6f);
         float ph = 38f + textH + d.options.Count * (optH + 3f) + 6f;
         var box = new Rect(W / 2f - pw / 2f, Mathf.Max(8f, H - ph - 92f), pw, ph);
         Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));

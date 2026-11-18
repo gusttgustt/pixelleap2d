@@ -10,6 +10,9 @@ using UnityEngine;
 /// left to IMGUI as before.
 public static class CrispGUI
 {
+    /// The smallest text size drawn (in HUD units): tiny 8-9 px labels were hard to read on phones.
+    public const int MinFontSize = 10;
+
     static readonly Regex SizeTag = new Regex(@"<size=(\d+)>");
     static readonly Dictionary<(string, int), string> sizedText = new Dictionary<(string, int), string>();
     static readonly GUIContent tmp = new GUIContent();
@@ -22,7 +25,38 @@ public static class CrispGUI
 
     public static void Label(Rect r, GUIContent c, GUIStyle st)
     {
+        c = Translated(c);
+        if (!st.wordWrap) st = Fit(r, c, st);
         if (!Draw(r, c, st, false)) GUI.Label(r, c, st);
+    }
+
+    // ---- Thai / English (Lang.cs): every word is translated here, just before it's drawn
+    static readonly GUIContent translated = new GUIContent();
+    static GUIContent Translated(GUIContent c)
+    {
+        if (!Lang.English || string.IsNullOrEmpty(c.text)) return c;
+        string t = Lang.Tr(c.text);
+        if (ReferenceEquals(t, c.text)) return c;
+        translated.text = t; translated.image = c.image; translated.tooltip = c.tooltip;
+        return translated;
+    }
+
+    /// English runs longer than Thai: a line wider than its box is drawn smaller to fit (down to
+    /// 75% of its size; past that it overflows as before). Thai text is left alone.
+    static readonly Dictionary<(GUIStyle, int), GUIStyle> fitted = new Dictionary<(GUIStyle, int), GUIStyle>();
+    static GUIStyle Fit(Rect r, GUIContent c, GUIStyle st)
+    {
+        if (!Lang.English || string.IsNullOrEmpty(c.text) || r.width < 8f || c.image != null) return st;
+        float w = st.CalcSize(c).x;
+        if (w <= r.width + 1f) return st;
+        int size = st.fontSize > 0 ? st.fontSize : 13;
+        int want = Mathf.Max(Mathf.CeilToInt(size * 0.75f), Mathf.FloorToInt(size * (r.width + 1f) / w));
+        if (want >= size) return st;
+        if (fitted.Count > 400) fitted.Clear();
+        if (!fitted.TryGetValue((st, want), out var f)) { f = new GUIStyle(st) { fontSize = want }; fitted[(st, want)] = f; }
+        f.normal.textColor = st.normal.textColor; // ShadowLabel changes the colour on the same style
+        f.hover.textColor = st.hover.textColor;
+        return f;
     }
 
     public static bool Button(Rect r, string text) => Button(r, text, GUI.skin.button);
@@ -33,6 +67,8 @@ public static class CrispGUI
 
     public static bool Button(Rect r, GUIContent c, GUIStyle st)
     {
+        c = Translated(c);
+        st = Fit(new Rect(r.x, r.y, r.width - st.padding.horizontal, r.height), c, st);
         if (string.IsNullOrEmpty(c.text) || !Scaled(out _)) return GUI.Button(r, c, st);
         var plain = c.image != null ? new GUIContent(c.image, c.tooltip) : GUIContent.none;
         bool clicked = GUI.Button(r, plain, st); // the box and the click, as before
@@ -135,6 +171,7 @@ public static class CrispGUI
     static void Paint(Rect local, GUIContent c, GUIStyle st, bool textOnly, float s)
     {
         int size = st.fontSize > 0 ? st.fontSize : st.font != null ? st.font.fontSize : GUI.skin.font != null ? GUI.skin.font.fontSize : 13;
+        size = Mathf.Max(size, MinFontSize); // nothing too small to read on a phone
         int oldSize = st.fontSize;
         var p = st.padding; // a live view of the style's padding: copy the numbers, not the object
         var oldPad = new RectOffset(p.left, p.right, p.top, p.bottom);

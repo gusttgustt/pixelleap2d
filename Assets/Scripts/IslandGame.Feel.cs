@@ -61,8 +61,8 @@ public partial class IslandGame
     {
         var st = new GUIStyle(labelCenter) { fontSize = 15 };
         var noteSt = new GUIStyle(smallCenter) { fontSize = 12 };
-        float tw = st.CalcSize(new GUIContent(text)).x;
-        float nw = note != null ? noteSt.CalcSize(new GUIContent(note)).x : 0f;
+        float tw = st.CalcSize(Lang.Content(text)).x;
+        float nw = note != null ? noteSt.CalcSize(Lang.Content(note)).x : 0f;
         float key = showKey ? 26f : 0f;
         float w = Mathf.Max(tw + key + 18f, nw + 16f), h = note != null ? 42f : 26f;
         var box = new Rect(gp.x - w / 2f, gp.y - h - 10f, w, h);

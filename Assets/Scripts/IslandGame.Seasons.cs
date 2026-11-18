@@ -323,7 +323,7 @@ public partial class IslandGame
         if (fx != null && WeatherHere)
         {
             var tip = new GUIStyle(smallCenter) { fontSize = 10, richText = true, wordWrap = false };
-            float tw = tip.CalcSize(new GUIContent(fx)).x + 10f;
+            float tw = tip.CalcSize(Lang.Content(fx)).x + 10f;
             var tr = new Rect(r.xMax + 4f, r.y + 16f, tw, 15f); // beside the weather's name
             Fill(tr, new Color(0f, 0f, 0f, 0.5f));
             ShadowLabel(tr, fx, tip, nowWeather is Weather.Petals or Weather.Rain ? new Color(0.7f, 1f, 0.7f) : new Color(1f, 0.8f, 0.5f));

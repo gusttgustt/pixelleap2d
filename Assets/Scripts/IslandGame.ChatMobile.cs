@@ -27,7 +27,7 @@ public partial class IslandGame
 #if UNITY_WEBGL && !UNITY_EDITOR
         mobileChat = true;
         WebGLInput.captureAllKeyboardInput = false; // let the HTML box have the keys
-        IS_ChatOpen("พิมพ์ข้อความถึงเพื่อนบนเกาะ...");
+        IS_ChatOpen(Lang.Tr("พิมพ์ข้อความถึงเพื่อนบนเกาะ..."));
 #endif
     }
 
@@ -67,7 +67,7 @@ public partial class IslandGame
             if (!open && age > 15f) continue;
             float a = open ? 1f : Mathf.Clamp01((15f - age) / 3f);
             var sticker = StickerOf(c.text); // a sticker: the name, then a small picture (IslandGame.Sticker.cs)
-            string line = string.IsNullOrEmpty(c.who) ? $"<i>{c.text}</i>"
+            string line = string.IsNullOrEmpty(c.who) ? $"<i>{Lang.Tr(c.text)}</i>" // the game's own lines are translated here, players' words never
                         : sticker != null ? $"<b><color=#a8dcff>{c.who}:</color></b>"
                         : $"<b><color=#a8dcff>{c.who}:</color></b> {c.text}";
             float h = sticker != null ? 34f : st.CalcHeight(new GUIContent(line), w - 14f);
@@ -96,6 +96,7 @@ public partial class IslandGame
 
         if (lines.Count > 0)
         {
+            Lang.Raw++; // drawn exactly as built above (Lang.cs)
             Fill(logRect, new Color(0f, 0f, 0f, (open ? 0.55f : 0.35f) * top));
             float y = logRect.y + 4f;
             foreach (var l in lines)
@@ -111,6 +112,7 @@ public partial class IslandGame
                 else ShadowLabel(new Rect(logRect.x + 7f, y, w - 14f, l.h), l.text, st, new Color(1f, 1f, 1f, l.a));
                 y += l.h;
             }
+            Lang.Raw--;
         }
 
         if (desktopBox)

@@ -64,6 +64,11 @@
     </div>
   </div>
   <script>
+    // Thai / English: the game's choice (Lang.cs) is kept in localStorage by IS_SetLang, and
+    // window.islandSetLang swaps this page's own words when it changes.
+    var LANG = "th";
+    try { LANG = localStorage.getItem("islandLang") === "en" ? "en" : "th"; } catch (e) {}
+    function L(th, en) { return LANG === "en" ? en : th; }
     var canvas = document.getElementById("game");
     var note = document.getElementById("note");
     var touch = matchMedia("(pointer: coarse)").matches && !matchMedia("(pointer: fine)").matches;
@@ -73,7 +78,7 @@
     function updateNote() {
       var portrait = touch && window.innerHeight > window.innerWidth;
       if (portrait && !wasPortrait) {
-        note.textContent = "หมุนจอเป็นแนวนอนจะเห็นเกมกว้างขึ้น";
+        note.textContent = L("หมุนจอเป็นแนวนอนจะเห็นเกมกว้างขึ้น", "Turn your phone sideways for a wider view");
         note.classList.add("show");
         clearTimeout(noteTimer);
         noteTimer = setTimeout(function () { note.classList.remove("show"); }, 4000);
@@ -113,6 +118,19 @@
     if (window.visualViewport) window.visualViewport.addEventListener("resize", fitCanvas);
     fitCanvas();
 
+    var newsRefill = null;
+    function applyLang() {
+      document.documentElement.lang = LANG;
+      document.getElementById("msg").textContent = L("กำลังโหลดเกม...", "Loading the game...");
+      full.textContent = L("⛶ เต็มจอแนวนอน", "⛶ Full screen");
+      document.getElementById("news-title").textContent = L("มีอะไรใหม่", "What's new");
+      document.getElementById("news-today").textContent = L("วันนี้ไม่ต้องแสดงอีก", "Don't show again today");
+      document.getElementById("news-ok").textContent = L("ปิด", "Close");
+      if (newsRefill) newsRefill();
+    }
+    window.islandSetLang = function (l) { LANG = l === "en" ? "en" : "th"; applyLang(); };
+    applyLang();
+
     function showBanner(msg, type) {
       if (type === "error") { document.getElementById("msg").innerHTML = '<span id="error">' + msg + "</span>"; }
       else console.warn(msg);
@@ -137,7 +155,21 @@
         "<b>ดับกองไฟได้</b> กด X หรือปุ่ม \"ดับกองไฟ\" และไม่ติดอยู่ในกองไฟตอนเกิดอีกแล้ว",
         "<b>ตัดตอไม้ออกได้</b> ใช้ขวานฟันตอ 2 ที แล้วต้นไม้ใหม่จะไปงอกที่อื่นบนเกาะ",
         "<b>มือถือแนวนอน</b> มีปุ่ม \"เต็มจอแนวนอน\" ที่มุมล่างซ้าย",
+      ], en: [
+        "<b>Player accounts</b> Sign up and log in on the first screen, then play the same character on any device",
+        "<b>Help on a friend's farm</b> Plant, water, harvest and feed the animals; your friend gets the same harvest",
+        "<b>Friends' homes in sync</b> Everyone on a private island sees the same farm, buildings and animals live",
+        "<b>Easier home building</b> In build mode, tap or click anywhere on the ground to place things",
+        "<b>Put out campfires</b> Press X or the \"Put out fire\" button, and you no longer get stuck in a fire when you spawn",
+        "<b>Clear tree stumps</b> Two axe hits remove a stump, and a new tree grows somewhere else on the island",
+        "<b>Phones in landscape</b> A \"Full screen\" button in the bottom-left corner",
       ] },
+    ];
+    UPDATES[0].en = [
+      "<b>Awaken your fruit (level 60)</b> A new skill: press Y for a buff of your fruit's kind and an aura in its colour. R and T recharge in 0.5 s, hit harder, further and wider",
+      "<b>Right click chains your moves</b> The power (R) first; while it recharges, the special move (T), then awakening (Y)",
+      "<b>Cut bushes and fruit trees</b> Once the fruit is picked, chop them with an axe for wood; a new one grows elsewhere on the island",
+      "<b>Settings</b> The gear button top right, and you see other players' boats at sea",
     ];
     (function () {
       var news = document.getElementById("news"), latest = UPDATES[0];
@@ -146,8 +178,13 @@
       var hidden = null;
       try { hidden = JSON.parse(localStorage.getItem("newsHidden") || "null"); } catch (e) {}
       if (hidden && hidden.id === latest.id && hidden.day === today()) return; // closed for today
-      document.getElementById("news-date").textContent = "อัปเดตวันที่ " + latest.date;
-      document.getElementById("news-list").innerHTML = latest.items.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+      function fill() {
+        document.getElementById("news-date").textContent = L("อัปเดตวันที่ " + latest.date, "Updated " + latest.id.slice(0, 10));
+        var items = LANG === "en" && latest.en ? latest.en : latest.items;
+        document.getElementById("news-list").innerHTML = items.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+      }
+      fill();
+      newsRefill = fill;
       function close() { news.classList.remove("show"); canvas.focus(); }
       document.getElementById("news-ok").addEventListener("click", close);
       document.getElementById("news-today").addEventListener("click", function () {
@@ -213,7 +250,7 @@
         document.getElementById("loading").style.display = "none";
         canvas.focus();
       }).catch(function (message) {
-        showBanner("โหลดเกมไม่สำเร็จ: " + message, "error");
+        showBanner(L("โหลดเกมไม่สำเร็จ: ", "The game didn't load: ") + message, "error");
       });
     };
     document.body.appendChild(script);

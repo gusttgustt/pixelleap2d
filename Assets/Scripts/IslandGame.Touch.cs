@@ -250,7 +250,7 @@ public partial class IslandGame
         if (TouchShown(TouchBtn.Eat)) TouchCircle(SmallCenter(TouchBtn.Eat), SmallR, "กิน", new Color(1f, 0.7f, 0.35f), false, 12);
         if (TouchShown(TouchBtn.Drink)) TouchCircle(SmallCenter(TouchBtn.Drink), SmallR, "ดื่ม", new Color(0.55f, 0.85f, 1f), false, 12);
         if (TouchShown(TouchBtn.Craft)) TouchCircle(SmallCenter(TouchBtn.Craft), SmallR, "สร้าง", new Color(0.75f, 1f, 0.7f), craftOpen, 11);
-        if (TouchShown(TouchBtn.Skills)) TouchCircle(SmallCenter(TouchBtn.Skills), SmallR, "ตัวละคร", new Color(0.8f, 0.7f, 1f), skillsOpen, 10);
+        if (TouchShown(TouchBtn.Skills)) TouchCircle(SmallCenter(TouchBtn.Skills), SmallR, Lang.Pick("ตัวละคร", "Skills"), new Color(0.8f, 0.7f, 1f), skillsOpen, 10);
     }
 
     static Texture2D ringTex, discTex;
