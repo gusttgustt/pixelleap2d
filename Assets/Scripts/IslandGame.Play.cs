@@ -183,6 +183,7 @@ public partial class IslandGame
             Popup($"+{count} {Name(drop.Value)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
         }
         AddXp(xpGain, at);
+        ShareKillXp(xpGain);
     }
 
     bool CheckDeath()
@@ -780,12 +781,13 @@ public partial class IslandGame
             Popup("+1 หนังสัตว์", at + Vector3.up * 0.25f, new Color(1f, 0.95f, 0.6f));
         }
         AddXp(xpGain, at);
+        ShareKillXp(xpGain); // the crew here get a share (IslandGame.Crew.cs)
     }
 
-    void AddXp(int amount, Vector3 at)
+    void AddXp(int amount, Vector3 at, string popup = null)
     {
         xp += amount;
-        Popup($"+{amount} XP", at + Vector3.up * 0.75f, new Color(0.75f, 0.6f, 1f));
+        Popup(popup ?? $"+{amount} XP", at + Vector3.up * 0.75f, new Color(0.75f, 0.6f, 1f));
         while (xp >= XpToNext(level))
         {
             xp -= XpToNext(level);

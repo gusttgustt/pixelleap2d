@@ -2018,3 +2018,5 @@ E	เซิร์ฟเวอร์เพิ่งเริ่มใหม่ - 
 E	ต่อเซิร์ฟเวอร์ไม่ได้ - ตอนนี้เล่นออฟไลน์ (กลับหน้าแรกเพื่อเล่นออนไลน์อีกครั้ง)	Can't reach the server - playing offline now (go back to the title screen to play online again)
 E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)	Reconnected, but you need to log in again (saving on this device for now)
 E	ต่อเซิร์ฟเวอร์ใหม่แล้ว	Reconnected
+T	+{0} XP (ลูกเรือ {1})	+{0} XP (crewmate {1})
+E	<color=#c9b8ff>ล้มสัตว์ร้าย: ลูกเรือที่อยู่ด้วยกันได้ XP ครึ่งหนึ่ง</color>	<color=#c9b8ff>Defeat a creature: crewmates with you get half the XP</color>

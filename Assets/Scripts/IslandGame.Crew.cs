@@ -9,7 +9,7 @@ using UnityEngine;
 ///
 /// Messages go through the server's "crew" relay (Server/server.js), which reaches a player
 /// wherever they are, at sea too: ev = apply / invite / added / accepted / no / leave / kick /
-/// board / unboard / sail / pos / land / boat. Every player's boat is moored at a spot of their
+/// board / unboard / sail / pos / land / boat / xp / xpr. Every player's boat is moored at a spot of their
 /// own, so the captain tells the crew on the island where it is ("boat") and they see it there.
 public partial class IslandGame
 {
@@ -136,8 +136,61 @@ public partial class IslandGame
                 capBoatRoom = m.island;
                 capBoatAt = Time.time;
                 break;
+            case "xp":  // a crewmate on this island finished off a creature: a share of its XP
+            case "xpr": // the same, passed on by my captain from another member
+                OnCrewXp(m, who);
+                break;
         }
     }
+
+    // ------------------------------------------------------------------ shared XP
+    // A kill's XP is shared with the crew on the same island (or the same boat at sea): the one
+    // who finished it keeps all of theirs, and every crewmate there gets half on top. A member
+    // only knows the captain, so it goes to the captain, who passes it on to the other members.
+    const float CrewXpShare = 0.5f;
+
+    /// The share each crewmate gets of this much XP.
+    static int CrewXpCut(int xpGain) => xpGain <= 0 ? 0 : Mathf.Max(1, Mathf.RoundToInt(xpGain * CrewXpShare));
+
+    /// I finished off a creature: give the crew here their share. Called from GrantKill / Reward.
+    void ShareKillXp(int xpGain)
+    {
+        int cut = CrewXpCut(xpGain);
+        if (cut <= 0 || !Online) return;
+        if (IsCaptain)
+        {
+            foreach (var c in crewMates)
+                if (remotes.ContainsKey(c.id)) SendCrew(c.id, "xp", d: cut);
+        }
+        else if (InCrew && remotes.ContainsKey(crewCaptain)) SendCrew(crewCaptain, "xp", d: cut);
+    }
+
+    void OnCrewXp(NetMsg m, string who)
+    {
+        int cut = Mathf.Clamp(m.d, 0, CrewXpMax);
+        if (cut <= 0 || player == null || dead) return;
+        if (m.ev == "xp")
+        {
+            if (!remotes.ContainsKey(m.from)) return;                        // not on this island with me
+            if (m.from == crewCaptain) { }                                   // from my captain
+            else if (crewMates.Exists(c => c.id == m.from))                  // from one of my members:
+            {
+                foreach (var c in crewMates)                                 // pass it on to the others here
+                    if (c.id != m.from && remotes.ContainsKey(c.id))
+                        Send(new NetMsg { t = "crew", to = c.id, ev = "xpr", d = cut, text = who, name = playerName });
+            }
+            else return;
+        }
+        else // "xpr": only my captain passes these on
+        {
+            if (m.from != crewCaptain) return;
+            if (!string.IsNullOrEmpty(m.text)) who = m.text;
+        }
+        AddXp(cut, PlayerPos, $"+{cut} XP (ลูกเรือ {who})");
+    }
+
+    /// The most one share may be (the server clamps it the same: Server/server.js).
+    const int CrewXpMax = 3000;
 
     void JoinCrew(int captain, string name)
     {
@@ -376,7 +429,7 @@ public partial class IslandGame
         var box = new Rect(W - 372, hudButtonsBottom + 8f, 360, 0f);
         var others = new List<RemotePlayer>();
         foreach (var rp in remotes.Values) if (rp != null) others.Add(rp);
-        box.height = 78f + Mathf.Max(1, others.Count) * 28f + (IsCaptain ? 24f : 0f);
+        box.height = 78f + Mathf.Max(1, others.Count) * 28f + (IsCaptain ? 44f : InCrew ? 24f : 0f);
         Fill(box, new Color(0.06f, 0.08f, 0.12f, 0.94f));
         Fill(new Rect(box.x, box.y, box.width, 3), new Color(0.5f, 0.8f, 1f, 0.9f));
         var titleSt = new GUIStyle(label) { fontSize = 14, richText = true };
@@ -421,7 +474,12 @@ public partial class IslandGame
             y += 28f;
         }
         if (IsCaptain)
+        {
             CrispGUI.Label(new Rect(box.x + 10, y + 2, box.width - 20, 18), "<color=#b8c0c8>ออกเรือแล้ว คนบนเรือไปด้วย คนที่ไม่ขึ้นต้องกลับมารับ</color>", line);
+            y += 20f;
+        }
+        if (IsCaptain || InCrew)
+            CrispGUI.Label(new Rect(box.x + 10, y + 2, box.width - 20, 18), "<color=#c9b8ff>ล้มสัตว์ร้าย: ลูกเรือที่อยู่ด้วยกันได้ XP ครึ่งหนึ่ง</color>", line);
     }
 
     void DrawCrewAsk(float W)

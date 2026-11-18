@@ -483,7 +483,15 @@ function onMessage(socket, text) {
     case "crew": {
       // crews (IslandGame.Crew.cs): reaches the player wherever they are, at sea too
       const s = clients.get(m.to | 0);
-      if (s && s !== socket) { m.name = socket.name; send(s, m); }
+      if (!s || s === socket) return;
+      if (m.ev === "xp" || m.ev === "xpr") {
+        // a share of a kill's XP: only to someone in the same place, and never more than a big kill gives
+        if (!socket.island || s.island !== socket.island) return;
+        m.d = Math.max(0, Math.min(m.d | 0, 3000));
+        if (m.d <= 0) return;
+        m.text = typeof m.text === "string" ? m.text.slice(0, 24) : "";
+      }
+      m.name = socket.name; send(s, m);
       return;
     }
     case "knock": {
