@@ -1,6 +1,6 @@
 // Puts this PC's game server online (run by start-online.bat, after server.js is running).
 //
-//   1. Starts a free Cloudflare Quick Tunnel to the server (http://localhost:8787).
+//   1. Starts a free Cloudflare Quick Tunnel to the server (http://127.0.0.1:8787).
 //   2. The tunnel's address changes every start, so it writes the new one into docs/server.txt
 //      and pushes just that file to GitHub. GitHub Pages then serves it next to the game, and the
 //      game page (docs/index.html) reads it: the usual GitHub Pages link always reaches this PC.
@@ -43,7 +43,7 @@ function publish(ws) {
 }
 
 const exe = path.join(__dirname, "cloudflared.exe");
-const tunnel = spawn(exe, ["tunnel", "--no-autoupdate", "--url", "http://localhost:" + PORT], { cwd: __dirname });
+const tunnel = spawn(exe, ["tunnel", "--no-autoupdate", "--url", "http://127.0.0.1:" + PORT], { cwd: __dirname });
 let found = false;
 
 function watch(chunk) {

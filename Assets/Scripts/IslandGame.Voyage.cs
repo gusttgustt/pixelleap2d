@@ -95,7 +95,8 @@ public partial class IslandGame
         // A big pack of hunting sharks (ฝูงฉลามคลั่ง): rare near home, more common far out, at
         // night and across the ocean. Never on the way to a friend's home.
         int farOut = Mathf.Max(island, destIsland);
-        float swarmChance = voyageVisit != null || farOut < 2 ? 0f
+        // Never before island 4: the first crossings are for learning to fight a shark or two.
+        float swarmChance = voyageVisit != null || farOut < 4 ? 0f
             : destContinent != continent ? 0.3f
             : 0.05f + 0.012f * Mathf.Min(farOut, 15) + (IsNight ? 0.08f : 0f);
         if (voyage.monsterAt > 0f) swarmChance *= 0.4f;
@@ -330,7 +331,9 @@ public partial class IslandGame
         v.swarmAt = -1f;
         if (v.raft.x > v.length - 10f) return; // too close to shore now
         bool ocean = destContinent != continent;
-        int n = Mathf.Min(14, 6 + 2 * tier + Mathf.Min(Mathf.Max(island, destIsland), 10) / 2 + (ocean ? 3 : 0) + (IsNight ? 1 : 0));
+        int farOut = Mathf.Max(island, destIsland);
+        int n = Mathf.Min(14, 6 + 2 * tier + Mathf.Min(farOut, 10) / 2 + (ocean ? 3 : 0) + (IsNight ? 1 : 0)
+            - (farOut < 7 && !ocean ? 3 : 0)); // a smaller pack on the first crossings that have one
         for (int i = 0; i < n; i++) // a ring closing in around the raft, thicker ahead
         {
             float a = i / (float)n * Mathf.PI * 2f + Random.Range(-0.2f, 0.2f);

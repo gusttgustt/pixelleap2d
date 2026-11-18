@@ -430,6 +430,9 @@ function onMessage(socket, text) {
   // asks with big answers (someone's whole island, the lists, a room's world changes): a few at a time
   const ASK = ASK_LIMITS[m.t];
   if (ASK && !bucket(socket, "ask_" + m.t, ASK[0], ASK[1])) return;
+  // and per address too: one address may hold MAX_PER_IP connections, each with its own buckets
+  const ASK_IP = ASK_IP_LIMITS[m.t];
+  if (ASK_IP && !bucket(ipState(socket.ip), "ask_" + m.t, ASK_IP[0], ASK_IP[1])) return;
 
   switch (m.t) {
     case "join": {
@@ -634,6 +637,24 @@ function onMessage(socket, text) {
 const ASK_LIMITS = {                  // [per second, burst]
   visit: [0.5, 3], homes: [1, 3], who: [1, 3], wanted: [1, 3], join: [2, 6],
 };
+// The same asks from all connections of one address together (a family on one home line shares it)
+const ASK_IP_LIMITS = {
+  visit: [1, 5], homes: [2, 6], who: [2, 6], wanted: [2, 6], join: [4, 12],
+};
+
+/// Rate state kept per address (not per connection), forgotten a while after it was last used.
+const ipStates = new Map();           // address -> { at, <bucket key>: { n, at } }
+function ipState(ip) {
+  let o = ipStates.get(ip);
+  if (!o) ipStates.set(ip, o = {});
+  o.at = Date.now();
+  return o;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, o] of ipStates) if (now - o.at > 10 * 60 * 1000) ipStates.delete(ip);
+  for (const [k, t] of authNext) if (t < now) authNext.delete(k);
+}, 60 * 1000).unref();
 const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
 const NODE_EVENTS = new Set(["deplete", "remove", "stump", "hits", "set"]); // what ApplyEvent knows
 const EVENT_RATE = 6, EVENT_BURST = 40; // world changes one player may send per second
@@ -1139,10 +1160,33 @@ const WRONG_LOGIN = "ชื่อบัญชีหรือรหัสผ่�
 const MIN_PASS = 8;                    // new accounts (older ones keep the password they have)
 const DUMMY_SALT = crypto.randomBytes(16).toString("hex");
 
+// Logins from one address (every connection together): each one that gets in is sent the whole
+// save, so without this a saved login (no scrypt) repeated fast could use up the home upload.
+const AUTH_IP_RATE = 10 / 60, AUTH_IP_BURST = 10;
+// And one account gets in at most once per AUTH_GAP: a second login waits its turn (a game
+// reconnecting doesn't notice), one that would have to wait longer than AUTH_WAIT is refused.
+const AUTH_GAP = 5000, AUTH_WAIT = 10000;
+const authNext = new Map();           // account key -> when its next login may get in
+const AUTH_SLOW = "เข้าสู่ระบบถี่เกินไป รอสักครู่แล้วลองใหม่";
+
+/// Waits for this account's turn to log in. false: the queue is too long, or the game closed meanwhile.
+async function authTurn(socket, key) {
+  const now = Date.now(), at = Math.max(now, authNext.get(key) || 0);
+  if (at - now > AUTH_WAIT) { send(socket, { t: "auth", hits: 0, why: AUTH_SLOW }); return false; }
+  authNext.set(key, at + AUTH_GAP);
+  if (at > now) await new Promise(ok => setTimeout(ok, at - now));
+  return !socket.destroyed;
+}
+
 async function onAccount(socket, m) {
   if (socket.authBusy) return;          // one at a time per connection
   socket.tries = (socket.tries || 0) + 1;
   if (socket.tries > 20) { send(socket, { t: "auth", hits: 0, why: "ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่" }); return; }
+  if (!bucket(ipState(socket.ip), "auth", AUTH_IP_RATE, AUTH_IP_BURST)) {
+    log("! too many logins from " + socket.ip);
+    send(socket, { t: "auth", hits: 0, why: AUTH_SLOW });
+    return;
+  }
   const name = String(m.name || "").trim(), key = keyOf(name), pass = String(m.text || "").slice(0, 200);
   const ipId = "ip:" + socket.ip, acctId = "acct:" + key + "@" + socket.ip; // wrong passwords from one address lock that address out of the account, not its owner everywhere
   socket.authBusy = true;
@@ -1175,6 +1219,8 @@ async function onAccount(socket, m) {
       // an old or unknown one (e.g. from before the server moved) is not a wrong password
       // and must not lock anyone out, and a locked address can still use a valid one.
       if (!acc || !(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; }
+      if (!(await authTurn(socket, key))) return;
+      if (!(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; } // used meanwhile
       acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
       authOk(socket, acc);
       return;
@@ -1194,6 +1240,7 @@ async function onAccount(socket, m) {
     }
     fails.delete(allId);
     fails.delete(acctId);
+    if (!(await authTurn(socket, key))) return;
     authOk(socket, acc);
   } catch (e) {
     log("! account error: " + e.message);
@@ -1241,10 +1288,12 @@ function drop(socket) {
 
 function log(s) { console.log(new Date().toLocaleTimeString() + "  " + s); }
 
-server.listen(PORT, "0.0.0.0", () => {
+// This PC only: players come in through the Cloudflare tunnel, which connects from here.
+// Nothing on the home network (or the internet, if a port is opened) reaches it directly.
+server.listen(PORT, "127.0.0.1", () => {
   log("Island server on port " + PORT + " (world seed " + WORLD_SEED + ")");
   log("  game connects to  ws://127.0.0.1:" + PORT + "/ws");
-  log("  web build at      http://localhost:" + PORT + "/  (from " + WEB_ROOT + ")");
+  log("  web build at      http://127.0.0.1:" + PORT + "/  (from " + WEB_ROOT + ")");
   log("  accounts in       " + DATA_DIR + " (" + Object.keys(accounts).length + " players)");
   backupNow("server start");
 });
