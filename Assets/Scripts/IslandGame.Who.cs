@@ -57,6 +57,11 @@ public partial class IslandGame
             if (whoList != null) foreach (var p in whoList) if (p != null && p.id == owner) ownerName = p.name;
             return $"<color=#ffb0d0>เยี่ยมบ้าน {ownerName}{inside}</color>";
         }
+        if (PrisonRoom(isl)) // the sunken prison (IslandGame.Prison.cs)
+        {
+            int pf = RoomNoChannel(isl) - PrisonRoomBase;
+            return $"<color=#8ab8ff>คุกใต้ทะเล {(pf == PrisonSpecial ? "ชั้นพิเศษ" : pf == PrisonSecret ? "ชั้นลับ" : $"ชั้น {pf}")}</color> <color=#ffd27a>CH{RoomChannel(isl)}</color>";
+        }
         if (CaveRoom(isl)) // inside a cave on an island (IslandGame.Cave.cs)
         {
             int cch = RoomChannel(isl), key = RoomNoChannel(isl) - CaveRoomBase;

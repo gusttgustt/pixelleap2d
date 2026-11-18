@@ -99,7 +99,7 @@ public class WorldNode : MonoBehaviour
         NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost => true,
         NodeKind.Fence or NodeKind.StonePath or NodeKind.Flowers or NodeKind.Bench or NodeKind.Scarecrow => false,
         NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor => true,
-        NodeKind.CaveEntrance or NodeKind.CaveExit => true,
+        NodeKind.CaveEntrance or NodeKind.CaveExit or NodeKind.PrisonStairs or NodeKind.PrisonSecret => true,
         NodeKind.Table or NodeKind.Chair or NodeKind.Rug or NodeKind.PlantPot or NodeKind.Shelf => false,
         NodeKind.Shrine => true,
         NodeKind.Well or NodeKind.Fountain or NodeKind.AirVent or NodeKind.HotSpring => true,
@@ -133,7 +133,7 @@ public class WorldNode : MonoBehaviour
         NodeKind.Cottage => 1.9f,
         NodeKind.Signpost => 1.0f,
         NodeKind.Bed => 0.6f, NodeKind.Workbench => 0.8f, NodeKind.HouseDoor => 0.3f,
-        NodeKind.CaveEntrance => 1.4f, NodeKind.CaveExit => 0.5f,
+        NodeKind.CaveEntrance => 1.4f, NodeKind.CaveExit => 0.5f, NodeKind.PrisonStairs => 0.5f, NodeKind.PrisonSecret => 1.1f,
         _ => 0.45f,
     };
 
@@ -146,7 +146,7 @@ public class WorldNode : MonoBehaviour
         transform.position = basePos;
         sr = gameObject.AddComponent<SpriteRenderer>();
         sr.sortingOrder = IslandGame.SortOrder(flat.y); // Y-sort on the ground position, ignoring height
-        if (k is NodeKind.StonePath or NodeKind.Rug or NodeKind.HouseDoor or NodeKind.CaveExit) sr.sortingOrder = k == NodeKind.Rug ? -30490 : -30500;                      // flat on the ground
+        if (k is NodeKind.StonePath or NodeKind.Rug or NodeKind.HouseDoor or NodeKind.CaveExit or NodeKind.PrisonStairs) sr.sortingOrder = k == NodeKind.Rug ? -30490 : -30500;                      // flat on the ground
         else if (k == NodeKind.Plot) sr.sortingOrder = IslandGame.SortOrder(flat.y + IslandGame.HalfH); // under anyone standing on it
         home = g;
         this.flip = flip;
@@ -256,6 +256,8 @@ public class WorldNode : MonoBehaviour
             NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.I.FruitHere(biome)),
             NodeKind.CaveEntrance => PixelArt.CaveMouth(),
             NodeKind.CaveExit => PixelArt.CaveLight(),
+            NodeKind.PrisonStairs => PixelArt.PrisonStairs(),
+            NodeKind.PrisonSecret => PixelArt.PrisonSecretWall(),
             _ => PixelArt.Campfire(fireFrame),
         };
         if (kind is NodeKind.GlowShroom or NodeKind.GlowTree && fireLight != null) fireLight.enabled = available;

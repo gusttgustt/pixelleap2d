@@ -25,6 +25,8 @@ public partial class IslandGame
         public int swarmLeft, swarmTotal;   // pack sharks still alive / how many there were
         public readonly List<NavyShot> shots = new List<NavyShot>();
         public readonly List<Wreck> wrecks = new List<Wreck>();
+        public Vector2 prisonAt;            // the sunken prison's grate on this crossing (IslandGame.Prison.cs)
+        public SpriteRenderer prisonSr;
     }
 
     /// Non-null while paddling between islands.
@@ -99,6 +101,7 @@ public partial class IslandGame
         if (voyage.monsterAt > 0f) swarmChance *= 0.4f;
         if (Random.value < swarmChance) voyage.swarmAt = voyage.length * Random.Range(0.2f, 0.55f);
         PlanNavy(voyage); // government warships hunting wanted sailors (IslandGame.Navy.cs)
+        PlanPrisonGate(voyage); // the sunken prison, on the volcano continent's waters (IslandGame.Prison.cs)
 
         camPos = voyage.raft;
         JoinRoom(); // online: everyone at sea on these waters sees each other's boats (IslandGame.Net.cs)
@@ -216,6 +219,7 @@ public partial class IslandGame
             bool pressed = touchActionPressed || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
             bool held = touchActionHeld || (kb != null && (kb.eKey.isPressed || kb.spaceKey.isPressed));
             float since = Time.time - lastInteract;
+            if (PrisonGateTick(v, pressed)) return; // diving into the sunken prison (IslandGame.Prison.cs)
             if (v.target != null)
             {
                 if ((pressed || held) && since >= AttackInterval) { lastInteract = Time.time; AttackSea(v.target); }

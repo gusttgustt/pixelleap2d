@@ -99,6 +99,7 @@ public partial class IslandGame
     {
         if (isl >= SeaRoomBase) return 1 + (isl - SeaRoomBase) / SeaChannelStep;
         if (CaveRoom(isl)) return 1 + (isl - CaveRoomBase) / ChannelStep; // IslandGame.Cave.cs
+        if (PrisonRoom(isl)) return 1 + (isl - PrisonRoomBase) / ChannelStep; // IslandGame.Prison.cs
         if (isl > 0) return 1 + isl / ChannelStep;
         return 0;
     }
@@ -108,6 +109,7 @@ public partial class IslandGame
     {
         if (isl >= SeaRoomBase) return SeaRoomBase + (isl - SeaRoomBase) % SeaChannelStep;
         if (CaveRoom(isl)) return CaveRoomBase + (isl - CaveRoomBase) % ChannelStep;
+        if (PrisonRoom(isl)) return PrisonRoomBase + (isl - PrisonRoomBase) % ChannelStep;
         if (isl > 0) return isl % ChannelStep;
         return isl;
     }

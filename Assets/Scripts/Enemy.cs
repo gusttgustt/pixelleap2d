@@ -59,7 +59,8 @@ public class Enemy : MonoBehaviour
     public bool stayByDay;
     Vector2 netTarget;
 
-    public string DisplayName => (caveBoss ? "เจ้าแห่งถ้ำ " : alpha ? "จ่าฝูง" : "") + BaseName + (variant switch
+    public string title; // a name before the name (the sunken prison's wardens, IslandGame.Prison.cs)
+    public string DisplayName => (title ?? (caveBoss ? "เจ้าแห่งถ้ำ " : alpha ? "จ่าฝูง" : "")) + BaseName + (variant switch
     {
         IslandGame.Variant.Giant => "ยักษ์", IslandGame.Variant.Fiery => "เพลิง", IslandGame.Variant.Armored => "เกราะ", _ => "",
     });

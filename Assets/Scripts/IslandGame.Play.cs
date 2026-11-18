@@ -200,7 +200,7 @@ public partial class IslandGame
         // Death doesn't wipe the character: save everything as it is now, and Respawn() wakes you
         // up on this island with it all (at sea or visiting, the last save on land stands).
         // Written already healed, so closing the game on the death screen also comes back alive.
-        if (player != null && voyage == null && !visiting && sailT <= 0f) SaveSystem.Write(Reborn(Snapshot()));
+        if (player != null && voyage == null && !visiting && sailT <= 0f && !InPrison) SaveSystem.Write(Reborn(Snapshot())); // dying in the sunken prison is like dying at sea
         return true;
     }
 
@@ -234,7 +234,7 @@ public partial class IslandGame
         else if (target != null)
         {
             bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost
-                or NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor or NodeKind.CaveEntrance or NodeKind.CaveExit;
+                or NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor or NodeKind.CaveEntrance or NodeKind.CaveExit or NodeKind.PrisonStairs or NodeKind.PrisonSecret;
             if (once ? (pressed && since > 0.15f) : Trigger(0.3f))
             {
                 lastInteract = Time.time;
@@ -385,7 +385,9 @@ public partial class IslandGame
                 DepleteShared(n, 90f);
                 break;
             case NodeKind.Drop: PickUpDrop(n); break;
-            case NodeKind.Chest: if (n.available) OpenChest(n); break;
+            case NodeKind.Chest: if (InPrison) OpenPrisonChest(n); else if (n.available) OpenChest(n); break;
+            case NodeKind.PrisonStairs: TakePrisonStairs(); break; // IslandGame.Prison.cs
+            case NodeKind.PrisonSecret: TakeSecretDoor(); break;
             case NodeKind.Shrine: PrayAtShrine(n); break;
             case NodeKind.CaveEntrance: CaveDialog(n); break;            // IslandGame.Cave.cs
             case NodeKind.CaveExit: BeginWarp(Warp.ExitCave); break;

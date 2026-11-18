@@ -28,7 +28,7 @@ public partial class IslandGame
 
     float homeT;                   // fade while travelling (home <-> adventure, in and out of the house)
     bool homeApplied;
-    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit, Expand, EnterCave, ExitCave }
+    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit, Expand, EnterCave, ExitCave, PrisonFloor }
     Warp warp;
 
     public Vector2 TownCenter => Center + new Vector2(5f, -5f); // the market, to the east of your house
@@ -121,9 +121,10 @@ public partial class IslandGame
                 case Warp.Expand: DoExpandIsland(); break;
                 case Warp.EnterCave: EnterCave(); break; // IslandGame.Cave.cs
                 case Warp.ExitCave: ExitCave(); break;
+                case Warp.PrisonFloor: EnterPrisonFloor(); break; // IslandGame.Prison.cs
                 default: ExitHouse(); break;
             }
-            if (!visiting) { SaveSystem.Write(Snapshot()); savedAt = Time.time; }
+            if (!visiting && !InPrison) { SaveSystem.Write(Snapshot()); savedAt = Time.time; } // nothing is saved in the sunken prison
         }
         if (homeT >= 2.4f) homeT = 0f;
     }

@@ -27,7 +27,7 @@ public partial class IslandGame
     List<(string label, Color col, System.Action act)> MenuItems()
     {
         var items = new List<(string, Color, System.Action)>();
-        if (inCave) items.Add(("ออกจากถ้ำ", new Color(1f, 0.95f, 0.75f), TryLeaveCave)); // IslandGame.Cave.cs
+        if (inCave) items.Add((InPrison ? "ขึ้นสู่ผิวน้ำ" : "ออกจากถ้ำ", new Color(1f, 0.95f, 0.75f), TryLeaveCave)); // IslandGame.Cave.cs / Prison.cs
         items.Add((visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)",
             atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f), ToggleHome));
         if (atHome && !visiting && !buildOpen)

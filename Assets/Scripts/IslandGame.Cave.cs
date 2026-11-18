@@ -37,8 +37,8 @@ public partial class IslandGame
     public const int CaveBossId = 990001;  // the boss's creature id (puppets know it's the boss by it)
     const int CaveRoomBase = 1000000000;   // cave rooms: CaveRoomBase + channel offset + WorldKey (islands stay below, the sea above)
 
-    int CaveKey => CaveRoomBase + ChannelOffset + WorldKey(island, continent);
-    static bool CaveRoom(int isl) => isl >= CaveRoomBase && isl < SeaRoomBase;
+    int CaveKey => InPrison ? PrisonKey : CaveRoomBase + ChannelOffset + WorldKey(island, continent); // a prison floor has its own (IslandGame.Prison.cs)
+    static bool CaveRoom(int isl) => isl >= CaveRoomBase && isl < PrisonRoomBase;
     int CaveLevel => IslandLevel + 3; // the level the cave mouth recommends
 
     /// This island has a cave (its seed decides: the same for everyone online).
@@ -139,6 +139,7 @@ public partial class IslandGame
     /// Back out in front of the cave mouth, the island as you left it.
     void ExitCave()
     {
+        if (InPrison) { SurfaceFromPrison(); return; } // up from the sunken prison (IslandGame.Prison.cs)
         inCave = false;          // an ordinary snapshot from here on
         var d = Snapshot();
         d.nodes.Clear();
@@ -154,6 +155,7 @@ public partial class IslandGame
     /// Saving inside the cave saves the island outside, with you at the cave mouth (Snapshot).
     void CaveSnapshot(SaveData d)
     {
+        if (InPrison) return; // nothing is saved down there: the snapshot only carries what you have
         d.nodes.Clear();
         d.nodes.AddRange(caveOutsideNodes);
         d.biomeId = (int)caveBiome + 1;
@@ -178,8 +180,44 @@ public partial class IslandGame
         tiles = new int[Size, Size];
         heights = new int[Size, Size];
         caveFloor.Clear();
-        var r = new System.Random(seed * 29 + 11);
+        var r = new System.Random(seed * 29 + 11 + prisonFloor * 7919); // every prison floor its own (IslandGame.Prison.cs)
+        var nooks = new List<Vector2>();
+        if (prisonFloor == PrisonSecret) // the secret floor: one long vault
+        {
+            caveStart = new Vector2(8f, Size / 2f);
+            caveBossSpot = caveStart + new Vector2(12f, 0f);
+            for (float t = 0f; t <= 1f; t += 0.05f) Carve(Vector2.Lerp(caveStart, caveBossSpot, t), 2.6f);
+            Carve(caveStart, 2.6f); Carve(caveBossSpot, 3.2f);
+        }
+        else BuildTunnels(r, nooks);
 
+        // floor and walls (the prison: cold blue stone)
+        var root = new GameObject("Cave").transform;
+        root.SetParent(world);
+        var floorTint = InPrison ? new Color(0.62f, 0.72f, 0.88f) : new Color(0.82f, 0.76f, 0.88f);
+        var wallTint = InPrison ? new Color(0.3f, 0.36f, 0.5f) : new Color(0.5f, 0.45f, 0.56f);
+        for (int gx = 0; gx < Size; gx++)
+            for (int gy = 0; gy < Size; gy++)
+            {
+                bool floor = tiles[gx, gy] == 2;
+                if (floor) caveFloor.Add(new Vector2(gx, gy));
+                if (!floor && !NextToFloor(gx, gy)) continue;
+                var sr = new GameObject(floor ? "Floor" : "Wall").AddComponent<SpriteRenderer>();
+                sr.transform.SetParent(root);
+                Vector3 p = GridToWorld(new Vector2(gx, gy));
+                if (floor) { sr.sprite = PixelArt.Land(true, r.Next(4), 0, Biome.Volcanic); sr.color = floorTint; }
+                else { sr.sprite = PixelArt.Land(true, r.Next(4), 2, Biome.Volcanic); sr.color = wallTint; p.y += PixelArt.HeightUnits(2); }
+                sr.sortingOrder = -31000 + 2 * (gx + gy);
+                sr.transform.position = p;
+            }
+        stickCap = 0; rockCap = 0; obsidianCap = 0;
+        CaveNodes(r, nooks);
+        if (InPrison) DecoratePrisonFloor(r, nooks);
+    }
+
+    /// The winding tunnel with rooms and nooks along it (a cave, or a prison floor).
+    void BuildTunnels(System.Random r, List<Vector2> nooks)
+    {
         // the main tunnel snakes across the map three times (about 120 tiles), wobbling as it goes
         var way = new[]
         {
@@ -210,7 +248,6 @@ public partial class IslandGame
         Carve(caveBossSpot, 4.6f); // the boss's hall
 
         // rooms on the way, and short side tunnels with a little room at the end (ore and crystals)
-        var nooks = new List<Vector2>();
         for (int i = 8; i < path.Count - 6; i += 7 + r.Next(5))
         {
             Carve(path[i] + new Vector2(0f, r.Next(-2, 3)), 2.2f + (float)r.NextDouble() * 0.8f);
@@ -221,28 +258,10 @@ public partial class IslandGame
             Carve(p, 1.8f);
             nooks.Add(p);
         }
+    }
 
-        // floor and walls
-        var root = new GameObject("Cave").transform;
-        root.SetParent(world);
-        var floorTint = new Color(0.82f, 0.76f, 0.88f);
-        var wallTint = new Color(0.5f, 0.45f, 0.56f);
-        for (int gx = 0; gx < Size; gx++)
-            for (int gy = 0; gy < Size; gy++)
-            {
-                bool floor = tiles[gx, gy] == 2;
-                if (floor) caveFloor.Add(new Vector2(gx, gy));
-                if (!floor && !NextToFloor(gx, gy)) continue;
-                var sr = new GameObject(floor ? "Floor" : "Wall").AddComponent<SpriteRenderer>();
-                sr.transform.SetParent(root);
-                Vector3 p = GridToWorld(new Vector2(gx, gy));
-                if (floor) { sr.sprite = PixelArt.Land(true, r.Next(4), 0, Biome.Volcanic); sr.color = floorTint; }
-                else { sr.sprite = PixelArt.Land(true, r.Next(4), 2, Biome.Volcanic); sr.color = wallTint; p.y += PixelArt.HeightUnits(2); }
-                sr.sortingOrder = -31000 + 2 * (gx + gy);
-                sr.transform.position = p;
-            }
-        stickCap = 0; rockCap = 0; obsidianCap = 0;
-
+    void CaveNodes(System.Random r, List<Vector2> nooks)
+    {
         // the light at the mouth (the way out), rocks and ore along the walls, crystals in the nooks
         Spawn(NodeKind.CaveExit, caveStart + new Vector2(-0.6f, 0f), false);
         foreach (var g in caveFloor)
@@ -259,14 +278,15 @@ public partial class IslandGame
                 var g = p + new Vector2((float)r.NextDouble() - 0.5f, (float)r.NextDouble() - 0.5f) * 1.6f;
                 if (IsLand(g)) Spawn(k == 0 ? NodeKind.CrystalCluster : NodeKind.CopperOre, g, false);
             }
+    }
 
-        void Carve(Vector2 c, float rad)
-        {
-            int x0 = Mathf.FloorToInt(c.x - rad), x1 = Mathf.CeilToInt(c.x + rad), y0 = Mathf.FloorToInt(c.y - rad), y1 = Mathf.CeilToInt(c.y + rad);
-            for (int x = x0; x <= x1; x++)
-                for (int yy = y0; yy <= y1; yy++)
-                    if (x >= 2 && yy >= 2 && x < Size - 2 && yy < Size - 2 && (new Vector2(x, yy) - c).magnitude <= rad) tiles[x, yy] = 2;
-        }
+    /// Floor in a circle (cave and prison layouts).
+    void Carve(Vector2 c, float rad)
+    {
+        int x0 = Mathf.FloorToInt(c.x - rad), x1 = Mathf.CeilToInt(c.x + rad), y0 = Mathf.FloorToInt(c.y - rad), y1 = Mathf.CeilToInt(c.y + rad);
+        for (int x = x0; x <= x1; x++)
+            for (int yy = y0; yy <= y1; yy++)
+                if (x >= 2 && yy >= 2 && x < Size - 2 && yy < Size - 2 && (new Vector2(x, yy) - c).magnitude <= rad) tiles[x, yy] = 2;
     }
 
     bool NextToFloor(int x, int y)
@@ -300,8 +320,16 @@ public partial class IslandGame
     void SpawnCaveMonsters()
     {
         var r = new System.Random(System.Environment.TickCount);
+        if (prisonFloor == PrisonSecret) return; // the secret vault: treasure, nothing to fight (IslandGame.Prison.cs)
         var kinds = CaveKinds();
-        int want = Mathf.Min(40, 22 + tier * 3 + island / 3);
+        if (InPrison) // escaped prisoners: the island's creatures, the volcano continent's own, and fruit users
+        {
+            var list = new List<EnemyKind>(kinds);
+            list.AddRange(ContinentCreatures(PrisonContinent));
+            list.Add(EnemyKind.FruitUser); list.Add(EnemyKind.FruitUser);
+            kinds = list.ToArray();
+        }
+        int want = InPrison ? Mathf.Min(45, 18 + prisonFloor * 3) : Mathf.Min(40, 22 + tier * 3 + island / 3);
         var spots = caveFloor.FindAll(g => (g - caveStart).magnitude > 7f && (g - caveBossSpot).magnitude > 5.5f);
         for (int i = 0; i < want && spots.Count > 0; i++)
         {
@@ -313,16 +341,18 @@ public partial class IslandGame
             e.transform.SetParent(world);
             e.Init(kind, g, tier, ++enemyCounter);
             e.stayByDay = true;
-            if (r.NextDouble() < 0.35) e.SetVariant((Variant)(1 + r.Next(3))); // giant, fiery or armoured
+            if (r.NextDouble() < 0.35 && kind != EnemyKind.FruitUser) e.SetVariant((Variant)(1 + r.Next(3))); // giant, fiery or armoured
+            if (InPrison) e.Empower(1f + 0.15f * prisonFloor, 1f + 0.06f * prisonFloor, 1f + 0.1f * prisonFloor, Color.white); // deeper, tougher
             enemies.Add(e);
         }
         var bossKinds = System.Array.FindAll(kinds, k => k is not (EnemyKind.Mimic or EnemyKind.StoneSquid)); // a boss you can see
-        var bk = bossKinds.Length > 0 ? bossKinds[r.Next(bossKinds.Length)] : EnemyKind.Boar;
+        var bk = prisonFloor == PrisonSpecial ? EnemyKind.FruitUser : bossKinds.Length > 0 ? bossKinds[r.Next(bossKinds.Length)] : EnemyKind.Boar;
         var boss = new GameObject("CaveBoss").AddComponent<Enemy>();
         boss.transform.SetParent(world);
         boss.Init(bk, caveBossSpot, tier, CaveBossId);
         boss.stayByDay = true;
         boss.MakeCaveBoss();
+        if (InPrison) MakeWarden(boss); // the floor's warden (IslandGame.Prison.cs)
         enemies.Add(boss);
     }
 
@@ -330,7 +360,7 @@ public partial class IslandGame
     void CaveRoomCheck(NetMsg m)
     {
         caveBossSeen = false; // our own boss may just have made way for the host's
-        if (m.players == null) return;
+        if (m.players == null || InPrison) return; // the sunken prison is open to anyone who finds it
         var crew = MyCrewIds();
         foreach (var p in m.players)
             if (p != null && !crew.Contains(p.id))
@@ -346,6 +376,7 @@ public partial class IslandGame
     {
         if (!inCave || caveBossDown) return;
         caveBossDown = true;
+        if (InPrison) { PrisonWardenDown(); return; } // IslandGame.Prison.cs
         Vector3 at = player != null ? PlayerPos : GridToWorld(caveBossSpot);
         AddXp(120 + island * 12, at);
         Give(Item.GoldCoin, 15 + island * 2, null);
@@ -405,7 +436,11 @@ public partial class IslandGame
         Enemy boss = null;
         foreach (var e in enemies) { if (e == null) continue; if (e.netId == CaveBossId) boss = e; else left++; }
         var st = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontSize = 12 };
-        string text = caveBossDown ? "ถ้ำปลอดภัยแล้ว · เดินไปที่แสงเพื่อออก" : $"สัตว์ร้ายเหลือ {left} ตัว · เจ้าแห่งถ้ำรออยู่สุดทาง";
+        string text = InPrison
+            ? (prisonFloor == PrisonSecret ? "คุกใต้ทะเล ชั้นลับ · เปิดหีบสมบัติ แล้วลงบันไดไปต่อ"
+               : caveBossDown ? $"คุกใต้ทะเล {PrisonFloorName} · ผ่านแล้ว! " + (prisonFloor == PrisonSpecial ? "เดินไปที่แสงเพื่อขึ้นผิวน้ำ" : "ลงบันไดไปชั้นถัดไป")
+               : $"คุกใต้ทะเล {PrisonFloorName} · นักโทษเหลือ {left} · ผู้คุมรออยู่สุดทาง")
+            : caveBossDown ? "ถ้ำปลอดภัยแล้ว · เดินไปที่แสงเพื่อออก" : $"สัตว์ร้ายเหลือ {left} ตัว · เจ้าแห่งถ้ำรออยู่สุดทาง";
         float tw = st.CalcSize(new GUIContent(text)).x + 10f;
         const float clearOf = 308f; // right of the status bars and the sky dial
         ShadowLabel(new Rect(Mathf.Max(W / 2f - tw / 2f, clearOf), 40f, tw, 18f), text, st, new Color(0.9f, 0.8f, 1f)); // under the online line

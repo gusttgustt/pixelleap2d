@@ -40,7 +40,8 @@ public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfir
     Wreck, Chest, Pillar, GiantTree, Shrine, LostBundle, SunkenTemple, Relic, GiantClam, DigSpot, PirateShip, Tent, Cannon, CrystalCluster, Mirror, CrystalVault, LightningRod, CopperOre, GiantGrass, GiantFlower, Beehive, Anthill,
     Plot, Fence, StonePath, Flowers, Bench, Scarecrow, Cottage, Signpost, Chicken, Cow, // private island
     Bed, Table, Chair, Rug, PlantPot, Shelf, Workbench, HouseDoor, // inside your house
-    CaveEntrance, CaveExit } // caves (IslandGame.Cave.cs)
+    CaveEntrance, CaveExit, // caves (IslandGame.Cave.cs)
+    PrisonStairs, PrisonSecret } // the sunken prison (IslandGame.Prison.cs)
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky, Bubble, Hourglass, Ice, Sunken, Pirate, Crystal, Storm, Insect }
 
@@ -439,6 +440,7 @@ public partial class IslandGame : MonoBehaviour
     {
         if (data == null) data = NewRun();
         inCave = caveEntering; caveEntering = false; // only EnterCave's load is the cave (IslandGame.Cave.cs)
+        if (!prisonEntering) prisonFloor = 0;        // ...or a floor of the sunken prison (IslandGame.Prison.cs)
         if (!visitLoad) { visiting = false; visitBack = null; } // any other load ends a visit (IslandGame.Visit.cs)
         voyageVisit = null; voyageBack = null; // a trip to a friend ends with any load (it ends in one)
         LoadHome(data); // private island state (IslandGame.Home.cs)
@@ -577,7 +579,8 @@ public partial class IslandGame : MonoBehaviour
 
         camPos = player.transform.position;
         ResetHomeTools(); // build mode, fishing line
-        if (inCave) Hint($"เข้าถ้ำแล้ว! ทางเดินเต็มไปด้วยสัตว์ร้าย เจ้าแห่งถ้ำรออยู่ลึกสุด · สู้ไม่ไหว เดินกลับมาที่แสงตรงปากถ้ำเพื่อออก", 7f);
+        if (InPrison) Hint(prisonFloor == PrisonSecret ? "ห้องลับใต้คุก มีแต่หีบสมบัติ" : "คุกใต้ทะเล: ปราบผู้คุมเพื่อเปิดบันไดลง · สู้ไม่ไหว เดินกลับไปที่แสงเพื่อขึ้นผิวน้ำ · ข้างในไม่มีการเซฟ", 6f);
+        else if (inCave) Hint($"เข้าถ้ำแล้ว! ทางเดินเต็มไปด้วยสัตว์ร้าย เจ้าแห่งถ้ำรออยู่ลึกสุด · สู้ไม่ไหว เดินกลับมาที่แสงตรงปากถ้ำเพื่อออก", 7f);
         else if (outOfCave) Hint("ออกจากถ้ำแล้ว", 2.5f);
         else if (inHouse) Hint($"ในบ้าน{HouseName(houseLevel)} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก", 6f);
         else if (atHome) Hint(fresh ? "ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น" : "กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่", 7f);
@@ -757,7 +760,7 @@ public partial class IslandGame : MonoBehaviour
     public void SaveGame()
     {
         // At sea or mid-fade there's nothing to save: the last save (next to the raft) stands.
-        if (dead || player == null || sailT > 0f || voyage != null || visiting) return; // visiting: your own save waits
+        if (dead || player == null || sailT > 0f || voyage != null || visiting || InPrison) return; // visiting: your own save waits; the sunken prison is like the sea
         SaveSystem.Write(Snapshot());
         savedAt = Time.time;
         autosaveTimer = 0f;

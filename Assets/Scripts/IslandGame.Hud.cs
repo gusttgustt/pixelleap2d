@@ -288,7 +288,9 @@ public partial class IslandGame
         NodeKind.Workbench => "ใช้โต๊ะช่าง (ของฟาร์ม / ของตกแต่ง)",
         NodeKind.HouseDoor => "ออกจากบ้าน",
         NodeKind.CaveEntrance => CaveBlockedBy() != null ? "ปากถ้ำ (มีคนอยู่ข้างใน ถ้ำปิด)" : "เข้าถ้ำ",
-        NodeKind.CaveExit => "ออกจากถ้ำ",
+        NodeKind.CaveExit => InPrison ? "ขึ้นสู่ผิวน้ำ" : "ออกจากถ้ำ",
+        NodeKind.PrisonStairs => prisonFloor == PrisonSecret ? "ลงบันไดไปต่อ" : prisonFloor >= 7 ? "ลงไปชั้นพิเศษ" : $"ลงไปชั้น {prisonFloor + 1}",
+        NodeKind.PrisonSecret => "ผนังร้าวแปลกๆ... (ตรวจดู)",
         NodeKind.Signpost => "อ่านป้าย",
         _ => "",
     };
@@ -438,6 +440,7 @@ public partial class IslandGame
             : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
             : voyage != null ? $"กลางทะเล กำลังไป{VoyageDestName}"
+            : InPrison ? $"คุกใต้ทะเล {PrisonFloorName}  <size=11>ทวีปภูเขาไฟ · ไม่มีการเซฟข้างใน</size>"
             : inCave ? $"ในถ้ำใต้เกาะที่ {island}: {T.name}  <size=11>{BiomeNameOf(caveBiome)} · แนะนำเลเวล {CaveLevel}</size>"
             : $"เกาะที่ {island}: {T.name}  <size=11>{ContinentName} · {BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}</size>";
         ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - <color={DayPartColors[(int)PartOfDay]}>{DayPartNames[(int)PartOfDay]}</color>", label);
