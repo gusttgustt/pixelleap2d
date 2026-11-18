@@ -87,7 +87,7 @@ public partial class IslandGame
     }
 
     /// Attacks per second: slow to start, faster with gear and Agility, never above 3 per second.
-    public float AttacksPerSecond => Mathf.Min(3f, 1.4f * (1f + GearSum(g => g.atkSpd) + 0.05f * SkillLv(Skill.Agility)));
+    public float AttacksPerSecond => Mathf.Min(3f, 1.4f * EnergyAttack * (1f + GearSum(g => g.atkSpd) + 0.05f * SkillLv(Skill.Agility))); // tired: slower (IslandGame.Sleep.cs)
     float AttackInterval => 1f / AttacksPerSecond;
     int GearDamage => Mathf.RoundToInt(GearSum(g => g.dmg));
     float GearArmor => Mathf.Min(0.8f, GearSum(g => g.armor)); // never quite untouchable

@@ -468,6 +468,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(14, infoY, 300, 18), $"กระบอกน้ำ {flaskWater}/{FlaskSize}  [Q] ดื่ม", small, new Color(0.6f, 0.85f, 1f));
             infoY += 19f;
         }
+        infoY = DrawSleepHud(infoY);   // energy, rested / tired (IslandGame.Sleep.cs)
         infoY = DrawBountyHud(infoY);  // IslandGame.Bounty.cs
         infoY = DrawHomeHud(infoY, s); // coins, fishing line, animals (IslandGame.Home.cs)
         infoY = DrawPowerHud(infoY);

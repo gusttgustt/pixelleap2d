@@ -80,6 +80,10 @@ public partial class IslandGame
             y = WarnBanner(W, y, hunger <= 0f ? "! อดอาหาร - เลือดกำลังลด !  ไม่มีอาหารในตัว ไปเก็บเบอร์รี่ ผลไม้ หรือจับปลา"
                                               : "! หิวมาก !  กด F กินอาหาร (ถ้าหิวจนจะไม่ไหว จะกินให้เอง)",
                 new Color(1f, 0.65f, 0.25f), pulse);
+        if (WornOut)
+            y = WarnBanner(W, y, energy <= 0f ? "! ไม่ได้นอนเลย - เลือดกำลังลด !  นอนที่เพิงพักหรือเตียง (สร้างเพิงพักได้ที่ Tab)"
+                                              : "! หมดแรง !  ช้า อ่อนแรง สัปหงก ไปนอนที่เพิงพักหรือเตียง",
+                new Color(0.7f, 0.7f, 1f), pulse);
         if (thirst < LowNeed)
             WarnBanner(W, y, thirst <= 0f ? "! ขาดน้ำ - เลือดกำลังลด !  ไปดื่มน้ำ" + (Count(Item.WaterFlask) > 0 && flaskWater > 0 ? " (Q)" : "")
                                           : "! กระหายน้ำมาก !  ไปดื่มน้ำ" + (Count(Item.WaterFlask) > 0 && flaskWater > 0 ? " หรือกด Q" : ""),

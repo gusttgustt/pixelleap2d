@@ -60,6 +60,7 @@ public partial class IslandGame
         d.health = 9999f;                // StartGame caps it at MaxHealth
         d.hunger = Mathf.Max(d.hunger, 60f);
         d.thirst = Mathf.Max(d.thirst, 60f);
+        d.energy = Mathf.Max(d.energy, 60f); // IslandGame.Sleep.cs
         d.player = new Vector2(-1f, -1f); // not land: StartGame puts you in the middle of the island
         return d;
     }

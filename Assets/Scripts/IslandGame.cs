@@ -245,7 +245,7 @@ public partial class IslandGame : MonoBehaviour
     public bool IsNight => daylight < 0.35f;
     public int SkillLv(Skill s) => skills[(int)s];
     public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + GearSum(g => g.hp); // all worn gear (IslandGame.Bag.cs)
-    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + 0.04f * SkillLv(Skill.AwStride) +(Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed;
+    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + 0.04f * SkillLv(Skill.AwStride) +(Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed * EnergySpeed; // tired walks slower (IslandGame.Sleep.cs)
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
     public string BiomeName => BiomeNameOf(biome);
@@ -477,6 +477,7 @@ public partial class IslandGame : MonoBehaviour
         LoadQuests(data);
         LoadBag(data);
         LoadBounty(data); // IslandGame.Bounty.cs
+        LoadSleep(data);  // IslandGame.Sleep.cs
         air = 100f; inkT = 0f; warmth = 100f;
         power = (Power)data.powerId; powerLv = Mathf.Clamp(data.powerLv, 1, 5); powerXp = data.powerXp;
         powerCd = 0f; invisibleT = 0f; bubbleT = 0f; bubbleHits = 0;
@@ -731,6 +732,7 @@ public partial class IslandGame : MonoBehaviour
         SaveQuests(d);
         SaveBag(d);
         SaveBounty(d);
+        SaveSleep(d);
         d.skills.AddRange(skills);
         foreach (var l in learned) d.learned.Add((int)l);
         foreach (var kv in inv) if (kv.Value > 0) d.items.Add(new ItemStack { item = kv.Key, count = kv.Value });

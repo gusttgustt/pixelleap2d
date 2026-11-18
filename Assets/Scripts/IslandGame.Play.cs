@@ -131,7 +131,8 @@ public partial class IslandGame
         if (hunger <= 0f) health -= dt * 2f;
         if (thirst <= 0f) health -= dt * 2.5f;
         if (poisonT > 0f) { poisonT -= dt; health -= dt * 1.5f; } // spider bites and spore clouds
-        if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f * WeatherRegen);
+        if (hunger > 70f && thirst > 50f && !Tired) health = Mathf.Min(MaxHealth, health + dt * 0.4f * WeatherRegen); // too tired to heal
+        TickEnergy(dt); // IslandGame.Sleep.cs
         if (SkillLv(Skill.AwRegen) > 0 && hunger > 0f && thirst > 0f && health > 0f) // awakened: Self-healing
             health = Mathf.Min(MaxHealth, health + dt * 0.3f * SkillLv(Skill.AwRegen));
         return CheckDeath();
@@ -340,7 +341,7 @@ public partial class IslandGame
     /// A hit's damage: the weapon's, doubled on an awakened critical.
     int RollDamage(Vector3 at)
     {
-        int dmg = WeaponDamage;
+        int dmg = Mathf.Max(1, Mathf.RoundToInt(WeaponDamage * (WornOut ? 0.7f : Rested ? 1.1f : 1f))); // how rested you are (IslandGame.Sleep.cs)
         if (rnd.NextDouble() < 0.06 * SkillLv(Skill.AwPower))
         {
             dmg *= 2;
@@ -1097,13 +1098,18 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ sleep
+    bool sleepInBed, sleepNap;
+
     void TrySleep()
     {
-        if (!IsNight) { Hint("นอนได้เฉพาะตอนกลางคืน", 2f); return; }
+        bool nap = !IsNight;
+        if (nap && energy >= 60f) { Hint("นอนได้ตอนกลางคืน (กลางวันงีบได้เมื่อพลังงานต่ำกว่า 60)", 2.5f); return; }
         foreach (var e in enemies)
             if (e != null && (e.grid - player.grid).magnitude < 5f) { Hint("นอนไม่ได้ มีศัตรูอยู่ใกล้ๆ!", 2f); return; }
         sleepT = 0.0001f;
         sleepApplied = false;
+        sleepNap = nap;
+        sleepInBed = target != null && target.kind == NodeKind.Bed; // a bed in your house rests you best (IslandGame.Sleep.cs)
         craftOpen = false; skillsOpen = false;
     }
 
@@ -1117,6 +1123,16 @@ public partial class IslandGame
             hunger = Mathf.Max(1f, hunger - 15f);
             thirst = Mathf.Max(1f, thirst - 20f);
             health = Mathf.Min(MaxHealth, health + 35f);
+            if (sleepNap) // a nap in the day: some energy back, an hour passes
+            {
+                Rest(sleepInBed, false);
+                if (alone) { clock += DayLength / 24f; Now += DayLength / 24f; }
+                Hint($"งีบหลับ พลังงาน {energy:0}", 3f);
+                SaveGame();
+                return;
+            }
+            Rest(sleepInBed, alone);
+            if (!alone) Rest(sleepInBed, false); // online the night goes on: a good nap
             if (alone)
             {
                 float skip = Mathf.Repeat(0.27f - Phase, 1f) * DayLength; // wake up just after sunrise
@@ -1124,7 +1140,7 @@ public partial class IslandGame
                 Now += skip; // plants keep growing while you sleep
                 foreach (var e in enemies) if (e != null) Destroy(e.gameObject);
                 enemies.Clear();
-                Hint($"นอนจนถึงเช้า วันที่ {Day}", 3f);
+                Hint($"นอนจนถึงเช้า วันที่ {Day} · {(sleepInBed ? "นอนบนเตียงหลับสบาย" : "นอนในเพิง")} สดชื่น! ({Mathf.CeilToInt(restedT)} วิ)", 4f);
             }
             else Hint("งีบไปพักหนึ่ง (คืนยังไม่จบเพราะคนอื่นยังไม่นอน)", 3f); // time is shared online
             SaveGame();
