@@ -27,6 +27,10 @@ public enum Item
     Fertilizer, AnimalFeed, // made at the workbench in your house
     FurnBed, FurnTable, FurnChair, FurnRug, FurnPlant, FurnShelf, FurnWorkbench, // furniture
     PetNet, // catches a weakened wild creature to keep as a pet (IslandGame.Pet.cs)
+    // continent bosses drop these (IslandGame.ContinentBoss.cs): a common and a rare one per continent
+    TideScale, StormPearl, MirrorIce, QueenTear, LavaCore, HydraFang, VoidShard, StarEye,
+    // ...and they make each continent's gear: a weapon, armour and an accessory
+    TideBlade, TideMail, TideCharm, FrostLance, FrostRobe, FrostRing, MagmaAxe, MagmaPlate, MagmaAmulet, VoidScythe, VoidCloak, VoidEye,
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
@@ -150,6 +154,19 @@ public partial class IslandGame : MonoBehaviour
         new Recipe { name = "ไข่ทอด", output = Item.CookedEgg, cost = new[] { (Item.Egg, 1) }, needsFire = true, desc = "อิ่ม +30, พลังชีวิต +10" },
         new Recipe { name = "สลัดผัก", output = Item.Salad, cost = new[] { (Item.Carrot, 1), (Item.Tomato, 1) }, desc = "อิ่ม +45, พลังชีวิต +15" },
         new Recipe { name = "เสื้อกั๊กหนัง", output = Item.HideVest, learn = true, cost = new[] { (Item.Hide, 3), (Item.Rope, 2), (Item.Cloth, 1) }, desc = "เสื้อ: รับดาเมจลดลง 20%" },
+        // continent boss gear (IslandGame.ContinentBoss.cs): materials only the continent's boss drops
+        new Recipe { name = "ดาบคลื่นยักษ์", output = Item.TideBlade, cost = new[] { (Item.TideScale, 6), (Item.StormPearl, 1), (Item.Obsidian, 4) }, desc = "อาวุธบอสทวีป 1: ดาเมจ 14, โจมตีเร็ว +20%" },
+        new Recipe { name = "เกราะเกล็ดสมุทร", output = Item.TideMail, cost = new[] { (Item.TideScale, 8), (Item.StormPearl, 1), (Item.Hide, 4) }, desc = "ชุดบอสทวีป 1: พลังชีวิต +50, รับดาเมจ -40%" },
+        new Recipe { name = "เครื่องรางมุกพายุ", output = Item.TideCharm, cost = new[] { (Item.TideScale, 3), (Item.StormPearl, 2), (Item.Pearl, 2) }, desc = "เครื่องประดับ: ดาเมจ +3, โจมตีเร็ว +15%, พลังชีวิต +25" },
+        new Recipe { name = "ทวนน้ำแข็งนิรันดร์", output = Item.FrostLance, cost = new[] { (Item.MirrorIce, 7), (Item.QueenTear, 1), (Item.IceShard, 5) }, desc = "อาวุธบอสทวีป 2: ดาเมจ 24, โจมตีเร็ว +25%" },
+        new Recipe { name = "เสื้อคลุมราชินีหิมะ", output = Item.FrostRobe, cost = new[] { (Item.MirrorIce, 9), (Item.QueenTear, 1), (Item.Fur, 5) }, desc = "ชุดบอสทวีป 2: พลังชีวิต +90, รับดาเมจ -48%" },
+        new Recipe { name = "แหวนกระจกเหมันต์", output = Item.FrostRing, cost = new[] { (Item.MirrorIce, 4), (Item.QueenTear, 2), (Item.CrystalShard, 3) }, desc = "เครื่องประดับ: ดาเมจ +6, พลังชีวิต +45, รับดาเมจ -8%" },
+        new Recipe { name = "ขวานไฮดราเพลิง", output = Item.MagmaAxe, cost = new[] { (Item.LavaCore, 8), (Item.HydraFang, 2), (Item.Obsidian, 8) }, desc = "อาวุธบอสทวีป 3: ดาเมจ 38, โจมตีเร็ว +25%" },
+        new Recipe { name = "เกราะหลอมลาวา", output = Item.MagmaPlate, cost = new[] { (Item.LavaCore, 10), (Item.HydraFang, 1), (Item.Copper, 6) }, desc = "ชุดบอสทวีป 3: พลังชีวิต +150, รับดาเมจ -55%" },
+        new Recipe { name = "สร้อยแกนลาวา", output = Item.MagmaAmulet, cost = new[] { (Item.LavaCore, 5), (Item.HydraFang, 2), (Item.GoldCoin, 30) }, desc = "เครื่องประดับ: ดาเมจ +10, โจมตีเร็ว +20%, พลังชีวิต +70" },
+        new Recipe { name = "เคียวหลุมดำ", output = Item.VoidScythe, cost = new[] { (Item.VoidShard, 9), (Item.StarEye, 2), (Item.CrystalShard, 6) }, desc = "อาวุธบอสทวีป 4: ดาเมจ 56, โจมตีเร็ว +35%" },
+        new Recipe { name = "ผ้าคลุมดาราดับ", output = Item.VoidCloak, cost = new[] { (Item.VoidShard, 11), (Item.StarEye, 1), (Item.CloudCotton, 6) }, desc = "ชุดบอสทวีป 4: พลังชีวิต +230, รับดาเมจ -62%" },
+        new Recipe { name = "ดวงตาแห่งความว่าง", output = Item.VoidEye, cost = new[] { (Item.VoidShard, 6), (Item.StarEye, 3), (Item.Pearl, 4) }, desc = "เครื่องประดับ: ดาเมจ +16, โจมตีเร็ว +25%, พลังชีวิต +110" },
     };
 
     public static readonly (string name, string desc, int max, bool combat)[] SkillInfo =
@@ -227,7 +244,7 @@ public partial class IslandGame : MonoBehaviour
     public int Day => 1 + Mathf.FloorToInt(clock / DayLength + 0.05f);
     public bool IsNight => daylight < 0.35f;
     public int SkillLv(Skill s) => skills[(int)s];
-    public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + (outfit == Item.LeafTunic ? 15f : 0f) + (outfit == Item.CrystalArmor ? 20f : 0f);
+    public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + GearSum(g => g.hp); // all worn gear (IslandGame.Bag.cs)
     public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + 0.04f * SkillLv(Skill.AwStride) +(Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed;
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
@@ -269,9 +286,12 @@ public partial class IslandGame : MonoBehaviour
     public static bool IsTool(Item it) => it is Item.StoneAxe or Item.Spear or Item.StoneKnife or Item.WaterFlask or Item.ObsidianSpear or Item.ObsidianAxe or Item.MushroomLantern or Item.CanvasSail or Item.Balloon or Item.DivingBell or Item.Sundial or Item.SpikedBoots or Item.Shovel or Item.Compass or Item.ButterflyWings
         or Item.Hoe or Item.WateringCan or Item.FishingRod or Item.Hammer;
     public static bool IsHat(Item it) => it is Item.StrawHat or Item.TribalHeadband or Item.StormHood;
-    public static bool IsOutfit(Item it) => it is Item.LeafTunic or Item.HideVest or Item.CrystalArmor;
-    public static bool IsClothing(Item it) => IsHat(it) || IsOutfit(it);
-    public bool IsWorn(Item it) => hat == it || outfit == it;
+    public static bool IsOutfit(Item it) => it is Item.LeafTunic or Item.HideVest or Item.CrystalArmor or Item.TideMail or Item.FrostRobe or Item.MagmaPlate or Item.VoidCloak;
+    /// Accessories: a slot of their own (the continent bosses' gear, IslandGame.ContinentBoss.cs).
+    public static bool IsTrinket(Item it) => it is Item.TideCharm or Item.FrostRing or Item.MagmaAmulet or Item.VoidEye;
+    public static bool IsClothing(Item it) => IsHat(it) || IsOutfit(it) || IsTrinket(it);
+    public bool IsWorn(Item it) => hat == it || outfit == it || trinket == it;
+    public Item? trinket;
     public static bool IsCooked(Item it) => it is Item.CookedFruit or Item.CookedFish or Item.CookedCrab or Item.CookedMeat;
 
     public static string Name(Item it) => it switch
@@ -366,6 +386,14 @@ public partial class IslandGame : MonoBehaviour
         Item.FurnShelf => "ชั้นวางของ",
         Item.FurnWorkbench => "โต๊ะช่าง",
         Item.PetNet => "ตาข่ายจับสัตว์",
+        Item.TideScale => "เกล็ดเจ้าสมุทร", Item.StormPearl => "มุกพายุคลั่ง",
+        Item.MirrorIce => "น้ำแข็งกระจกเงา", Item.QueenTear => "น้ำตาราชินีหิมะ",
+        Item.LavaCore => "แกนลาวา", Item.HydraFang => "เขี้ยวไฮดราเพลิง",
+        Item.VoidShard => "เศษหลุมดำ", Item.StarEye => "ดวงตาดาราอสูร",
+        Item.TideBlade => "ดาบคลื่นยักษ์", Item.TideMail => "เกราะเกล็ดสมุทร", Item.TideCharm => "เครื่องรางมุกพายุ",
+        Item.FrostLance => "ทวนน้ำแข็งนิรันดร์", Item.FrostRobe => "เสื้อคลุมราชินีหิมะ", Item.FrostRing => "แหวนกระจกเหมันต์",
+        Item.MagmaAxe => "ขวานไฮดราเพลิง", Item.MagmaPlate => "เกราะหลอมลาวา", Item.MagmaAmulet => "สร้อยแกนลาวา",
+        Item.VoidScythe => "เคียวหลุมดำ", Item.VoidCloak => "ผ้าคลุมดาราดับ", Item.VoidEye => "ดวงตาแห่งความว่าง",
         _ => it.ToString(),
     };
 
@@ -444,6 +472,7 @@ public partial class IslandGame : MonoBehaviour
         foreach (int l in data.learned) learned.Add((Item)l);
         hat = data.hatId > 0 ? (Item)(data.hatId - 1) : (Item?)null;
         outfit = data.outfitId > 0 ? (Item)(data.outfitId - 1) : (Item?)null;
+        trinket = data.trinketId > 0 ? (Item)(data.trinketId - 1) : (Item?)null;
         elderHealDay = data.elderHealDay;
         LoadQuests(data);
         LoadBag(data);
@@ -527,6 +556,7 @@ public partial class IslandGame : MonoBehaviour
         SpawnThunderbird();
         SpawnQueen();
         }
+        if (!atHome && !inCave) SpawnContinentBoss(); // the last island of a continent (IslandGame.ContinentBoss.cs)
 
         Vector2 start = FreeStand(landing ?? (!fresh && IsLand(data.player) ? data.player : Center)); // never inside a campfire or tree
         player = new GameObject("Player").AddComponent<PlayerController>();
@@ -691,6 +721,7 @@ public partial class IslandGame : MonoBehaviour
             level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel, boatLook = boatLook,
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
+            trinketId = trinket.HasValue ? (int)trinket.Value + 1 : 0,
             farthest = reach[0],
             powerId = (int)power, powerLv = powerLv, powerXp = powerXp,
         };

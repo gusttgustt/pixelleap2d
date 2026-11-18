@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird, WorkerAnt, SoldierAnt, GiantBee, AntQueen }
+public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird, WorkerAnt, SoldierAnt, GiantBee, AntQueen,
+    TideLord, FrostQueen, MagmaHydra, VoidTitan } // the continent bosses (IslandGame.ContinentBoss.cs)
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -86,6 +87,25 @@ public class Enemy : MonoBehaviour
         baseColor = new Color(1f, 0.92f, 0.7f);
     }
 
+    public static bool IsContinentBoss(EnemyKind k) => k is EnemyKind.TideLord or EnemyKind.FrostQueen or EnemyKind.MagmaHydra or EnemyKind.VoidTitan;
+    public bool ContinentBoss => IsContinentBoss(kind);
+
+    /// A continent boss fought by a small group gets stronger (IslandGame.ContinentBoss.cs):
+    /// health and bite times mul, health kept in proportion when the group changes.
+    int baseMaxHp; float baseDamage;
+    public float BossMul { get; private set; } = 1f;
+    public void SetBossMul(float mul)
+    {
+        if (baseMaxHp <= 0) { baseMaxHp = maxHp; baseDamage = damage; }
+        if (Mathf.Abs(mul - BossMul) < 0.001f) return;
+        float share = maxHp > 0 ? (float)hp / maxHp : 1f;
+        BossMul = mul;
+        maxHp = Mathf.Max(1, Mathf.RoundToInt(baseMaxHp * mul));
+        damage = baseDamage * mul;
+        hp = Mathf.Clamp(Mathf.RoundToInt(maxHp * share), 1, maxHp);
+    }
+    public float Damage => damage;
+
     /// The boss at the end of a cave (IslandGame.Cave.cs): a huge one of the island's creatures.
     public bool caveBoss;
     public void MakeCaveBoss()
@@ -110,7 +130,9 @@ public class Enemy : MonoBehaviour
         EnemyKind.SkeletonPirate => "โครงกระดูกโจรสลัด", EnemyKind.PirateMonkey => "ลิงโจรสลัด", EnemyKind.Captain => "กัปตันกระดูกดำ",
         EnemyKind.CrystalGolem => "โกเลมผลึก", EnemyKind.MirrorWisp => "ภูตกระจก",
         EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", EnemyKind.Thunderbird => "นกอัสนี",
-        EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์", _ => "ราชินีมด",
+        EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์",
+        EnemyKind.TideLord => "เจ้าสมุทรคลื่นคลั่ง", EnemyKind.FrostQueen => "ราชินีกระจกเหมันต์",
+        EnemyKind.MagmaHydra => "ไฮดราเพลิงกัลป์", EnemyKind.VoidTitan => "ไททันหลุมดำ", _ => "ราชินีมด",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -179,8 +201,14 @@ public class Enemy : MonoBehaviour
             EnemyKind.SoldierAnt => (9, 12f, 1.5f, 7f, 30),
             EnemyKind.GiantBee => (3, 7f, 2.3f, 10f, 14),
             EnemyKind.AntQueen => (85, 16f, 0.5f, 7f, 230),
+            // continent bosses: built for a crew of five (IslandGame.ContinentBoss.cs)
+            EnemyKind.TideLord => (2400, 18f, 1.0f, 11f, 1500),
+            EnemyKind.FrostQueen => (2600, 20f, 1.1f, 11f, 1800),
+            EnemyKind.MagmaHydra => (3000, 23f, 0.8f, 11f, 2200),
+            EnemyKind.VoidTitan => (3400, 26f, 1.0f, 12f, 2800),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
+        baseMaxHp = 0;
         Disguised = (k == EnemyKind.Mimic || k == EnemyKind.StoneSquid) && !asPuppet;
         shellHp = k == EnemyKind.HermitCrab ? Mathf.RoundToInt(8 * (1f + 0.5f * tier)) : 0;
         // Later islands (second lap and beyond) are tougher and give more XP.
@@ -192,6 +220,7 @@ public class Enemy : MonoBehaviour
         hp = maxHp;
 
         sr = gameObject.AddComponent<SpriteRenderer>();
+        if (IsContinentBoss(k)) transform.localScale = Vector3.one * 1.4f; // towering over everything else
         height = IslandGame.I.HeightAt(g);
         Apply();
         GroundShadow.Attach(sr, Mathf.Clamp(sr.sprite != null ? sr.sprite.bounds.size.x * 1.4f : 1f, 0.6f, 3f));
@@ -384,7 +413,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && kind != EnemyKind.AntQueen && !alpha && !game.inCave) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer (not in a cave: it has only the ones it started with)
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && kind != EnemyKind.AntQueen && !alpha && !game.inCave && !ContinentBoss) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer (not in a cave: it has only the ones it started with)
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire
@@ -490,7 +519,7 @@ public class Enemy : MonoBehaviour
         if (kind == EnemyKind.MirrorWisp) IslandGame.I.DamagePlayer(2f, "เศษแก้วสะท้อน!"); // splinters fly back
         if (kind == EnemyKind.WorkerAnt) IslandGame.I.ProvokeAnts(grid); // the whole colony is angry now
         hp -= dmg;
-        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain or EnemyKind.Thunderbird or EnemyKind.AntQueen ? 0.05f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
+        Vector2 knock = (grid - from).normalized * (kind is EnemyKind.ShroomKing or EnemyKind.Kraken or EnemyKind.Captain or EnemyKind.Thunderbird or EnemyKind.AntQueen || ContinentBoss ? 0f : kind == EnemyKind.Boar ? 0.25f : 0.45f);
         if (CanGo(grid + knock)) grid += knock;
         attackCd = Mathf.Max(attackCd, 0.5f);
         if (hp <= 0 && kind is EnemyKind.SkeletonPirate or EnemyKind.Captain && !revived) // rattle back up once

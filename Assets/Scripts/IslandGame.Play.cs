@@ -115,6 +115,7 @@ public partial class IslandGame
         TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
         TickCrew();      // crew members on and off the captain's boat (IslandGame.Crew.cs)
         TickCave(dt);    // the crew list, the cave boss (IslandGame.Cave.cs)
+        TickContinentBoss(dt); // the boss of the continent's last island (IslandGame.ContinentBoss.cs)
         TickStarterPet(); // pick your first pet (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);

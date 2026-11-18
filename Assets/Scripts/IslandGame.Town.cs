@@ -9,7 +9,7 @@ using UnityEngine;
 ///   Lv 60+    นครรุ่งเรือง   a fountain plaza with a statue, rows of houses, lots of people
 public partial class IslandGame
 {
-    public int IslandLevel => island;
+    public int IslandLevel => atHome ? island : WorldStep; // continent 2 island 1 is Lv 21 (IslandGame.Continent.cs)
     public int Prosperity => atHome ? 0 : island >= 60 ? 4 : island >= 30 ? 3 : island >= 15 ? 2 : island >= 5 ? 1 : 0;
     public static string ProsperityName(int p) => p switch
     {
@@ -20,8 +20,8 @@ public partial class IslandGame
     float IslandRadiusFactor => atHome ? 0.36f : 0.30f + 0.12f * Mathf.Clamp01((island - 1) / 40f);
 
     /// Creature strength from the island's level (replaces the old 4-island laps).
-    public float EnemyHpScale => 1f + 0.07f * (island - 1);
-    public float EnemyDamageScale => 1f + 0.035f * (island - 1);
+    public float EnemyHpScale => (1f + 0.07f * (island - 1)) * ContinentHpScale;        // each continent tougher (IslandGame.Continent.cs)
+    public float EnemyDamageScale => (1f + 0.035f * (island - 1)) * ContinentDmgScale;
 
     // ------------------------------------------------------------------ building the settlement
     /// On a freshly made island: everything its people have built, on a ring around the middle

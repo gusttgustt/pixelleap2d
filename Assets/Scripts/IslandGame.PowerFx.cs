@@ -53,6 +53,9 @@ public partial class IslandGame
                 e.Init(kind, g, tier, ++enemyCounter);
                 enemies.Add(e);
             }
+        if (kb.homeKey.wasPressedThisFrame && OnBossIsland && ContinentBossHere is Enemy near && !near.puppet) near.grid = FreeStand(player.grid + new Vector2(2.5f, 0f)); // the boss, right here (testing)
+        else if (kb.homeKey.wasPressedThisFrame && !atHome && voyage == null && player != null) { raftLevel = Mathf.Max(raftLevel, IslandsPerContinent); ArriveAt(IslandsPerContinent, continent); } // this continent's boss island (testing)
+        if (kb.endKey.wasPressedThisFrame && ContinentBossHere is Enemy cb && !cb.puppet) { enemies.Remove(cb); Destroy(cb.gameObject); } // the boss falls at once (testing the rewards)
         if (kb.pageDownKey.wasPressedThisFrame && player != null) for (int i = 0; i < 10; i++) AddXp(Mathf.Max(1, XpToNext(level) - xp), PlayerPos); // ten levels up (testing awakened skills)
         if (kb.pageUpKey.wasPressedThisFrame && !inCave && !atHome && voyage == null && player != null) TryEnterCave(); // into this island's cave from anywhere, lock check and all (testing caves)
         if (kb.f4Key.wasPressedThisFrame) Time.timeScale = Time.timeScale < 1f ? 1f : 0.12f;

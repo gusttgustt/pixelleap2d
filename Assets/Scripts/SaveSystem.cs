@@ -17,6 +17,7 @@ public class SaveData
     public int boatLook;          // the boat look picked at the shipwright, 1-8 (0 = always the newest; IslandGame.Boat.cs)
     public int biomeId;           // biome + 1 (0 = older save: use the old 3-island cycle)
     public int hatId, outfitId;   // worn item + 1 (0 = nothing)
+    public int trinketId;         // worn accessory + 1 (IslandGame.ContinentBoss.cs)
     public int elderHealDay;
     public List<int> learned = new List<int>(); // clothing recipes taught by the tribe
     public List<int> skills = new List<int>();

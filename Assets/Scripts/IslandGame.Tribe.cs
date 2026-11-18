@@ -238,6 +238,7 @@ public partial class IslandGame
         if (!IsClothing(it) || Count(it) == 0) return;
         bool on;
         if (IsHat(it)) { on = hat != it; hat = on ? it : (Item?)null; }
+        else if (IsTrinket(it)) { on = trinket != it; trinket = on ? it : (Item?)null; }
         else { on = outfit != it; outfit = on ? it : (Item?)null; }
         health = Mathf.Min(health, MaxHealth);
         Sfx.Play("craft", 0.4f);

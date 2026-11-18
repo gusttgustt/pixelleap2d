@@ -17,7 +17,8 @@ public partial class IslandGame
     public readonly Item?[] hotbar = new Item?[8];
 
     // ------------------------------------------------------------------ item kinds and gear stats
-    public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear or Item.Trident;
+    public static bool IsWeapon(Item it) => it is Item.Spear or Item.ObsidianSpear or Item.Trident or Item.TideBlade or Item.FrostLance or Item.MagmaAxe or Item.VoidScythe;
+    public static bool IsBossMaterial(Item it) => it is Item.TideScale or Item.StormPearl or Item.MirrorIce or Item.QueenTear or Item.LavaCore or Item.HydraFang or Item.VoidShard or Item.StarEye;
     static bool IsUsable(Item it) => it == Item.Honey || FoodValue(it) > 0 || it == Item.Antidote || IsPowerFruit(it) || it == Item.Sundial || it == Item.PetNet; // the net: phones have no P key
 
     /// How to do something, in this device's words: a key with a keyboard, the on-screen button on a phone.
@@ -26,7 +27,7 @@ public partial class IslandGame
     static BagTab TabOf(Item it) =>
         FoodValue(it) > 0 ? BagTab.Food
         : IsWeapon(it) || IsClothing(it) || IsTool(it) ? BagTab.Gear
-        : IsPowerFruit(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
+        : IsPowerFruit(it) || IsBossMaterial(it) || it is Item.Antidote or Item.GlowSpore or Item.Feather or Item.CloudCotton or Item.ShellShard
             or Item.Pearl or Item.Coral or Item.Gear or Item.TimeSand or Item.IceShard or Item.Fur or Item.AncientRelic or Item.GoldCoin or Item.CrystalShard or Item.Copper or Item.Chitin or Item.Nectar ? BagTab.Special
         : BagTab.Materials;
 
@@ -47,6 +48,19 @@ public partial class IslandGame
         Item.LeafTunic => (0, 0.10f, 15f, 0f, 0f),
         Item.HideVest => (0, 0f, 0f, 0.20f, 0f),
         Item.CrystalArmor => (0, 0f, 20f, 0.35f, 0f),
+        // continent boss gear (IslandGame.ContinentBoss.cs): each continent's set is much stronger
+        Item.TideBlade => (14, 0.20f, 0f, 0f, 0f),
+        Item.TideMail => (0, 0f, 50f, 0.40f, 0f),
+        Item.TideCharm => (3, 0.15f, 25f, 0f, 0.10f),
+        Item.FrostLance => (24, 0.25f, 0f, 0f, 0f),
+        Item.FrostRobe => (0, 0.05f, 90f, 0.48f, 0f),
+        Item.FrostRing => (6, 0.15f, 45f, 0.08f, 0f),
+        Item.MagmaAxe => (38, 0.25f, 0f, 0f, 0f),
+        Item.MagmaPlate => (0, 0f, 150f, 0.55f, 0f),
+        Item.MagmaAmulet => (10, 0.20f, 70f, 0.08f, 0f),
+        Item.VoidScythe => (56, 0.35f, 0f, 0f, 0f),
+        Item.VoidCloak => (2, 0.10f, 230f, 0.62f, 0.10f),
+        Item.VoidEye => (16, 0.25f, 110f, 0.10f, 0.10f),
         _ => (0, 0f, 0f, 0f, 0f),
     };
 
@@ -67,6 +81,7 @@ public partial class IslandGame
         float s = 0f;
         if (hat != null) s += pick(GearStats(hat.Value));
         if (outfit != null) s += pick(GearStats(outfit.Value));
+        if (trinket != null) s += pick(GearStats(trinket.Value));
         if (weapon != null && Count(weapon.Value) > 0) s += pick(GearStats(weapon.Value));
         return s;
     }
@@ -75,13 +90,16 @@ public partial class IslandGame
     public float AttacksPerSecond => Mathf.Min(3f, 1.4f * (1f + GearSum(g => g.atkSpd) + 0.05f * SkillLv(Skill.Agility)));
     float AttackInterval => 1f / AttacksPerSecond;
     int GearDamage => Mathf.RoundToInt(GearSum(g => g.dmg));
-    float GearArmor => GearSum(g => g.armor);
+    float GearArmor => Mathf.Min(0.8f, GearSum(g => g.armor)); // never quite untouchable
 
     /// Equip the best weapon you own if your hands are empty (crafting one, old saves).
     void AutoEquipWeapon()
     {
         if (weapon != null && Count(weapon.Value) > 0) return;
-        weapon = Count(Item.Trident) > 0 ? Item.Trident : Count(Item.ObsidianSpear) > 0 ? Item.ObsidianSpear : Count(Item.Spear) > 0 ? Item.Spear : (Item?)null;
+        Item? best = null; // the hardest-hitting one you own
+        foreach (Item it in System.Enum.GetValues(typeof(Item)))
+            if (IsWeapon(it) && Count(it) > 0 && (best == null || GearStats(it).dmg > GearStats(best.Value).dmg)) best = it;
+        weapon = best;
     }
 
     void ToggleWeapon(Item it)
@@ -255,7 +273,8 @@ public partial class IslandGame
         float ey = eq.y + 28;
         EquipSlot(new Rect(eq.x + 8, ey, ew - 70, 30), "หมวก", hat, () => { if (hat != null) ToggleWear(hat.Value); }); ey += 34;
         EquipSlot(new Rect(eq.x + 8, ey, ew - 70, 30), "ชุด", outfit, () => { if (outfit != null) ToggleWear(outfit.Value); }); ey += 34;
-        EquipSlot(new Rect(eq.x + 8, ey, ew - 70, 30), "อาวุธ", weapon, () => { if (weapon != null) ToggleWeapon(weapon.Value); }); ey += 40;
+        EquipSlot(new Rect(eq.x + 8, ey, ew - 70, 30), "อาวุธ", weapon, () => { if (weapon != null) ToggleWeapon(weapon.Value); }); ey += 34;
+        EquipSlot(new Rect(eq.x + 8, ey, ew - 70, 30), "ประดับ", trinket, () => { if (trinket != null) ToggleWear(trinket.Value); }); ey += 40;
         var st = new GUIStyle(small) { wordWrap = true };
         string stats = $"ดาเมจ {WeaponDamage}\nโจมตี {AttacksPerSecond:0.0} ครั้ง/วิ (สูงสุด 3)\nพลังชีวิตสูงสุด {MaxHealth:0}";
         if (GearArmor > 0f) stats += $"\nรับดาเมจ -{GearArmor * 100f:0}%";

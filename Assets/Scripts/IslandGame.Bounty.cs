@@ -48,9 +48,10 @@ public partial class IslandGame
     }
 
     /// Raise the bounty. `at`: a popup there; `why`: a hint line.
-    void AddBounty(int amount, Vector3? at, string why)
+    void AddBounty(int amount, Vector3? at, string why, bool byContinent = true)
     {
         if (amount <= 0) return;
+        if (byContinent) amount = (int)System.Math.Min((long)(amount * (double)BountyScale), int.MaxValue); // harder continents, bigger news (IslandGame.Continent.cs)
         bounty = (int)System.Math.Min((long)bounty + amount, MaxBounty);
         bountyDirty = true;
         bountySendT = Mathf.Min(bountySendT, 1.5f);
@@ -85,15 +86,16 @@ public partial class IslandGame
             long gain = IslandBountyUpTo(isl) - IslandBountyUpTo(Mathf.Max(1, bountyIsl));
             bool first = bounty == 0;
             bountyIsl = isl;
+            gain = (long)(gain * (double)BountyScale); // further continents count for more
             if (gain > 0) AddBounty((int)System.Math.Min(gain, int.MaxValue), player != null ? player.transform.position + Vector3.up * 1.2f : (Vector3?)null,
-                first ? $"รัฐบาลประกาศค่าหัวคุณแล้ว {Baht(bounty + gain)}! กด J ดูป้ายประกาศ" : $"ไปถึงเกาะใหม่ ข่าวไปถึงหูรัฐบาลแล้ว ค่าหัวเพิ่มเป็น {Baht(bounty + gain)}");
+                first ? $"รัฐบาลประกาศค่าหัวคุณแล้ว {Baht(bounty + gain)}! กด J ดูป้ายประกาศ" : $"ไปถึงเกาะใหม่ ข่าวไปถึงหูรัฐบาลแล้ว ค่าหัวเพิ่มเป็น {Baht(bounty + gain)}", false);
         }
         int home = HomeScore();
         if (home > bountyHome)
         {
             int gain = (home - bountyHome) * 1000;
             bountyHome = home;
-            AddBounty(gain, player != null ? player.transform.position + Vector3.up * 1.2f : (Vector3?)null, null);
+            AddBounty(gain, player != null ? player.transform.position + Vector3.up * 1.2f : (Vector3?)null, null, false); // home building isn't about where you fight
         }
     }
 

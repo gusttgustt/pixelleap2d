@@ -64,6 +64,7 @@ public partial class IslandGame
     void MoveHomeTo(int c)
     {
         if (c == homeContinent || visiting) return;
+        if (!ContinentOpen(c)) { Hint(ContinentLockWhy(c), 4f); return; } // a continent opens once the one before is beaten (IslandGame.Continent.cs)
         if (Count(Item.GoldCoin) < MoveHomeCost) { Hint($"ต้องใช้เหรียญทอง {MoveHomeCost} เพื่อย้ายเกาะส่วนตัว", 2.5f); return; }
         inv[Item.GoldCoin] -= MoveHomeCost;
         homeContinent = c;

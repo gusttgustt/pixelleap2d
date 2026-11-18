@@ -215,6 +215,8 @@ public partial class IslandGame
         EnemyKind.CrystalGolem => "โกเลมผลึก", EnemyKind.MirrorWisp => "ภูตกระจก",
         EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", EnemyKind.Thunderbird => "นกอัสนี",
         EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์", EnemyKind.AntQueen => "ราชินีมด",
+        EnemyKind.TideLord => "เจ้าสมุทรคลื่นคลั่ง", EnemyKind.FrostQueen => "ราชินีกระจกเหมันต์",
+        EnemyKind.MagmaHydra => "ไฮดราเพลิงกัลป์", EnemyKind.VoidTitan => "ไททันหลุมดำ",
         _ => k.ToString(),
     };
 

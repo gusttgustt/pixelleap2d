@@ -786,6 +786,10 @@ public static partial class PixelArt
         EnemyKind.SoldierAnt => SoldierAnt(frame),
         EnemyKind.GiantBee => GiantBee(frame),
         EnemyKind.AntQueen => AntQueen(frame),
+        EnemyKind.TideLord => TideLord(frame & 1),      // continent bosses (PixelArt.Boss.cs)
+        EnemyKind.FrostQueen => FrostQueen(frame & 1),
+        EnemyKind.MagmaHydra => MagmaHydra(frame & 1),
+        EnemyKind.VoidTitan => VoidTitan(frame & 1),
         _ => Crab(frame),
     };
 
@@ -2679,6 +2683,7 @@ public static partial class PixelArt
         if (IslandGame.IsPowerFruit(it)) { DrawFruitIcon(c, it); return c.ToSprite(8, 8); }
         if (DrawHomeIcon(c, it)) return c.ToSprite(8, 8); // private island items (PixelArt.Home.cs)
         if (DrawPetIcon(c, it)) return c.ToSprite(8, 8);  // pet net (PixelArt.Pet.cs)
+        if (DrawBossIcon(c, it)) return c.ToSprite(8, 8); // continent boss materials and gear (PixelArt.Boss.cs)
         switch (it)
         {
             case Item.Chitin:

@@ -17,7 +17,7 @@ public partial class IslandGame
     const float ChartGap = 112f;   // pixels between islands on the chart
     const int ChartFog = 3;        // unknown islands shown past the next new one
 
-    int ChartLast => ReachOn(chartC) + 1 + ChartFog;
+    int ChartLast => Mathf.Min(ReachOn(chartC) + 1 + ChartFog, IslandsPerContinent); // the boss island is the last (IslandGame.Continent.cs)
 
     void OpenChart(bool friends = false)
     {
@@ -46,7 +46,8 @@ public partial class IslandGame
         if (!atHome && n == island && c == continent) return ChartState.Here;
         int r = ReachOn(c);
         if (n <= r) return ChartState.Visited;
-        if (n == r + 1) return CanReachNew(c) ? ChartState.Next : ChartState.Locked;
+        if (n > IslandsPerContinent) return ChartState.Fog;
+        if (n == r + 1) return CanReachNew(c) && ContinentOpen(c) ? ChartState.Next : ChartState.Locked;
         return ChartState.Fog;
     }
 
@@ -55,7 +56,7 @@ public partial class IslandGame
     {
         why = null;
         var st = StateOf(n, c);
-        if (st is ChartState.Here or ChartState.Locked or ChartState.Fog) return false;
+        if (st is ChartState.Here or ChartState.Locked or ChartState.Fog) { if (!ContinentOpen(c)) why = ContinentLockWhy(c); return false; }
         if (atHome) { why = $"เรือของคุณจอดอยู่ที่เกาะ {island} ({ContinentName}) กด H กลับไปที่เรือก่อน"; return false; }
         if (raftLevel <= 0) { why = "ต้องมีแพหรือเรือก่อน"; return false; }
         return true;
@@ -213,11 +214,11 @@ public partial class IslandGame
                     Icon(new Rect(c.x + 14, r.y - 6 + hb, 26, 26), BoatSprite); // your boat moored here
                     ShadowLabel(new Rect(c.x - 60, r.y - 20 + hb, 120, 18), "<color=#9dff9d><b>▼ คุณอยู่ที่นี่</b></color>", tag);
                 }
-                line1 = $"<b>เกาะ {n}</b>";
+                line1 = n == IslandsPerContinent ? (ContinentCleared(chartC) ? "<b>เกาะ 20</b> <color=#9dff9d>✓</color>" : "<b><color=#ff8a7a>เกาะ 20 · บอสทวีป</color></b>") : $"<b>เกาะ {n}</b>";
                 line2 = st switch
                 {
                     ChartState.Fog => "<color=#e6ecf2>ยังไม่เคยไป</color>",
-                    ChartState.Locked => "<color=#ff9a8a>ยังไม่เคยไป (เรือไม่พอ)</color>",
+                    ChartState.Locked => ContinentOpen(chartC) ? "<color=#ff9a8a>ยังไม่เคยไป (เรือไม่พอ)</color>" : "<color=#ff9a8a>ทวีปยังไม่ปลดล็อค</color>",
                     ChartState.Next => "<color=#ffe27a>เกาะใหม่! ยังไม่เคยไป</color>",
                     _ => $"<color=#fff2d0>{IslandName(n + chartC * 31)}</color>",
                 };
@@ -272,9 +273,10 @@ public partial class IslandGame
             bool mine = chartC == homeContinent;
             title = mine ? $"เกาะส่วนตัวของคุณ  <size=12><color=#cccccc>({ContinentNames[chartC]})</color></size>" : $"ย้ายเกาะส่วนตัวมาที่{ContinentNames[chartC]}";
             text = mine ? (atHome ? "คุณอยู่บนเกาะส่วนตัวแล้ว" : "กด H เพื่อกลับบ้านได้ทุกเมื่อ ไม่ต้องล่องเรือ")
+                 : !ContinentOpen(chartC) ? $"<color=#ff9a8a>ย้ายบ้านมาทวีปนี้ไม่ได้ {ContinentLockWhy(chartC)}</color>"
                         : $"ย้ายทั้งเกาะ บ้าน ฟาร์ม และสัตว์ มาตั้งที่ทวีปนี้ เพื่อนๆ จะเห็นบ้านคุณที่นี่ ใช้เหรียญทอง {MoveHomeCost} (มี {Count(Item.GoldCoin)})";
             action = mine ? (atHome ? null : "กลับบ้าน (H)") : $"ย้ายมาที่นี่ ({MoveHomeCost} เหรียญ)";
-            can = mine ? !atHome : Count(Item.GoldCoin) >= MoveHomeCost && !visiting;
+            can = mine ? !atHome : Count(Item.GoldCoin) >= MoveHomeCost && !visiting && ContinentOpen(chartC);
         }
         else
         {
@@ -291,10 +293,14 @@ public partial class IslandGame
                 ChartState.Here => "คุณอยู่ที่เกาะนี้ เลือกเกาะอื่นบนแผนที่เพื่อออกเรือ",
                 ChartState.Visited => "<color=#9dff9d>เคยไปแล้ว</color> · ทุกอย่างยังอยู่เหมือนตอนที่จากมา" + cross,
                 ChartState.Next => "<color=#ffe27a>ยังไม่เคยไป</color> · ออกสำรวจเกาะใหม่ ไม่รู้ว่ามีอะไรรออยู่ เตรียมอาหารและน้ำให้พร้อม" + cross,
+                ChartState.Locked when !ContinentOpen(chartC) => $"<color=#ff9a8a>{ContinentLockWhy(chartC)}</color>",
                 ChartState.Locked => raftLevel <= 0 ? "<color=#ff9a8a>ยังไม่เคยไป</color> · ต้องมีแพหรือเรือก่อน"
                     : $"<color=#ff9a8a>ยังไม่เคยไป</color> · คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ให้ช่างต่อเรืออัปเกรดเป็น Lv {ReachOn(chartC)} ก่อน",
                 _ => $"<color=#e6ecf2>ยังไม่เคยไป</color> · อยู่ไกลเกินกว่าจะไปถึงตอนนี้ ต้องไปให้ถึงเกาะที่ {chartSel - 1} ก่อน",
             };
+            if (chartSel == IslandsPerContinent) text += ContinentCleared(chartC)
+                ? $"\n<color=#9dff9d>ปราบบอสทวีปแล้ว · {(chartC + 1 < Continents ? ContinentNames[chartC + 1] + "เปิดแล้ว" : "ผ่านครบทุกทวีปแล้ว!")}</color>"
+                : "\n<color=#ff8a7a><b>เกาะของบอสทวีป</b> บอสมีพลังผลไม้ปลุกพลังขั้นสูงสุด ไปเป็นทีมลูกเรือ 5 คนจะดีที่สุด</color>";
             if (sst is ChartState.Here or ChartState.Visited) text += "\n" + IslandContents(chartSel, chartC); // IslandGame.ItemInfo.cs
             else if (sst is ChartState.Next or ChartState.Locked) text += "\n<color=#aaaaaa>ยังไม่รู้ว่ามีวัตถุดิบและมอนสเตอร์อะไร ไปสำรวจก่อนแล้วจะบันทึกลงแผนที่</color>";
             if (sst is ChartState.Visited or ChartState.Next)

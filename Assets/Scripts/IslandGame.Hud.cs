@@ -422,6 +422,7 @@ public partial class IslandGame
         DrawOnlineInfo(W, H);
         DrawQuestTracker(W);
         DrawCaveHud(W); // creatures left and the boss's health, inside a cave (IslandGame.Cave.cs)
+        DrawContinentBossHud(W); // IslandGame.ContinentBoss.cs
         if (!settingsOpen) DrawCrewPanel(W, H); // crews (IslandGame.Crew.cs)
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
@@ -446,6 +447,8 @@ public partial class IslandGame
                     : atHome ? $"ปลูกผัก เลี้ยงสัตว์ ตกปลา ขายของที่ตลาด แล้วสร้างบ้านในฝัน  (H กลับไปผจญภัยที่เกาะ {island})"
                     : voyage != null ? "เป้าหมาย: พายไปทางตะวันออก (D) จนถึงฝั่ง"
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
+                    : ReachOn(Cont) >= IslandsPerContinent && !ContinentCleared(Cont) ? $"เป้าหมาย: ปราบบอสทวีปที่เกาะ {IslandsPerContinent} เพื่อเปิด{(Cont + 1 < Continents ? ContinentNames[Cont + 1] : "ความสำเร็จสูงสุด")}"
+                    : ReachOn(Cont) >= IslandsPerContinent ? (Cont + 1 < Continents ? $"เป้าหมาย: ผ่าน{ContinentName}แล้ว! ล่องเรือไป{ContinentNames[Cont + 1]} (แผนที่ทะเล)" : "เป้าหมาย: ผ่านครบทุกทวีปแล้ว ล่าบอสทวีปเพื่อทำอุปกรณ์ให้ครบ")
                     : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
                     : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
         float infoY = 136f;
@@ -863,7 +866,8 @@ public partial class IslandGame
         Item.HideVest => "รับดาเมจ -20%",
         Item.CrystalArmor => "รับดาเมจ -35%, พลังชีวิต +20",
         Item.StormHood => "โจมตีเร็ว +20%, ดาเมจ +1",
-        _ => "",
+        _ => GearText(it), // the continent bosses' gear and anything newer
+
     };
 
     /// Conversation box at the bottom of the screen.

@@ -230,6 +230,7 @@ public partial class IslandGame
                     // island's creatures. Someone else does: drop our copies and show theirs.
                     foreach (var e in enemies) if (e != null && !e.puppet) Destroy(e.gameObject);
                     enemies.RemoveAll(e => e == null || !e.puppet);
+                    bossSeen = false; // our continent boss made way for the host's: it didn't fall (IslandGame.ContinentBoss.cs)
                 }
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
                 if (inCave) CaveRoomCheck(m); // someone else's group got into this cave first (IslandGame.Cave.cs)
