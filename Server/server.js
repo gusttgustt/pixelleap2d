@@ -546,7 +546,10 @@ function num(v, lo, hi) {
 }
 const int = (v, lo, hi) => Math.floor(num(v, lo, hi));
 
-const MAX_LEVEL = 999, MAX_POS = 5000;
+const MAX_LEVEL = 999;
+// Every map on land (islands, caves, houses, private islands) is IslandGame.Size = 44 tiles a side:
+// a position outside it (x: 999) can't be real, wherever the player first appears.
+const MAP_MIN = -2, MAP_MAX = 46;
 
 // How far a player may move, in tiles. The fastest real walker (every speed skill, wings, awakened
 // dash power, well rested) does ~11.5 tiles/s; a dash power jumps up to ~16. Faster than that is a
@@ -586,7 +589,7 @@ function playerUpdate(m) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   const p = {
     t: m.t, from: m.from, name: m.name, // already swapped for the checked name above
-    x: sea ? num(x, -1, 2) : num(x, -MAX_POS, MAX_POS), y: num(y, -MAX_POS, MAX_POS),
+    x: sea ? num(x, -1, 2) : num(x, MAP_MIN, MAP_MAX), y: sea ? num(y, -10, 10) : num(y, MAP_MIN, MAP_MAX), // at sea the game keeps a boat within 6.5 of the route
     d: int(m.d, 0, 7), f: int(m.f, 0, 63), fl: int(m.fl, 0, 1),
     hat: int(m.hat, 0, 4096), outfit: int(m.outfit, 0, 4096),
     lv: int(m.lv, 1, MAX_LEVEL), look: int(m.look, 0, 2000000), aw: int(m.aw, 0, 255),
