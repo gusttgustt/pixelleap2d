@@ -268,7 +268,7 @@ public partial class IslandGame
     void AttackSea(SeaCreature c)
     {
         Sfx.Play("hit", 0.6f);
-        HitSea(c, WeaponDamage, Color.white);
+        HitSea(c, RollDamage(c.transform.position), Color.white);
     }
 
     /// Hit a sea creature (weapon or power). Returns true if it died.

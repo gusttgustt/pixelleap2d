@@ -62,6 +62,10 @@ public partial class IslandGame
         if (m.ev is "added" or "accepted" or "no" or "leave" or "kick") crewAsked.Remove(m.from); // answered: they can be asked again later
         switch (m.ev)
         {
+            case "roster": // the captain's crew list
+            case "cave":   // a crewmate went into a cave (IslandGame.Cave.cs)
+                OnCaveCrew(m, who);
+                break;
             case "apply": // someone wants to join my crew
                 if (raftLevel <= 0) { SendCrew(m.from, "no"); return; }
                 crewAsk = (m.from, who, "apply");

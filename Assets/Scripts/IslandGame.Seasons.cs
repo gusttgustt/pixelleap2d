@@ -79,7 +79,7 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ what the weather does to you
-    bool WeatherHere => voyage == null && !inHouse && player != null;
+    bool WeatherHere => voyage == null && !inHouse && !inCave && player != null;
     /// Snow and blizzards chill you on any island: stay near a campfire (IslandGame.Ice.cs).
     bool ColdWeather => WeatherHere && !atHome && nowWeather is Weather.Snow or Weather.Blizzard;
     float WeatherCold => !WeatherHere ? 1f : nowWeather == Weather.Blizzard ? 0.5f : nowWeather == Weather.Snow ? 0.85f : 1f;
@@ -164,7 +164,7 @@ public partial class IslandGame
                 Popup(SeasonNames[(int)season], PlayerPos + Vector3.up * 1.4f, PixelArt.Hex(SeasonColors[(int)season]));
             }
         }
-        if (voyage != null || inHouse) return;
+        if (voyage != null || inHouse || inCave) return;
 
         // spawn just above the top of the view, across its whole width
         float halfH = cam.orthographicSize, halfW = halfH * cam.aspect;
@@ -277,7 +277,7 @@ public partial class IslandGame
 
     void DrawWeatherOverlay(float W, float H)
     {
-        if (voyage != null || inHouse || !WeatherFx) return;
+        if (voyage != null || inHouse || inCave || !WeatherFx) return;
         float k = weatherK;
         switch (nowWeather)
         {

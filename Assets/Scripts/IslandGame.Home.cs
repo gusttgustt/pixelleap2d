@@ -28,11 +28,12 @@ public partial class IslandGame
 
     float homeT;                   // fade while travelling (home <-> adventure, in and out of the house)
     bool homeApplied;
-    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit, Expand }
+    enum Warp { GoHome, LeaveHome, EnterHouse, ExitHouse, Visit, EndVisit, Expand, EnterCave, ExitCave }
     Warp warp;
 
     public Vector2 TownCenter => Center + new Vector2(5f, -5f); // the market, to the east of your house
-    public static bool IsHomeKind(NodeKind k) => k >= NodeKind.Plot;
+    public static bool IsHomeKind(NodeKind k) => k >= NodeKind.Plot && k <= NodeKind.HouseDoor; // the caves' kinds come after
+
 
     // ------------------------------------------------------------------ save data
     void LoadHome(SaveData d)
@@ -73,6 +74,7 @@ public partial class IslandGame
         why = null;
         if (title || dead || player == null) return false;
         if (voyage != null) { why = "กลางทะเลกลับเกาะส่วนตัวไม่ได้ ขึ้นฝั่งก่อน"; return false; }
+        if (inCave) { why = "ออกจากถ้ำก่อน (เดินไปที่แสงตรงปากถ้ำ)"; return false; }
         if (Busy || homeT > 0f) return false;
         if (atHome && !visiting && (health < 25f || hunger <= 5f || thirst <= 5f))
         { why = "ยังอ่อนแรงเกินไปที่จะออกผจญภัย กินอาหาร ดื่มน้ำ หรือนอนพักก่อน"; return false; }
@@ -117,6 +119,8 @@ public partial class IslandGame
                 case Warp.Visit: visitLoad = true; try { DoVisit(); } finally { visitLoad = false; } break;
                 case Warp.EndVisit: DoEndVisit(); break;
                 case Warp.Expand: DoExpandIsland(); break;
+                case Warp.EnterCave: EnterCave(); break; // IslandGame.Cave.cs
+                case Warp.ExitCave: ExitCave(); break;
                 default: ExitHouse(); break;
             }
             if (!visiting) { SaveSystem.Write(Snapshot()); savedAt = Time.time; }
@@ -388,13 +392,13 @@ public partial class IslandGame
     };
 
     // ------------------------------------------------------------------ HUD
-    float hudButtonsBottom = 40f; // where the top-right buttons end (the quest list goes below)
+    float hudButtonsBottom = 58f; // where the top-right buttons end (the quest list goes below)
 
     /// The menu buttons (H, G, V, P, J, L) live in the hamburger menu, bottom right
     /// (IslandGame.Menu.cs). Up here stays only the crew's "climb aboard" while it matters.
     void DrawHomeButton(float W)
     {
-        hudButtonsBottom = 40f;
+        hudButtonsBottom = 58f; // under the round CH button (IslandGame.Who.cs)
         if (player == null || voyage != null || dead || homeT > 0f) return;
         if (craftOpen || skillsOpen || bagOpen || wantedOpen || dialog != null || buildOpen) return; // a panel covers this corner
         DrawCrewButton(W); // only while boarding / aboard (IslandGame.Crew.cs)

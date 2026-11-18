@@ -232,6 +232,7 @@ public partial class IslandGame
                     enemies.RemoveAll(e => e == null || !e.puppet);
                 }
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
+                if (inCave) CaveRoomCheck(m); // someone else's group got into this cave first (IslandGame.Cave.cs)
                 if (m.events != null) foreach (var e in m.events) ApplyEvent(e);
                 int others = m.players?.Length ?? 0;
                 if (others > 0) Hint($"มีผู้เล่นอื่นบนเกาะนี้ {others} คน! {KeyOr("กด Enter", "แตะปุ่ม \"แชต\"")} เพื่อแชต", 5f);
@@ -501,6 +502,7 @@ public partial class IslandGame
                     e = new GameObject(((EnemyKind)s.k).ToString()).AddComponent<Enemy>();
                     e.transform.SetParent(world);
                     e.Init((EnemyKind)s.k, new Vector2(s.x, s.y), tier, s.id, true);
+                    if (s.id == CaveBossId) e.MakeCaveBoss(); // big, like on the host (IslandGame.Cave.cs)
                     enemies.Add(e);
                 }
                 e.SetNetState(new Vector2(s.x, s.y), s.hp, s.mhp, s.fl == 1);

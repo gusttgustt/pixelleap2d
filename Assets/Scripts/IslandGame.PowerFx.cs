@@ -53,6 +53,8 @@ public partial class IslandGame
                 e.Init(kind, g, tier, ++enemyCounter);
                 enemies.Add(e);
             }
+        if (kb.pageDownKey.wasPressedThisFrame && player != null) for (int i = 0; i < 10; i++) AddXp(Mathf.Max(1, XpToNext(level) - xp), PlayerPos); // ten levels up (testing awakened skills)
+        if (kb.pageUpKey.wasPressedThisFrame && !inCave && !atHome && voyage == null && player != null) TryEnterCave(); // into this island's cave from anywhere, lock check and all (testing caves)
         if (kb.f4Key.wasPressedThisFrame) Time.timeScale = Time.timeScale < 1f ? 1f : 0.12f;
         if (kb.f11Key.wasPressedThisFrame) // accept every quest on this island (testing quest hunts)
         {

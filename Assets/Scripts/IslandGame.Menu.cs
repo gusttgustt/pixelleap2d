@@ -20,13 +20,14 @@ public partial class IslandGame
     void ToggleMenu()
     {
         menuOpen = !menuOpen;
-        if (menuOpen) { craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; }
+        if (menuOpen) { craftOpen = false; skillsOpen = false; bagOpen = false; whoOpen = false; settingsOpen = false; }
     }
 
     /// The items, in order: label, colour, what it does.
     List<(string label, Color col, System.Action act)> MenuItems()
     {
         var items = new List<(string, Color, System.Action)>();
+        if (inCave) items.Add(("ออกจากถ้ำ", new Color(1f, 0.95f, 0.75f), TryLeaveCave)); // IslandGame.Cave.cs
         items.Add((visiting ? "กลับบ้านตัวเอง (H)" : atHome ? "กลับไปผจญภัย (H)" : "ไปเกาะส่วนตัว (H)",
             atHome ? new Color(0.6f, 0.85f, 1f) : new Color(1f, 0.85f, 0.45f), ToggleHome));
         if (atHome && !visiting && !buildOpen)
@@ -69,8 +70,7 @@ public partial class IslandGame
 
         var items = MenuItems();
         const float bw = 196f, bh = 26f, gap = 4f;
-        float h = items.Count * (bh + gap) + 8f;
-        var box = new Rect(Mathf.Max(6f, c.x + MenuR - bw - 8f), Mathf.Max(6f, c.y - MenuR - 8f - h), bw + 8f, h);
+        var box = MenuBox(W, H, items.Count);
         Fill(box, new Color(0.06f, 0.07f, 0.1f, 0.92f));
         Fill(new Rect(box.x, box.yMax - 3f, box.width, 3f), new Color(1f, 0.85f, 0.45f, 0.9f));
         var st = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
@@ -89,6 +89,18 @@ public partial class IslandGame
             else if ((e.mousePosition - c).magnitude >= MenuR) menuOpen = false;
         }
     }
+
+    /// The open menu's panel, just above ☰.
+    Rect MenuBox(float W, float H, int count)
+    {
+        const float bw = 196f, bh = 26f, gap = 4f;
+        var c = MenuCenter(W, H);
+        float h = count * (bh + gap) + 8f;
+        return new Rect(Mathf.Max(6f, c.x + MenuR - bw - 8f), Mathf.Max(6f, c.y - MenuR - 8f - h), bw + 8f, h);
+    }
+
+    /// The point is on the open ☰ menu: buttons drawn before it (the hotbar...) must leave the click to it.
+    bool UnderMenu(Vector2 p) => menuOpen && MenuShown && MenuBox(GuiW, GuiH, MenuItems().Count).Contains(p);
 
     /// A round mouse button the size of ☰: a name and its key under it.
     void QuickButton(Vector2 c, string text, string key, Color col, bool on, System.Action act)

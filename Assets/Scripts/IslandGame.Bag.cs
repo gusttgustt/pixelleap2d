@@ -227,7 +227,7 @@ public partial class IslandGame
             string badge = IsWorn(it.Value) || weapon == it ? "<color=#ffd84d>E</color>" : IsTool(it.Value) || IsClothing(it.Value) || IsWeapon(it.Value) ? "" : n.ToString();
             ShadowLabel(new Rect(r.x, r.y + r.height - 16, r.width - 3, 16), badge, smallRight);
             if (r.Contains(Event.current.mousePosition)) hover = it;
-            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) UseItem(it.Value);
+            if (!UnderMenu(Event.current.mousePosition) && CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) UseItem(it.Value);
         }
         if (hover != null) tipItem = hover; // the details pop up by the mouse (IslandGame.ItemInfo.cs)
         if (!bagOpen) ShadowLabel(new Rect(bar.xMax + 10, bar.y + 12, 120, 18), touchUsed ? "" : "B กระเป๋า", small, new Color(1f, 1f, 1f, 0.6f));

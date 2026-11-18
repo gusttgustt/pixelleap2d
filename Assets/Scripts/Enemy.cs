@@ -56,7 +56,7 @@ public class Enemy : MonoBehaviour
     public bool stayByDay;
     Vector2 netTarget;
 
-    public string DisplayName => (alpha ? "จ่าฝูง" : "") + BaseName + (variant switch
+    public string DisplayName => (caveBoss ? "เจ้าแห่งถ้ำ " : alpha ? "จ่าฝูง" : "") + BaseName + (variant switch
     {
         IslandGame.Variant.Giant => "ยักษ์", IslandGame.Variant.Fiery => "เพลิง", IslandGame.Variant.Armored => "เกราะ", _ => "",
     });
@@ -84,6 +84,17 @@ public class Enemy : MonoBehaviour
         hp = maxHp;
         transform.localScale = Vector3.one * 1.8f;
         baseColor = new Color(1f, 0.92f, 0.7f);
+    }
+
+    /// The boss at the end of a cave (IslandGame.Cave.cs): a huge one of the island's creatures.
+    public bool caveBoss;
+    public void MakeCaveBoss()
+    {
+        caveBoss = true;
+        maxHp *= 12; damage *= 1.8f; xp *= 6;
+        hp = maxHp;
+        transform.localScale = Vector3.one * 2.3f;
+        baseColor = new Color(0.86f, 0.72f, 1f);
     }
 
     string BaseName => kind switch
@@ -373,7 +384,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && kind != EnemyKind.AntQueen && !alpha) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer
+            if (dist > 22f && kind != EnemyKind.ShroomKing && kind != EnemyKind.Kraken && kind != EnemyKind.Captain && kind != EnemyKind.Thunderbird && kind != EnemyKind.AntQueen && !alpha && !game.inCave) { Destroy(gameObject); return; } // far away: despawn, new ones spawn closer (not in a cave: it has only the ones it started with)
 
             float fireDist = game.DistanceToFire(grid);
             if (fireDist < FearRadius) dir = game.AwayFromFire(grid);       // run from the fire

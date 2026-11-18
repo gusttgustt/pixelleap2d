@@ -1439,6 +1439,35 @@ public static partial class PixelArt
         return c.ToSprite(14, 31);
     });
 
+    /// A cave mouth: a mound of grey rock with a dark arch, moss on top (IslandGame.Cave.cs).
+    public static Sprite CaveMouth() => Get("cave_mouth", () =>
+    {
+        var c = new Canvas(52, 42);
+        c.Ellipse(26, 38, 24, 4f, Shadow);
+        Color dk = Hex("#4a4450"), md = Hex("#6e6874"), lt = Hex("#968e9a");
+        c.Ball(26, 24, 22, 16, dk, md, lt);                 // the mound
+        c.Ball(9, 32, 9, 7, dk, md, lt);                    // boulders on the sides
+        c.Ball(44, 32, 8, 6, dk, md, lt);
+        c.Ball(24, 11, 9, 5, Hex("#2f5a2a"), Hex("#447a36"), Hex("#62a04a")); // moss on top
+        c.Ball(34, 14, 5, 3, Hex("#2f5a2a"), Hex("#447a36"), Hex("#62a04a"));
+        c.Ellipse(26, 29, 10, 10, Hex("#2a2428"));          // the arch: a rim, then the dark
+        c.Ellipse(26, 30, 8.5f, 9, Hex("#0d0a0e"));
+        c.Rect(17, 30, 18, 8, Hex("#0d0a0e"));
+        c.Rect(18, 36, 16, 2, Hex("#241e22"));             // the floor going in
+        c.Rect(21, 22, 2, 1, Hex("#c89aff")); c.Rect(30, 25, 2, 1, Hex("#c89aff")); // eyes glinting in the dark
+        return c.ToSprite(26, 37);
+    });
+
+    /// The way out of a cave: daylight falling on the floor.
+    public static Sprite CaveLight() => Get("cave_light", () =>
+    {
+        var c = new Canvas(36, 18) { Rim = false };
+        c.Ellipse(18, 9, 16, 7, new Color(1f, 0.95f, 0.75f, 0.28f));
+        c.Ellipse(18, 9, 11, 4.8f, new Color(1f, 0.95f, 0.8f, 0.45f));
+        c.Ellipse(18, 9, 6, 2.6f, new Color(1f, 1f, 0.92f, 0.7f));
+        return c.ToSprite(18, 9);
+    });
+
     /// The red bundle someone lost in the woods.
     public static Sprite LostBundle() => Get("lost_bundle", () =>
     {

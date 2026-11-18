@@ -10,19 +10,46 @@ public partial class IslandGame
     static Texture2D gearTex;
     bool mouseActionQueued, mouseActionHolding, mousePowerQueued;
 
-    static Rect GearRect(float W) => new Rect(W - 40f, 6f, 32f, 28f);
+    static Rect GearRect(float W) => new Rect(W - 40f, 6f, 32f, 28f); // title screen
 
-    Rect SettingsRect(float W)
+    /// In the game: a round ⚙ in the bottom-right row with ☰, the bag and skills (IslandGame.Menu.cs).
+    Vector2 SettingsCenter(float W, float H) => MenuCenter(W, H) + new Vector2(ShowTouch ? -54f : -162f, 0f);
+
+    /// Title screen: under the gear. In the game: the middle of the screen, where no button sits
+    /// under it (so its clicks can't reach the hotbar or the power buttons).
+    Rect SettingsRect(float W, float H)
     {
         float h = 40f + 30f * SettingsRows + 26f;
-        return new Rect(W - 290f, 38f, 282f, h);
+        return title ? new Rect(W - 290f, 38f, 282f, h) : new Rect(W / 2f - 141f, Mathf.Max(8f, H / 2f - h / 2f - 40f), 282f, h);
     }
 
     int SettingsRows => title ? 2 : (touchUsed ? 4 : 5); // sound, full screen [, weather, zoom] [, keys]
 
-    /// The gear button (drawn first, so it gets its clicks even under other things).
-    void DrawGearButton(float W)
+    void ToggleSettings()
     {
+        settingsOpen = !settingsOpen;
+        if (settingsOpen) { craftOpen = false; bagOpen = false; skillsOpen = false; wantedOpen = false; crewOpen = false; helpOpen = false; menuOpen = false; whoOpen = false; }
+        Sfx.Play("pickup", 0.3f);
+    }
+
+    /// The gear button (drawn first, so it gets its clicks even under other things).
+    void DrawGearButton(float W, float H)
+    {
+        if (!title)
+        {
+            var c = SettingsCenter(W, H);
+            var e = Event.current;
+            bool lit = (e.mousePosition - c).magnitude < MenuR;
+            if (lit && e.type == EventType.MouseDown && e.button == 0) { e.Use(); if (!chatOpen) ToggleSettings(); }
+            var col = new Color(0.82f, 0.88f, 1f);
+            TouchCircle(c, MenuR, null, col, settingsOpen || lit, 0);
+            if (gearTex == null) gearTex = MakeGear();
+            GUI.color = col;
+            GUI.DrawTexture(new Rect(c.x - 13f, c.y - 13f, 26f, 26f), gearTex);
+            GUI.color = Color.white;
+            if (Sfx.Muted) Fill(new Rect(c.x + 10f, c.y - 16f, 6f, 6f), new Color(1f, 0.4f, 0.35f)); // sound is off: a small red dot
+            return;
+        }
         var r = GearRect(W);
         bool over = r.Contains(Event.current.mousePosition);
         Fill(r, settingsOpen ? new Color(1f, 0.85f, 0.3f, 0.95f) : new Color(0f, 0f, 0f, over ? 0.6f : 0.42f));
@@ -31,12 +58,7 @@ public partial class IslandGame
         GUI.DrawTexture(new Rect(r.x + 5f, r.y + 3f, 22f, 22f), gearTex);
         GUI.color = Color.white;
         if (Sfx.Muted) Fill(new Rect(r.xMax - 9f, r.y + 3f, 6f, 6f), new Color(1f, 0.4f, 0.35f)); // sound is off: a small red dot
-        if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none))
-        {
-            settingsOpen = !settingsOpen;
-            if (settingsOpen) { craftOpen = false; bagOpen = false; skillsOpen = false; wantedOpen = false; crewOpen = false; helpOpen = false; }
-            Sfx.Play("pickup", 0.3f);
-        }
+        if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none)) ToggleSettings();
     }
 
     /// The panel, drawn last so it's on top. Nothing with buttons is open under it: opening it
@@ -47,7 +69,7 @@ public partial class IslandGame
         if (!title && (craftOpen || bagOpen || skillsOpen || wantedOpen || buildOpen || dialog != null)) { settingsOpen = false; return; }
         var e = Event.current;
         if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape) { settingsOpen = false; e.Use(); return; }
-        var box = SettingsRect(W);
+        var box = SettingsRect(W, H);
         Fill(box, new Color(0.06f, 0.07f, 0.1f, 0.95f));
         Fill(new Rect(box.x, box.y, box.width, 3f), new Color(1f, 0.85f, 0.3f));
         ShadowLabel(new Rect(box.x + 12, box.y + 8, 160, 22), "ตั้งค่า", label, new Color(1f, 0.85f, 0.3f));

@@ -39,6 +39,7 @@ public partial class IslandGame
         onlineTotal = m.hits;
         whoList = m.players;
         whoHeardAt = Time.unscaledTime;
+        CaveWhoHeard(); // going into a cave waits for this list (IslandGame.Cave.cs)
     }
 
     /// Where a room is, in words. n / c: the adventure island and continent (n = 0 when not on one).
@@ -55,6 +56,13 @@ public partial class IslandGame
             string ownerName = "เพื่อน";
             if (whoList != null) foreach (var p in whoList) if (p != null && p.id == owner) ownerName = p.name;
             return $"<color=#ffb0d0>เยี่ยมบ้าน {ownerName}{inside}</color>";
+        }
+        if (CaveRoom(isl)) // inside a cave on an island (IslandGame.Cave.cs)
+        {
+            int cch = RoomChannel(isl), key = RoomNoChannel(isl) - CaveRoomBase;
+            c = Mathf.Clamp(key / 100000, 0, Continents - 1);
+            n = key % 100000;
+            return $"<color=#d0a8ff>ในถ้ำ</color> เกาะที่ {n} {IslandName(n + c * 31)} <color=#cccccc>({ContinentNames[c]})</color> <color=#ffd27a>CH{cch}</color>";
         }
         int ch = RoomChannel(isl);
         isl = RoomNoChannel(isl);
@@ -133,22 +141,22 @@ public partial class IslandGame
         CrispGUI.EndScrollView();
     }
 
-    /// With a mouse: the same round "CH" button the phones have (IslandGame.Touch.cs), bottom right
-    /// above the power buttons. Click: who's online and the channel buttons (or press O).
+    /// With a mouse: the same round "CH" button the phones have (IslandGame.Touch.cs), in the top
+    /// right corner. Click: who's online and the channel buttons (or press O).
     void DrawMouseWhoButton(float W, float H)
     {
         if (ShowTouch || title || !Online || (player == null && voyage == null)) return;
         if ((dead && !downed) || sailT > 0f || sleepT > 0f || homeT > 0f || (dialog != null && !dead)) return;
-        var c = new Vector2(W - 40f, H - 262f);
-        const float r = 26f;
+        var c = new Vector2(W - 32f, 32f);
+        const float r = 24f;
         var e = Event.current;
         bool over = (e.mousePosition - c).magnitude < r;
         if (over && e.type == EventType.MouseDown && e.button == 0) { e.Use(); if (!chatOpen) ToggleWho(); }
         var col = new Color(0.6f, 1f, 0.65f);
         TouchCircle(c, r, null, col, whoOpen || over, 0);
-        var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 13, fontStyle = FontStyle.Bold };
+        var st = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fontStyle = FontStyle.Bold };
         ShadowLabel(new Rect(c.x - r, c.y - r, r * 2f, r * 2f - 12f), $"CH{channel}", st, col);
-        ShadowLabel(new Rect(c.x - r, c.y - r + 16f, r * 2f, r * 2f - 12f), "[O]", new GUIStyle(st) { fontSize = 11 }, new Color(1f, 1f, 1f, 0.85f));
+        ShadowLabel(new Rect(c.x - r, c.y - r + 15f, r * 2f, r * 2f - 12f), "[O]", new GUIStyle(st) { fontSize = 10 }, new Color(1f, 1f, 1f, 0.85f));
     }
 
     /// Open the sea chart on a friend's island so you can sail there.

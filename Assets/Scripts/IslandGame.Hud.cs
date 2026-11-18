@@ -71,6 +71,7 @@ public partial class IslandGame
         (col, intensity) = WeatherLight(col, intensity); // the season and the weather (IslandGame.Seasons.cs)
         AnnouncePartOfDay();
         if (inHouse) { intensity = Mathf.Max(intensity, 0.85f); col = Color.Lerp(col, new Color(1f, 0.92f, 0.8f), 0.7f); } // lamps on indoors
+        if (inCave) { intensity = 0.55f; col = new Color(0.78f, 0.7f, 0.95f); } // underground: dim, whatever the hour
         // The 2D light doesn't reach the sprites in the web build, so the time of day is painted
         // over the screen instead (DrawTimeOfDayWash): the light itself stays plain white.
         lightCol = col; lightPower = intensity;
@@ -79,6 +80,7 @@ public partial class IslandGame
                   : biome == Biome.Bubble && voyage == null ? new Color(0.06f, 0.2f, 0.38f)
                   : biome == Biome.Sunken && voyage == null ? new Color(0.03f, 0.1f, 0.22f) : PixelArt.WaterColor;
         if (inHouse) bg = new Color(0.08f, 0.055f, 0.045f);
+        if (inCave) bg = new Color(0.025f, 0.02f, 0.035f); // solid rock all round
         bg.a = 1f;
         cam.backgroundColor = bg;
     }
@@ -285,6 +287,8 @@ public partial class IslandGame
         NodeKind.Bed => IsNight ? "นอน" : "เตียง (นอนได้ตอนกลางคืน)",
         NodeKind.Workbench => "ใช้โต๊ะช่าง (ของฟาร์ม / ของตกแต่ง)",
         NodeKind.HouseDoor => "ออกจากบ้าน",
+        NodeKind.CaveEntrance => CaveBlockedBy() != null ? "ปากถ้ำ (มีคนอยู่ข้างใน ถ้ำปิด)" : "เข้าถ้ำ",
+        NodeKind.CaveExit => "ออกจากถ้ำ",
         NodeKind.Signpost => "อ่านป้าย",
         _ => "",
     };
@@ -348,7 +352,18 @@ public partial class IslandGame
                       : new[] { "WASD เดิน", "E/คลิกซ้าย ใช้/เก็บ", "คลิกขวา พลัง", "Tab ประดิษฐ์", "B กระเป๋า", "F กิน", "Q ดื่ม", "F1 ปุ่มทั้งหมด" };
         var st = new GUIStyle(small) { fontSize = 13, alignment = TextAnchor.MiddleCenter };
         float x = 10f, y = H - 24f;
-        foreach (var k in keys)
+        // stop short of the round buttons in the bottom-right corner (⚙ bag skills ☰): on a narrow
+        // screen the keys before the last (F1, the full list) give way one by one
+        var list = new List<string>(keys);
+        float room = W - 236f, total;
+        do
+        {
+            total = 10f;
+            foreach (var k in list) total += st.CalcSize(new GUIContent(k)).x + 19f;
+            if (total <= room || list.Count <= 2) break;
+            list.RemoveAt(list.Count - 2);
+        } while (true);
+        foreach (var k in list)
         {
             float w = st.CalcSize(new GUIContent(k)).x + 14f;
             Fill(new Rect(x, y, w, 20f), new Color(0f, 0f, 0f, 0.45f));
@@ -390,7 +405,7 @@ public partial class IslandGame
         float W = Screen.width / s, H = Screen.height / s;
         CrispGUI.Reset();
         if (!title) { DrawTimeOfDayWash(W, H); DrawWeatherOverlay(W, H); } // under every button and panel
-        DrawGearButton(W); // every setting lives behind the gear icon, top right
+        DrawGearButton(W, H); // every setting lives behind the gear: top right on the title screen, bottom right in the game
         if (!title && !settingsOpen) DrawHomeButton(W); // private island <-> adventure (IslandGame.Home.cs)
         if (title)
         {
@@ -405,7 +420,8 @@ public partial class IslandGame
         }
         if (player != null || voyage != null) DrawPlayerTags(s);
         DrawOnlineInfo(W, H);
-        if (!settingsOpen) DrawQuestTracker(W); // the settings panel covers that corner
+        DrawQuestTracker(W);
+        DrawCaveHud(W); // creatures left and the boss's health, inside a cave (IslandGame.Cave.cs)
         if (!settingsOpen) DrawCrewPanel(W, H); // crews (IslandGame.Crew.cs)
 
         if (hurtT > 0f) Fill(new Rect(0, 0, W, H), new Color(0.8f, 0f, 0f, hurtT * 0.6f));
@@ -421,6 +437,7 @@ public partial class IslandGame
             : inHouse ? $"ในบ้าน{HouseName(houseLevel)} Lv {houseLevel}  <size=11>ห้อง {RoomSize}x{RoomSize} ช่อง</size>"
             : atHome ? "เกาะส่วนตัว  <size=11>บ้าน ฟาร์ม และตลาดเมืองท่า</size>"
             : voyage != null ? $"กลางทะเล กำลังไป{VoyageDestName}"
+            : inCave ? $"ในถ้ำใต้เกาะที่ {island}: {T.name}  <size=11>{BiomeNameOf(caveBiome)} · แนะนำเลเวล {CaveLevel}</size>"
             : $"เกาะที่ {island}: {T.name}  <size=11>{ContinentName} · {BiomeName} · Lv {IslandLevel} · {ProsperityName(Prosperity)}</size>";
         ShadowLabel(new Rect(14, 110, 400, 22), $"{where}   วันที่ {Day} - <color={DayPartColors[(int)PartOfDay]}>{DayPartNames[(int)PartOfDay]}</color>", label);
         DrawSkyDial(new Rect(222, 8, 76, 52));
@@ -519,7 +536,7 @@ public partial class IslandGame
         if (!touchUsed) DrawKeyBar(W, H);
         float sinceSave = Time.time - savedAt;
         if (sinceSave < 1.5f) // under the online status, left of the gear: clear of the buttons below
-            ShadowLabel(new Rect(W - 170, 30, 124, 18), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
+            ShadowLabel(new Rect(W - 186, 30, 124, 18), "เซฟแล้ว", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 1f, 1f, 1f - sinceSave / 1.5f));
 
         DrawStormOverlay(W, H);
         DrawScreenFlash(W, H);
@@ -830,7 +847,7 @@ public partial class IslandGame
         AskWho(); // how many are online in all (IslandGame.Who.cs)
         if (Online && (!atHome || voyage != null)) state = $"CH{channel} · " + state; // channels: IslandGame.Channel.cs
         if (Online && onlineTotal >= 0) state += $" · ทั้งหมด {onlineTotal} คน (O)";
-        var onlineRect = new Rect(W - 436, 12, 390, 18);
+        var onlineRect = new Rect(W - 452, 12, 390, 18); // left of the CH button
         ShadowLabel(onlineRect, state, new GUIStyle(small) { alignment = TextAnchor.UpperRight }, // left of the gear
             Online ? new Color(0.6f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.5f));
         if (Online && CrispGUI.Button(onlineRect, GUIContent.none, GUIStyle.none)) ToggleWho(); // click: who's online and where
@@ -919,34 +936,52 @@ public partial class IslandGame
         Fill(new Rect(hb.x, hb.y, hb.width * Mathf.Clamp01((float)m.hp / m.maxHp), hb.height), m.Hittable ? new Color(0.85f, 0.25f, 0.3f) : new Color(0.45f, 0.3f, 0.35f));
     }
 
+    int skillsTab; // 0 basic skills, 1 awakened skills (level 60)
+    float gritReadyAt; // awakened "Never Give Up": when it can save you again
+
     void DrawSkills(float W, float H)
     {
-        const float pw = 420f, rowH = 40f;
-        int n = SkillInfo.Length;
-        var panel = new Rect(W / 2f - pw / 2f, 60f, pw, 64f + n * (rowH + 4f));
+        const float pw = 440f, rowH = 40f;
+        int first = skillsTab == 0 ? 0 : BaseSkills, n = skillsTab == 0 ? BaseSkills : SkillInfo.Length - BaseSkills;
+        var panel = new Rect(W / 2f - pw / 2f, 54f, pw, 94f + n * (rowH + 4f));
         GUI.Box(panel, GUIContent.none);
         GUI.Box(panel, GUIContent.none);
         ShadowLabel(new Rect(panel.x + 12, panel.y + 6, pw, 22), $"สกิล - เลเวล {level}   <color=#ffd84d>{skillPoints} แต้ม</color>", label);
         ShadowLabel(new Rect(panel.x + 12, panel.y + 26, pw, 18), $"XP {xp}/{XpToNext(level)} - ล้มสัตว์ร้ายเพื่อเลเวลอัป  (K ปิด, กดตัวเลขเพื่ออัป)", small, new Color(0.85f, 0.85f, 0.85f));
 
-        for (int i = 0; i < n; i++)
+        // tabs: the basic eight, and the awakened eight from level 60
+        bool awake = level >= AwakenLevel;
+        string[] tabs = { "พื้นฐาน", awake ? "ปลุกพลัง ★" : $"ปลุกพลัง (เลเวล {AwakenLevel})" };
+        for (int t = 0; t < 2; t++)
         {
+            var tr = new Rect(panel.x + 8 + t * 150f, panel.y + 48, 146f, 26f);
+            var ts = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+            ts.normal.textColor = skillsTab == t ? new Color(1f, 0.85f, 0.3f) : new Color(0.8f, 0.8f, 0.8f);
+            if (skillsTab == t) Fill(new Rect(tr.x - 2, tr.y - 2, tr.width + 4, tr.height + 4), new Color(1f, 0.85f, 0.3f, 0.5f));
+            if (CrispGUI.Button(tr, tabs[t], ts)) skillsTab = t;
+        }
+        if (!awake && skillsTab == 1)
+            ShadowLabel(new Rect(panel.x + 310, panel.y + 52, pw - 316, 18), "ดูได้ อัปได้ตอนเลเวล 60", small, new Color(1f, 0.6f, 0.55f));
+
+        for (int k = 0; k < n; k++)
+        {
+            int i = first + k;
             var info = SkillInfo[i];
             int lv = skills[i];
-            var row = new Rect(panel.x + 8, panel.y + 50 + i * (rowH + 4f), pw - 16, rowH);
+            var row = new Rect(panel.x + 8, panel.y + 80 + k * (rowH + 4f), pw - 16, rowH);
             GUI.Box(row, GUIContent.none);
-            if (i == 0 || i == 4)
-                ShadowLabel(new Rect(row.xMax - 150, row.y - 1, 80, 16), info.combat ? "ต่อสู้" : "เอาชีวิตรอด", small,
-                    info.combat ? new Color(1f, 0.6f, 0.55f) : new Color(0.6f, 1f, 0.6f));
-            Color nameCol = info.combat ? new Color(1f, 0.75f, 0.7f) : new Color(0.75f, 1f, 0.75f);
-            ShadowLabel(new Rect(row.x + 8, row.y + 2, 200, 20), $"{i + 1}. {info.name}", label, nameCol);
-            CrispGUI.Label(new Rect(row.x + 8, row.y + 20, 290, 18), $"<color=#cccccc>{info.desc}</color>", small);
+            if (SkillGroupStarts(i))
+                ShadowLabel(new Rect(row.xMax - 150, row.y - 1, 90, 16), SkillGroup(i), small, SkillGroupColor(i));
+            Color nameCol = Color.Lerp(SkillGroupColor(i), Color.white, 0.3f);
+            if (i >= BaseSkills && !awake) nameCol.a = 0.5f;
+            ShadowLabel(new Rect(row.x + 8, row.y + 2, 200, 20), $"{k + 1}. {info.name}", label, nameCol);
+            CrispGUI.Label(new Rect(row.x + 8, row.y + 20, 330, 18), $"<color=#cccccc>{info.desc}</color>", small);
 
             var pips = new System.Text.StringBuilder();
             for (int p = 0; p < info.max; p++) pips.Append(p < lv ? "<color=#ffd84d>■</color>" : "<color=#555555>■</color>");
             CrispGUI.Label(new Rect(row.x + 210, row.y + 3, 100, 18), pips.ToString(), label);
 
-            GUI.enabled = skillPoints > 0 && lv < info.max;
+            GUI.enabled = skillPoints > 0 && lv < info.max && (i < BaseSkills || awake);
             if (CrispGUI.Button(new Rect(row.xMax - 46, row.y + 8, 40, 24), lv >= info.max ? "เต็ม" : "+")) UpgradeSkill((Skill)i);
             GUI.enabled = true;
         }

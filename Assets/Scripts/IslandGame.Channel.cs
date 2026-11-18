@@ -98,6 +98,7 @@ public partial class IslandGame
     static int RoomChannel(int isl)
     {
         if (isl >= SeaRoomBase) return 1 + (isl - SeaRoomBase) / SeaChannelStep;
+        if (CaveRoom(isl)) return 1 + (isl - CaveRoomBase) / ChannelStep; // IslandGame.Cave.cs
         if (isl > 0) return 1 + isl / ChannelStep;
         return 0;
     }
@@ -106,6 +107,7 @@ public partial class IslandGame
     static int RoomNoChannel(int isl)
     {
         if (isl >= SeaRoomBase) return SeaRoomBase + (isl - SeaRoomBase) % SeaChannelStep;
+        if (CaveRoom(isl)) return CaveRoomBase + (isl - CaveRoomBase) % ChannelStep;
         if (isl > 0) return isl % ChannelStep;
         return isl;
     }
@@ -115,6 +117,7 @@ public partial class IslandGame
     {
         if (!Online) return "ต้องเล่นออนไลน์ก่อน";
         if (dead) return "ตอนนี้ย้าย channel ไม่ได้";
+        if (inCave) return "ออกจากถ้ำก่อนค่อยย้าย channel";
         if (voyage != null || sailT > 0f) return "ย้าย channel กลางทะเลไม่ได้ ขึ้นฝั่งก่อน";
         if (Busy || homeT > 0f) return "รอให้เสร็จก่อนค่อยย้าย channel";
         if (atHome || visiting) return null; // only picks the channel for later: nothing to exploit

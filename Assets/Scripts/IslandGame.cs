@@ -33,11 +33,17 @@ public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfir
     Drop, House, Lamp, Farm, Well, Stall, Fountain, Statue, Kelp, CoralNode, Oyster, AirVent, SandCrystal, ClockRuin, ClockTower, IceCrystal, HotSpring,
     Wreck, Chest, Pillar, GiantTree, Shrine, LostBundle, SunkenTemple, Relic, GiantClam, DigSpot, PirateShip, Tent, Cannon, CrystalCluster, Mirror, CrystalVault, LightningRod, CopperOre, GiantGrass, GiantFlower, Beehive, Anthill,
     Plot, Fence, StonePath, Flowers, Bench, Scarecrow, Cottage, Signpost, Chicken, Cow, // private island
-    Bed, Table, Chair, Rug, PlantPot, Shelf, Workbench, HouseDoor } // inside your house
+    Bed, Table, Chair, Rug, PlantPot, Shelf, Workbench, HouseDoor, // inside your house
+    CaveEntrance, CaveExit } // caves (IslandGame.Cave.cs)
 
 public enum Biome { Tropical, Jungle, Volcanic, Tribal, Mushroom, Turtle, Sky, Bubble, Hourglass, Ice, Sunken, Pirate, Crystal, Storm, Insect }
 
-public enum Skill { Strength, Toughness, Agility, Evasion, Forager, Lumberjack, IronStomach, Fisher }
+public enum Skill
+{
+    Strength, Toughness, Agility, Evasion, Forager, Lumberjack, IronStomach, Fisher,
+    // awakened skills, from level 60 (IslandGame.Awaken.cs): where the skill points go after the first eight are full
+    AwPower, AwGuard, AwRegen, AwGrit, AwCook, AwStride, AwHarvest, AwLoot,
+}
 
 public class Recipe
 {
@@ -156,6 +162,28 @@ public partial class IslandGame : MonoBehaviour
         ("คนตัดไม้", "ตัดต้นไม้ใช้น้อยลง 1 ครั้ง", 2, false),
         ("ท้องเหล็ก", "หิวข้าวและหิวน้ำช้าลง 12%", 3, false),
         ("ชาวประมง", "แทงปลาติดง่ายขึ้น 15%", 3, false),
+        // awakened (level 60)
+        ("พลังตื่นรู้", "โอกาสคริติคอล ดาเมจ x2 +6%", 5, true),
+        ("เกราะวิญญาณ", "รับดาเมจลดลง 5%", 5, true),
+        ("ฟื้นฟูตัวเอง", "ฟื้นพลังชีวิตเองตลอด +0.3/วิ (ถ้าไม่หิวจนหมด)", 5, false),
+        ("ใจไม่ยอมแพ้", "โดนตีจนจะตาย รอดด้วย HP 1 (ใช้ได้ทุก 260 วิ, -40 วิ/ระดับ)", 5, false),
+        ("พ่อครัวตัวยง", "กินแล้วอิ่มและฟื้นพลังชีวิตเพิ่ม 10%", 5, false),
+        ("นักเดินทาง", "เดินเร็วขึ้น 4%", 5, false),
+        ("มือทอง", "โอกาสเก็บของได้เพิ่มอีก 2 ชิ้น +8%", 5, false),
+        ("นักล่าสมบัติ", "โอกาสของจากสัตว์ร้ายตก x2 +8%", 5, false),
+    };
+
+    public const int BaseSkills = 8; // skills 0..7; 8.. are the awakened ones (level 60)
+
+    /// The group heading over a skill in the skills panel.
+    static string SkillGroup(int i) => i < 4 ? "ต่อสู้" : i < 8 ? "เอาชีวิตรอด" : i < 10 ? "ต่อสู้" : i < 12 ? "เอาตัวรอด" : i < 14 ? "ใช้ชีวิต" : "ฟาร์มของ";
+    static bool SkillGroupStarts(int i) => i == 0 || i == 4 || i == 8 || i == 10 || i == 12 || i == 14;
+    static Color SkillGroupColor(int i) => SkillGroup(i) switch
+    {
+        "ต่อสู้" => new Color(1f, 0.6f, 0.55f),
+        "ใช้ชีวิต" => new Color(1f, 0.82f, 0.45f),
+        "ฟาร์มของ" => new Color(0.6f, 0.85f, 1f),
+        _ => new Color(0.6f, 1f, 0.6f),
     };
 
     // ------------------------------------------------------------------ state
@@ -200,7 +228,7 @@ public partial class IslandGame : MonoBehaviour
     public bool IsNight => daylight < 0.35f;
     public int SkillLv(Skill s) => skills[(int)s];
     public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + (outfit == Item.LeafTunic ? 15f : 0f) + (outfit == Item.CrystalArmor ? 20f : 0f);
-    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + (Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed;
+    public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + 0.04f * SkillLv(Skill.AwStride) +(Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed;
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
     public string BiomeName => BiomeNameOf(biome);
@@ -377,6 +405,7 @@ public partial class IslandGame : MonoBehaviour
     void StartGame(SaveData data)
     {
         if (data == null) data = NewRun();
+        inCave = caveEntering; caveEntering = false; // only EnterCave's load is the cave (IslandGame.Cave.cs)
         if (!visitLoad) { visiting = false; visitBack = null; } // any other load ends a visit (IslandGame.Visit.cs)
         voyageVisit = null; voyageBack = null; // a trip to a friend ends with any load (it ends in one)
         LoadHome(data); // private island state (IslandGame.Home.cs)
@@ -406,6 +435,7 @@ public partial class IslandGame : MonoBehaviour
         foreach (var v in data.visited) if (v != null && (atHome || v.island != island || v.continent != continent)) visited.Add(v); // at home, the island you came from waits in `visited`
         // Saves before v6 used a 3-island cycle; keep their island the same biome it was.
         biome = atHome ? Biome.Tropical : data.biomeId > 0 ? (Biome)(data.biomeId - 1) : data.version < 6 ? (Biome)((island - 1) % 3) : BiomeFor(island, continent);
+        if (inCave) { caveBiome = biome; biome = Biome.Tropical; } // no island weather, wind, air or cold down in the tunnels
         tier = atHome ? 0 : (island - 1) / 15;
         seed = data.seed;
         raftLevel = data.raftLevel;
@@ -430,9 +460,10 @@ public partial class IslandGame : MonoBehaviour
         ComputeTraits(); // name, shape, colours, weather, landmarks... (IslandGame.Traits.cs)
         if (atHome) HomeTraits();
         if (inHouse) BuildRoom(fresh); // inside your house: a room instead of an island (IslandGame.House.cs)
+        else if (inCave) BuildCave();  // tunnels instead of an island (IslandGame.Cave.cs)
         else BuildIsland(Center, spawnResources: fresh);
         if (fresh && atHome && !inHouse) BuildHome(); // first visit: town, starter farm and pen
-        if (!atHome)
+        if (!atHome && !inCave)
         {
         if (fresh && biome == Biome.Tribal) BuildVillage();
         if (fresh && biome == Biome.Mushroom) BuildMushroomCamp();
@@ -445,6 +476,7 @@ public partial class IslandGame : MonoBehaviour
         if (fresh) BuildInsectIsland();
         if (fresh) BuildClockTower();
         if (fresh) PlaceAirVents();
+        if (fresh) PlaceCave(); // last, so every other id stays as it was (IslandGame.Cave.cs)
         }
         genPhase = false;
         if (atHome) InitHomeIds(data); // private island ids stay the same for its owner and visitors (IslandGame.HomeSync.cs)
@@ -464,9 +496,15 @@ public partial class IslandGame : MonoBehaviour
             stickCap = data.stickCap; rockCap = data.rockCap; obsidianCap = data.obsidianCap;
             // v4 saves had no raft level: a raft already standing on this island counts as ready to sail.
             if (data.version < 5 && raftLevel == 0 && RaftNode != null) { raftLevel = island; RaftNode.Refresh(); }
+            // islands saved before caves existed get theirs now (online every island is built fresh anyway)
+            if (!atHome && !inHouse && !inCave && HasCave && !nodes.Exists(n => n != null && n.kind == NodeKind.CaveEntrance)) PlaceCave();
         }
         // Arrived by boat (a new island, or one you're coming back to): it's pulled up on the west shore.
-        if (raftLevel > 0 && RaftNode == null && !atHome) landing = BeachRaft();
+        if (raftLevel > 0 && RaftNode == null && !atHome && !inCave) landing = BeachRaft();
+        bool outOfCave = caveLanding != null;
+        if (inCave) landing = caveStart + new Vector2(1.4f, 0f); // by the light at the mouth
+        else if (outOfCave) landing = caveLanding;                // back in front of the cave mouth
+        caveLanding = null;
         foreach (var st in data.items) if (st.count > 0) inv[st.item] = st.count;
         AutoEquipWeapon(); // old saves and empty hands: hold the best weapon you own
         System.Array.Clear(skills, 0, skills.Length);
@@ -474,6 +512,7 @@ public partial class IslandGame : MonoBehaviour
         level = Mathf.Max(1, data.level); xp = data.xp; skillPoints = data.skillPoints; flaskWater = data.flaskWater;
         health = Mathf.Min(data.health, MaxHealth); hunger = data.hunger; thirst = data.thirst; clock = data.clock;
         if (atHome) { if (!inHouse) SpawnHomeFolk(); } // the town's shopkeepers (IslandGame.Shop.cs)
+        else if (inCave) SpawnCaveMonsters(); // IslandGame.Cave.cs
         else
         {
         if (biome == Biome.Tribal) SpawnVillagers();
@@ -502,7 +541,9 @@ public partial class IslandGame : MonoBehaviour
 
         camPos = player.transform.position;
         ResetHomeTools(); // build mode, fishing line
-        if (inHouse) Hint($"ในบ้าน{HouseName(houseLevel)} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก", 6f);
+        if (inCave) Hint($"เข้าถ้ำแล้ว! ทางเดินเต็มไปด้วยสัตว์ร้าย เจ้าแห่งถ้ำรออยู่ลึกสุด · สู้ไม่ไหว เดินกลับมาที่แสงตรงปากถ้ำเพื่อออก", 7f);
+        else if (outOfCave) Hint("ออกจากถ้ำแล้ว", 2.5f);
+        else if (inHouse) Hint($"ในบ้าน{HouseName(houseLevel)} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก", 6f);
         else if (atHome) Hint(fresh ? "ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น" : "กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่", 7f);
         else if (!fresh && landing != null) Hint($"กลับมาที่{BiomeName} (เกาะที่ {island}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป", 5f);
         else if (!fresh) Hint($"ยินดีต้อนรับกลับ! {BiomeName} (เกาะที่ {island}) วันที่ {Day}", 4f);
@@ -665,6 +706,7 @@ public partial class IslandGame : MonoBehaviour
         foreach (var n in nodes)
             if (n != null && n.kind != NodeKind.HouseDoor) // the doormat is rebuilt with the room
                 d.nodes.Add(ToSave(n));
+        if (inCave) CaveSnapshot(d); // inside a cave the save is the island outside (IslandGame.Cave.cs)
         return d;
     }
 

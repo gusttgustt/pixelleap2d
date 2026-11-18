@@ -114,6 +114,7 @@ public partial class IslandGame
         TickFishing(dt); // the fishing line (IslandGame.Farm.cs)
         TickPets(dt);    // the pet walking with you finds things (IslandGame.Pet.cs)
         TickCrew();      // crew members on and off the captain's boat (IslandGame.Crew.cs)
+        TickCave(dt);    // the crew list, the cave boss (IslandGame.Cave.cs)
         TickStarterPet(); // pick your first pet (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
@@ -130,6 +131,8 @@ public partial class IslandGame
         if (thirst <= 0f) health -= dt * 2.5f;
         if (poisonT > 0f) { poisonT -= dt; health -= dt * 1.5f; } // spider bites and spore clouds
         if (hunger > 70f && thirst > 50f) health = Mathf.Min(MaxHealth, health + dt * 0.4f * WeatherRegen);
+        if (SkillLv(Skill.AwRegen) > 0 && hunger > 0f && thirst > 0f && health > 0f) // awakened: Self-healing
+            health = Mathf.Min(MaxHealth, health + dt * 0.3f * SkillLv(Skill.AwRegen));
         return CheckDeath();
     }
 
@@ -159,8 +162,11 @@ public partial class IslandGame
             if (kb.rightBracketKey.wasPressedThisFrame) { CurrentTab = (CurrentTab + 1) % CraftTabs.Length; craftScroll = Vector2.zero; }
         }
         if (skillsOpen)
-            for (int i = 0; i < skills.Length && i < 9; i++)
-                if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)i);
+        {
+            int first = skillsTab == 0 ? 0 : BaseSkills; // the tab on show (basic / awakened)
+            for (int i = 0; first + i < skills.Length && i < 8; i++)
+                if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)(first + i));
+        }
     }
 
     /// Kill reward shared by land and sea creatures.
@@ -225,7 +231,7 @@ public partial class IslandGame
         else if (target != null)
         {
             bool once = target.kind is NodeKind.Campfire or NodeKind.Shelter or NodeKind.Raft or NodeKind.Plot or NodeKind.Chicken or NodeKind.Cow or NodeKind.Cottage or NodeKind.Signpost
-                or NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor;
+                or NodeKind.Bed or NodeKind.Workbench or NodeKind.HouseDoor or NodeKind.CaveEntrance or NodeKind.CaveExit;
             if (once ? (pressed && since > 0.15f) : Trigger(0.3f))
             {
                 lastInteract = Time.time;
@@ -301,7 +307,7 @@ public partial class IslandGame
             {
                 if ((target.grid - pg).magnitude <= pondDist) pond = null; else target = null;
             }
-            if (target == null && pond == null && biome != Biome.Sky && !inHouse) seaSpot = NearestSea(pg, 1.2f); // no fishing in the clouds
+            if (target == null && pond == null && biome != Biome.Sky && !inHouse && !inCave) seaSpot = NearestSea(pg, 1.2f); // no fishing in the clouds
         }
 
         Vector3? at = null;
@@ -327,7 +333,20 @@ public partial class IslandGame
     int WeaponDamage => (weapon != null && Count(weapon.Value) > 0 ? 0 : 1) + GearDamage + SkillLv(Skill.Strength); // bare hands hit for 1
 
     /// Forager skill: chance of one extra item.
-    int Bonus() => rnd.NextDouble() < 0.3 * SkillLv(Skill.Forager) ? 1 : 0;
+    int Bonus() => (rnd.NextDouble() < 0.3 * SkillLv(Skill.Forager) ? 1 : 0)
+                 + (rnd.NextDouble() < 0.08 * SkillLv(Skill.AwHarvest) ? 2 : 0); // awakened: Golden Hands
+
+    /// A hit's damage: the weapon's, doubled on an awakened critical.
+    int RollDamage(Vector3 at)
+    {
+        int dmg = WeaponDamage;
+        if (rnd.NextDouble() < 0.06 * SkillLv(Skill.AwPower))
+        {
+            dmg *= 2;
+            Popup("คริติคอล!", at + Vector3.up * 0.95f, new Color(1f, 0.85f, 0.3f));
+        }
+        return dmg;
+    }
 
     void Interact(WorldNode n)
     {
@@ -365,6 +384,8 @@ public partial class IslandGame
             case NodeKind.Drop: PickUpDrop(n); break;
             case NodeKind.Chest: if (n.available) OpenChest(n); break;
             case NodeKind.Shrine: PrayAtShrine(n); break;
+            case NodeKind.CaveEntrance: CaveDialog(n); break;            // IslandGame.Cave.cs
+            case NodeKind.CaveExit: BeginWarp(Warp.ExitCave); break;
             case NodeKind.DigSpot: if (n.available) DigTreasure(n); break;
             case NodeKind.Mirror: TurnMirror(n); break;
             case NodeKind.LightningRod: RepairRod(n); break;
@@ -570,7 +591,7 @@ public partial class IslandGame
     /// A new tree (or bush / fruit tree) on a random free grass spot, away from the player. Shared online.
     WorldNode PlantTreeElsewhere(NodeKind kind = NodeKind.Tree)
     {
-        if (inHouse || tiles == null) return null;
+        if (inHouse || inCave || tiles == null) return null;
         for (int attempt = 0; attempt < 60; attempt++)
         {
             var g = new Vector2(rnd.Next(Size), rnd.Next(Size)) + new Vector2((float)rnd.NextDouble() - 0.5f, (float)rnd.NextDouble() - 0.5f) * 0.4f;
@@ -669,9 +690,9 @@ public partial class IslandGame
     // ------------------------------------------------------------------ combat & XP
     void Attack(Enemy e)
     {
-        int dmg = WeaponDamage;
-        Sfx.Play("hit", 0.6f);
         Vector3 at = e.transform.position;
+        int dmg = RollDamage(at);
+        Sfx.Play("hit", 0.6f);
         if (e.puppet)
         {
             // Online, not the host: show the hit, let the host's game decide (it replies "kill").
@@ -733,6 +754,7 @@ public partial class IslandGame
         if (kind == EnemyKind.Captain) AddBounty(CaptainBounty, at + Vector3.up * 1f, null); // the pirate warship's captain: the government notices
         if (kind == EnemyKind.Snowman) SplitSnowman(WorldDeltaToGrid(at)); // bursts into snowlings
         if (kind == EnemyKind.ShroomKing) Hint("ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ", 6f);
+        if (rnd.NextDouble() < 0.08 * SkillLv(Skill.AwLoot)) n *= 2; // awakened: Treasure Hunter
         inv[drop] = Count(drop) + n;
         Popup($"+{n} {Name(drop)}", at + Vector3.up * 0.5f, new Color(1f, 0.95f, 0.6f));
         // hides for the weaver's clothes: boars always, snakes sometimes
@@ -758,7 +780,11 @@ public partial class IslandGame
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
             Sfx.Play("levelup", 0.7f);
             Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม {KeyOr("กด K", "แตะปุ่ม \"สกิล\"")} เพื่ออัปสกิล", 5f);
-            if (level == AwakenLevel) AwakenUnlocked();
+            if (level == AwakenLevel)
+            {
+                AwakenUnlocked();
+                QuestBanner("สกิลปลุกพลังเปิดแล้ว!", $"{KeyOr("กด K", "แตะปุ่ม \"สกิล\"")} แล้วเลือกแท็บ \"ปลุกพลัง\" ใช้แต้มสกิลอัปต่อได้", new Color(1f, 0.82f, 0.3f));
+            }
         }
     }
 
@@ -766,6 +792,7 @@ public partial class IslandGame
     {
         int i = (int)s;
         if (skillPoints <= 0) { Hint("ไม่มีแต้มสกิล ล้มสัตว์ร้ายเพื่อเลเวลอัป", 2f); return; }
+        if (i >= BaseSkills && level < AwakenLevel) { Hint($"สกิลปลุกพลังเปิดตอนเลเวล {AwakenLevel} (ตอนนี้เลเวล {level})", 2.5f); return; }
         if (skills[i] >= SkillInfo[i].max) { Hint($"{SkillInfo[i].name} เต็มแล้ว", 2f); return; }
         skills[i]++;
         skillPoints--;
@@ -786,7 +813,15 @@ public partial class IslandGame
         amount *= AwakenArmor; // awakened bubble fruit
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
         amount *= 1f - GearArmor; // hide vest and other armour
+        amount *= 1f - 0.05f * SkillLv(Skill.AwGuard); // awakened: Spirit Armour
         if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves
+        if (health - amount <= 0f && SkillLv(Skill.AwGrit) > 0 && Time.time >= gritReadyAt) // awakened: Never Give Up
+        {
+            amount = Mathf.Max(0f, health - 1f);
+            gritReadyAt = Time.time + 300f - 40f * SkillLv(Skill.AwGrit);
+            Popup("ใจไม่ยอมแพ้!", PlayerPos + Vector3.up * 1.3f, new Color(1f, 0.85f, 0.3f));
+            Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 16, 1.2f, 2f, 1f, 3f);
+        }
         health -= amount;
         hurtT = 0.3f;
         lastHurtAt = Time.time; // no running off to another channel mid-fight (IslandGame.Channel.cs)
@@ -870,6 +905,7 @@ public partial class IslandGame
     {
         enemies.RemoveAll(e => e == null);
         if (!IsHost) return; // online, the island's host spawns creatures for everyone
+        if (inCave) return;  // a cave has the creatures it started with (IslandGame.Cave.cs)
         enemyTimer += dt;
         huntCheckT -= dt;
         if (huntCheckT <= 0f) { huntCheckT = 1f; hunt = HuntWanted(); } // what quests want, looked up once a second
@@ -1040,6 +1076,9 @@ public partial class IslandGame
         int food = FoodValue(it);
         if (food <= 0 || Count(it) == 0) return;
         int heal = HealValue(it);
+        float cook = 1f + 0.1f * SkillLv(Skill.AwCook); // awakened: Seasoned Cook
+        food = Mathf.RoundToInt(food * cook);
+        heal = Mathf.RoundToInt(heal * cook);
         bool hurt = health < MaxHealth - 0.5f;
         if (hunger >= 99f && !(heal > 0 && hurt)) // healing food can still be eaten when full, if you're hurt
         {

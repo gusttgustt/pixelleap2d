@@ -39,7 +39,7 @@ public partial class IslandGame
         // online only, on the right between the E side and the hotbar (IslandGame.ChatMobile.cs / Sticker.cs)
         TouchBtn.Chat => new Vector2(GuiW - 196f, GuiH - 210f),
         TouchBtn.Sticker => new Vector2(GuiW - 254f, GuiH - 164f),
-        TouchBtn.Who => new Vector2(GuiW - 262f, GuiH - 232f), // who's online + channels (phones have no O key, IslandGame.Who.cs)
+        TouchBtn.Who => new Vector2(GuiW - 32f, 32f), // who's online + channels, top right corner (phones have no O key, IslandGame.Who.cs)
         _ => new Vector2(112f, GuiH - 240f), // Skills
     };
 
@@ -194,6 +194,7 @@ public partial class IslandGame
     {
         if (ShowTouch || title || dead || (player == null && voyage == null) || power == Power.None) return;
         if (sailT > 0f || sleepT > 0f || homeT > 0f || dialog != null || craftOpen || skillsOpen || bagOpen || buildOpen) return;
+        if (menuOpen || settingsOpen || wantedOpen || whoOpen) return; // a panel sits over this corner: its clicks must not land here
         var atk = new Vector2(W - 64f, H - 150f);
         var pow = new Vector2(W - 152f, H - 132f);
         MouseRoundButton(pow, 32f, "พลัง", "R", PowerReady, PowerCooldown, new Color(1f, 0.85f, 0.3f), () => UsePower());

@@ -42,7 +42,9 @@ public partial class IslandGame
     /// At sea everyone heading across the same continent's waters shares one room: you see their boats.
     const int SeaRoomBase = 1500000000;
     int RoomKey => voyage != null ? SeaRoomBase + SeaChannelOffset + Mathf.Clamp(destContinent, 0, Continents - 1) // channels: IslandGame.Channel.cs
-                 : atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0)) : ChannelOffset + WorldKey(island, continent);
+                 : atHome ? -((visiting ? visitOwner : myId) * 2 + (inHouse ? 1 : 0))
+                 : inCave ? CaveKey // a cave is a room of its own (IslandGame.Cave.cs)
+                 : ChannelOffset + WorldKey(island, continent);
 
     /// While visiting you can look around but only these do anything.
     /// Farming is allowed too: plant, water and harvest, feed the animals (the owner gets what you harvest as well).
@@ -126,6 +128,7 @@ public partial class IslandGame
         if (title || dead || player == null || voyage != null || Busy || homeT > 0f) return;
         if (visiting) { Hint("กด H เพื่อกลับบ้านตัวเองก่อน แล้วค่อยล่องเรือไปบ้านเพื่อนคนอื่น", 3f); return; }
         if (inHouse) { Hint("ออกจากบ้านก่อน แล้วค่อยเปิดแผนที่ทะเล (V)", 2.5f); return; }
+        if (inCave) { Hint("ออกจากถ้ำก่อน แล้วค่อยเปิดแผนที่ทะเล (V)", 2.5f); return; }
         OpenChart(true);
     }
 

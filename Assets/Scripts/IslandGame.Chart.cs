@@ -21,6 +21,7 @@ public partial class IslandGame
 
     void OpenChart(bool friends = false)
     {
+        if (inCave) { Hint("ออกจากถ้ำก่อน แล้วค่อยเปิดแผนที่ทะเล", 2.5f); return; } // no boat down here (IslandGame.Cave.cs)
         dialog = new Dialog { chart = true, speaker = raftLevel > 0 ? $"แผนที่โลก - {BoatName(raftLevel)} Lv {raftLevel}" : "แผนที่โลก" };
         craftOpen = false; skillsOpen = false; bagOpen = false;
         chartC = atHome ? homeContinent : continent;
