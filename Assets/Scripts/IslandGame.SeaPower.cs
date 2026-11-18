@@ -39,8 +39,18 @@ public partial class IslandGame
         Power.Vine => SeaVine(),
         Power.Magnet => SeaMagnet(),
         Power.Bubble => DoBubble(),
-        _ => false,
+        Power.None => false,
+        _ => SeaNova(), // the later continents' fruits on the raft: a burst of the power around you
     };
+
+    bool SeaNova()
+    {
+        int hits = 0;
+        foreach (var c in SeaInRange(2f + 0.4f * powerLv)) { HitSea(c, 2 + powerLv, new Color(1f, 0.9f, 0.4f)); hits++; }
+        Ring(2f + 0.4f * powerLv, PowerColor(power), 20);
+        Popup($"พลัง{PowerName(power)}!" + (hits > 0 ? $" x{hits}" : ""), PlayerPos + Vector3.up * 1.1f, PowerColor(power));
+        return true;
+    }
 
     bool SeaDash()
     {

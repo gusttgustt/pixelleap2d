@@ -7,7 +7,8 @@ using UnityEngine;
 ///   Vine   (ผลเถาวัลย์)  - Jungle, Insect                 : pull the nearest creature in (and hit it), or grab the nearest pickup
 ///   Magnet (ผลแม่เหล็ก)  - Tribe, Ice, Pirate             : gather every pickup around you at once
 ///   Bubble (ผลฟองสบู่)   - Volcano, Turtle, Bubble, Sunken : a bubble that blocks the next hits and poison
-public enum Power { None, Dash, Shadow, Vine, Magnet, Bubble }
+public enum Power { None, Dash, Shadow, Vine, Magnet, Bubble,
+    Frost, Mirror, Gale, Flame, Quake, Iron, Gravity, Star, Abyss } // the later continents' fruits (IslandGame.NewPowers.cs)
 
 public partial class IslandGame
 {
@@ -31,11 +32,10 @@ public partial class IslandGame
         _ => Item.FruitDash,                                                         // Tropical, Sky, Storm
     };
 
-    static readonly Item[] AllPowerFruits = { Item.FruitDash, Item.FruitShadow, Item.FruitVine, Item.FruitMagnet, Item.FruitBubble };
-    /// Any of the five fruits (treasure, vaults).
-    public static Item RandomPowerFruit(System.Random r) => AllPowerFruits[r.Next(AllPowerFruits.Length)];
-    public static bool IsPowerFruit(Item it) => it is Item.FruitDash or Item.FruitShadow or Item.FruitVine or Item.FruitMagnet or Item.FruitBubble;
-    static Power PowerOf(Item it) => it switch
+    /// Any of this continent's fruits (treasure, vaults).
+    public static Item RandomPowerFruit(System.Random r) { var set = ContinentFruits[Mathf.Clamp(I != null ? I.Cont : 0, 0, Continents - 1)]; return set[r.Next(set.Length)]; }
+    public static bool IsPowerFruit(Item it) => it is Item.FruitDash or Item.FruitShadow or Item.FruitVine or Item.FruitMagnet or Item.FruitBubble || IsNewFruit(it);
+    static Power PowerOf(Item it) => IsNewFruit(it) ? NewPowerOf(it) : it switch
     {
         Item.FruitShadow => Power.Shadow, Item.FruitVine => Power.Vine, Item.FruitMagnet => Power.Magnet,
         Item.FruitBubble => Power.Bubble, _ => Power.Dash,
@@ -44,7 +44,7 @@ public partial class IslandGame
     public static string PowerName(Power p) => p switch
     {
         Power.Dash => "ฟ้าแลบ", Power.Shadow => "เงาจันทร์", Power.Vine => "เถาวัลย์",
-        Power.Magnet => "แม่เหล็ก", Power.Bubble => "ฟองสบู่", _ => "-",
+        Power.Magnet => "แม่เหล็ก", Power.Bubble => "ฟองสบู่", _ => NewPowerName(p),
     };
 
     static string PowerDesc(Power p) => p switch
@@ -54,7 +54,7 @@ public partial class IslandGame
         Power.Vine => "ดึงสัตว์ประหลาดที่อยู่ไกลเข้ามาตี หรือดึงของที่อยู่ไกลมาเก็บ",
         Power.Magnet => "ดูดของรอบตัวเข้ากระเป๋าทั้งหมด",
         Power.Bubble => "สร้างโล่ฟองกันการโจมตีและพิษ",
-        _ => "",
+        _ => NewPowerDesc(p),
     };
 
     float PowerCooldown => Awakened ? AwakenSkillCd : BasePowerCooldown;
@@ -65,7 +65,8 @@ public partial class IslandGame
         Power.Vine => 6f - 0.6f * powerLv,
         Power.Magnet => 20f - 2f * powerLv,
         Power.Bubble => 15f - 1.5f * powerLv,
-        _ => 1f,
+        Power.None => 1f,
+        _ => NewPowerCooldown,
     };
 
     // ------------------------------------------------------------------ the glowing tree
@@ -85,7 +86,7 @@ public partial class IslandGame
 
     void PickGlowingFruit(WorldNode n)
     {
-        var fruit = FruitFor(biome);
+        var fruit = FruitHere(biome); // the later continents grow their own (IslandGame.NewPowers.cs)
         Give(fruit, 1, n);
         Fx.Burst(n.transform.position + Vector3.up * 1f, new Color(1f, 0.9f, 0.4f), 16, 1.4f, 1.6f, 1f, 2f);
         Hint($"ได้{Name(fruit)}! คลิกในกระเป๋าเพื่อกิน แล้วได้พลัง{PowerName(PowerOf(fruit))}", 6f);
@@ -150,6 +151,7 @@ public partial class IslandGame
         powerAtkCd -= dt;
         if (invisibleT > 0f) invisibleT -= dt;
         if (bubbleT > 0f) { bubbleT -= dt; if (bubbleT <= 0f) bubbleHits = 0; }
+        TickNewPowers(dt); // iron skin, mirror shield (IslandGame.NewPowers.cs)
         PowerAura(dt);
         TickAwaken(dt); // Lv 60 awakening (IslandGame.Awaken.cs)
     }
@@ -165,7 +167,7 @@ public partial class IslandGame
             Power.Vine => DoVine(),
             Power.Magnet => DoMagnet(),
             Power.Bubble => DoBubble(),
-            _ => false,
+            _ => DoNewPower(), // IslandGame.NewPowers.cs
         };
         if (!used) return false;
         powerCd = PowerCooldown;
@@ -261,6 +263,7 @@ public partial class IslandGame
         if (!Bubbled) return false;
         bubbleHits--;
         if (bubbleHits <= 0) bubbleT = 0f;
+        if (mirrorT > 0f) { Popup("สะท้อนกลับ!", PlayerPos + Vector3.up * 0.9f, PowerColor(Power.Mirror)); MirrorReflect(); return true; }
         Popup("ฟองกันไว้!", PlayerPos + Vector3.up * 0.9f, new Color(0.6f, 0.9f, 1f));
         Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(0.7f, 0.95f, 1f), 10, 1f, 1.2f);
         return true;

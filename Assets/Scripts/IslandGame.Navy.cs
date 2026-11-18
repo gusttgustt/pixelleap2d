@@ -252,7 +252,7 @@ public partial class IslandGame
         }
     }
 
-    static Item FruitOf(Power p) => p switch
+    static Item FruitOf(Power p) => p > Power.Bubble ? FruitOfPower(p) : p switch
     {
         Power.Shadow => Item.FruitShadow, Power.Vine => Item.FruitVine, Power.Magnet => Item.FruitMagnet, Power.Bubble => Item.FruitBubble, _ => Item.FruitDash,
     };

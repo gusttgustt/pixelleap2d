@@ -45,7 +45,7 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ fruit users
     /// Their power, from their id (the same on every machine).
-    public static Power UserPower(Enemy e) => (Power)(1 + Mathf.Abs(e.netId * 7 + 3) % 5);
+    public static Power UserPower(Enemy e) { var set = ContinentPowers(I.Cont); return set[Mathf.Abs(e.netId * 7 + 3) % set.Length]; } // the fruits of this continent (IslandGame.NewPowers.cs)
 
     /// Awakened? None before about island 15 of the world, all of them by about island 65.
     public static bool UserAwakened(Enemy e)
@@ -142,8 +142,17 @@ public partial class IslandGame
             case Power.Magnet: // pulls you in
                 if (me) { bossPullTo = e.grid; bossPullT = awake ? 1.4f : 0.9f; Popup("ถูกดูด!", PlayerPos + Vector3.up * 1.2f, col); }
                 break;
-            case Power.Bubble: // a bubble that soaks up blows
+            case Power.Bubble or Power.Iron or Power.Mirror: // a bubble / iron skin / mirror that soaks up blows
                 e.Shield(awake ? 4f : 2.5f);
+                break;
+            case Power.Frost or Power.Gravity or Power.Quake: // holds you where you stand, then it lands
+                if (me) { Slow(awake ? 2f : 1.2f); SpawnStrike(target, 1f, 1f, e.Damage, $"พลัง{PowerName(p)}!", col); }
+                break;
+            case Power.Gale or Power.Abyss: // flings you about / drags you under
+                if (me) { bossPullTo = e.grid + (target - e.grid).normalized * 4f; bossPullT = awake ? 1f : 0.6f; SpawnStrike(target, 0.9f, 0.8f, e.Damage * 0.8f, $"พลัง{PowerName(p)}!", col); }
+                break;
+            default: // Flame, Star: a burst on you
+                if (me) for (int i = 0; i < (awake ? 4 : 2); i++) SpawnStrike(target + Random.insideUnitCircle * 1.2f, 0.9f + i * 0.2f, 0.8f, e.Damage * 0.8f, $"พลัง{PowerName(p)}!", col);
                 break;
         }
         Popup(PowerName(p) + (awake ? "!!" : "!"), e.transform.position + Vector3.up * 1.2f, col);
@@ -174,6 +183,6 @@ public partial class IslandGame
     void FruitUserDown(Vector3 at)
     {
         AddBounty(8000, at + Vector3.up * 1.2f, null);
-        if (rnd.NextDouble() < 0.04) { Give(FruitFor(biome), 1, null); Popup("ได้ผลไม้พิเศษ!", at + Vector3.up * 1.5f, new Color(1f, 0.85f, 0.3f)); }
+        if (rnd.NextDouble() < 0.04) { Give(FruitHere(biome), 1, null); Popup("ได้ผลไม้พิเศษ!", at + Vector3.up * 1.5f, new Color(1f, 0.85f, 0.3f)); }
     }
 }

@@ -2002,6 +2002,15 @@ public static partial class PixelArt
         Item.FruitVine => (Hex("#1f5a1a"), Hex("#4fbf3a"), Hex("#c8ff8a")),
         Item.FruitMagnet => (Hex("#6a1010"), Hex("#d9534f"), Hex("#ffb0a0")),
         Item.FruitBubble => (Hex("#2a6a9a"), Hex("#8fd8ff"), Hex("#ffffff")),
+        Item.FruitFrost => (Hex("#3a7aa8"), Hex("#a8e0ff"), Hex("#ffffff")),
+        Item.FruitMirror => (Hex("#7a8a9a"), Hex("#d8e4f0"), Hex("#ffffff")),
+        Item.FruitGale => (Hex("#2a8a5a"), Hex("#8af0b8"), Hex("#e8fff0")),
+        Item.FruitFlame => (Hex("#8a1a00"), Hex("#ff6a1a"), Hex("#ffe06a")),
+        Item.FruitQuake => (Hex("#5a3a1a"), Hex("#b8864a"), Hex("#f0d0a0")),
+        Item.FruitIron => (Hex("#3a3e48"), Hex("#9aa0b0"), Hex("#f0f2f8")),
+        Item.FruitGravity => (Hex("#1a0a3a"), Hex("#6a3ac8"), Hex("#c8a8ff")),
+        Item.FruitStar => (Hex("#8a6a1a"), Hex("#ffe88a"), Hex("#ffffff")),
+        Item.FruitAbyss => (Hex("#0a1a5a"), Hex("#2a6ae0"), Hex("#8ac8ff")),
         _ => (Hex("#8a6a00"), Hex("#f2d43a"), Hex("#fff6b0")),
     };
 
@@ -2039,6 +2048,15 @@ public static partial class PixelArt
             case Item.FruitVine: c.Line(5, 12, 7, 7, mark); c.Line(7, 7, 10, 8, mark); c.Line(10, 8, 11, 11, mark); break; // curl
             case Item.FruitMagnet: c.Rect(5, 6, 2, 6, mark); c.Rect(10, 6, 2, 6, mark); c.Rect(5, 11, 7, 2, mark); break; // horseshoe
             case Item.FruitBubble: c.Ring(8, 9, 3, 1, mark); c.Set(7, 7, Color.white); break; // bubble
+            case Item.FruitFrost: c.Line(8, 5, 8, 13, mark); c.Line(4, 9, 12, 9, mark); c.Line(5, 6, 11, 12, mark); c.Line(11, 6, 5, 12, mark); break; // snowflake
+            case Item.FruitMirror: c.Rect(6, 6, 5, 7, Hex("#5a6a7a")); c.Rect(7, 7, 3, 5, Color.white); break; // a little mirror
+            case Item.FruitGale: c.Line(4, 7, 11, 7, mark); c.Line(5, 10, 12, 10, mark); c.Line(4, 13, 9, 13, mark); break; // gusts
+            case Item.FruitFlame: c.Ball(8, 10, 2.5f, 3, Hex("#ffe06a"), Hex("#ffe06a"), Color.white); c.Line(8, 5, 7, 8, Hex("#ffe06a")); break; // a flame
+            case Item.FruitQuake: c.Line(4, 6, 7, 9, mark); c.Line(7, 9, 6, 11, mark); c.Line(6, 11, 10, 14, mark); break; // a crack
+            case Item.FruitIron: c.Rect(5, 7, 6, 5, Hex("#5a5e68")); c.Rect(6, 8, 4, 3, Color.white); break; // an ingot
+            case Item.FruitGravity: c.Ring(8, 9, 3, 1, Hex("#c8a8ff")); c.Set(8, 9, Color.black); c.Set(7, 9, Color.black); break; // a well
+            case Item.FruitStar: c.Line(8, 5, 8, 13, Hex("#fff6c8")); c.Line(4, 9, 12, 9, Hex("#fff6c8")); c.Set(8, 9, Color.white); break; // a star
+            case Item.FruitAbyss: c.Line(4, 9, 6, 7, mark); c.Line(6, 7, 8, 9, mark); c.Line(8, 9, 10, 7, mark); c.Line(10, 7, 12, 9, mark); break; // a wave
         }
     }
 

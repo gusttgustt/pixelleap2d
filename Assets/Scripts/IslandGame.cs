@@ -31,6 +31,8 @@ public enum Item
     TideScale, StormPearl, MirrorIce, QueenTear, LavaCore, HydraFang, VoidShard, StarEye,
     // ...and they make each continent's gear: a weapon, armour and an accessory
     TideBlade, TideMail, TideCharm, FrostLance, FrostRobe, FrostRing, MagmaAxe, MagmaPlate, MagmaAmulet, VoidScythe, VoidCloak, VoidEye,
+    // the later continents' special fruits (IslandGame.NewPowers.cs)
+    FruitFrost, FruitMirror, FruitGale, FruitFlame, FruitQuake, FruitIron, FruitGravity, FruitStar, FruitAbyss,
 }
 
 public enum NodeKind { Tree, FruitTree, Bush, Grass, Stick, Rock, Stump, Campfire, Shelter, Raft, Bamboo, Obsidian, Hut, Totem, GlowShroom, GlowTree, Shell, CloudPlant,
@@ -394,6 +396,9 @@ public partial class IslandGame : MonoBehaviour
         Item.FrostLance => "ทวนน้ำแข็งนิรันดร์", Item.FrostRobe => "เสื้อคลุมราชินีหิมะ", Item.FrostRing => "แหวนกระจกเหมันต์",
         Item.MagmaAxe => "ขวานไฮดราเพลิง", Item.MagmaPlate => "เกราะหลอมลาวา", Item.MagmaAmulet => "สร้อยแกนลาวา",
         Item.VoidScythe => "เคียวหลุมดำ", Item.VoidCloak => "ผ้าคลุมดาราดับ", Item.VoidEye => "ดวงตาแห่งความว่าง",
+        Item.FruitFrost => "ผลน้ำแข็ง", Item.FruitMirror => "ผลกระจก", Item.FruitGale => "ผลวายุ",
+        Item.FruitFlame => "ผลเปลวเพลิง", Item.FruitQuake => "ผลแผ่นดินไหว", Item.FruitIron => "ผลเหล็กกล้า",
+        Item.FruitGravity => "ผลแรงโน้มถ่วง", Item.FruitStar => "ผลดวงดาว", Item.FruitAbyss => "ผลกระแสน้ำลึก",
         _ => it.ToString(),
     };
 

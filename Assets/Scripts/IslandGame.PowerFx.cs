@@ -22,7 +22,7 @@ public partial class IslandGame
         if (!DevMode || kb == null || (player == null && voyage == null) || chatOpen) return;
         if (kb.f1Key.wasPressedThisFrame)
         {
-            power = power == Power.Bubble || power == Power.None ? Power.Dash : power + 1;
+            power = power == Power.Abyss || power == Power.None ? Power.Dash : power + 1; // every fruit, the later continents' too
             powerCd = 0f; powerAtkCd = 0f;
             Hint($"[dev] พลัง{PowerName(power)} Lv {powerLv}", 2f);
         }

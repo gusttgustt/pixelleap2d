@@ -218,7 +218,7 @@ public partial class IslandGame
         Give(new[] { Item.CookedFish, Item.CookedMeat, Item.CookedFruit }[r.Next(3)], 2, n);
         Give(new[] { Item.Rope, Item.Wood, Item.Stone }[r.Next(3)], 4 + r.Next(4), n);
         if (r.Next(4) == 0) Give(Item.Antidote, 1, n);
-        if (r.Next(8) == 0) Give(FruitFor(biome), 1, n); // a special fruit!
+        if (r.Next(8) == 0) Give(FruitHere(biome), 1, n); // a special fruit!
         AddXp(10 + island * 2, at);
         Fx.Burst(at + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 18, 1.2f, 1.6f, 1f, 2f);
         Sfx.Play("levelup", 0.5f);
@@ -258,7 +258,7 @@ public partial class IslandGame
         flags.Add("alpha" + island);
         Hint($"ล้มจ่าฝูง{EnemyName(e.kind)}แล้ว! ได้สมบัติจากรังของมัน", 6f);
         var r = new System.Random(seed + 99);
-        if (r.Next(3) == 0) Give(FruitFor(biome), 1, null);
+        if (r.Next(3) == 0) Give(FruitHere(biome), 1, null);
         Give(Item.CookedMeat, 3, null);
         AddXp(60 + island * 6, e.transform.position);
         skillPoints++;

@@ -253,7 +253,7 @@ public class WorldNode : MonoBehaviour
             NodeKind.CrystalVault => PixelArt.CrystalVault(IslandGame.I.Flag("vault" + IslandGame.I.island)),
             NodeKind.HotSpring => PixelArt.HotSpring(),
             NodeKind.CloudPlant => PixelArt.CloudPlant(available),
-            NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.FruitFor(biome)),
+            NodeKind.GlowTree => PixelArt.GlowTree(available, IslandGame.I.FruitHere(biome)),
             NodeKind.CaveEntrance => PixelArt.CaveMouth(),
             NodeKind.CaveExit => PixelArt.CaveLight(),
             _ => PixelArt.Campfire(fireFrame),

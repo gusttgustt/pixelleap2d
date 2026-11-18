@@ -14,13 +14,13 @@ public partial class IslandGame
     public static string PowerAttackName(Power p) => p switch
     {
         Power.Dash => "สายฟ้าฟาด", Power.Shadow => "จันทร์ทมิฬ", Power.Vine => "หนามพันธนาการ",
-        Power.Magnet => "คลื่นแม่เหล็ก", Power.Bubble => "ฟองระเบิด", _ => "-",
+        Power.Magnet => "คลื่นแม่เหล็ก", Power.Bubble => "ฟองระเบิด", _ => NewAttackName(p),
     };
 
     static Color PowerColor(Power p) => p switch
     {
         Power.Dash => new Color(1f, 0.92f, 0.35f), Power.Shadow => new Color(0.6f, 0.45f, 1f), Power.Vine => new Color(0.45f, 0.85f, 0.3f),
-        Power.Magnet => new Color(1f, 0.45f, 0.45f), Power.Bubble => new Color(0.6f, 0.9f, 1f), _ => Color.white,
+        Power.Magnet => new Color(1f, 0.45f, 0.45f), Power.Bubble => new Color(0.6f, 0.9f, 1f), _ => NewPowerColor(p),
     };
 
     float PowerAttackCooldown => Awakened ? AwakenSkillCd : Mathf.Max(2.5f, 8f - 0.8f * powerLv);
@@ -130,7 +130,7 @@ public partial class IslandGame
                 health = Mathf.Min(MaxHealth, health + 2f * powerLv);
                 Sfx.Play("splash", 0.6f);
                 break;
-            default: // Shadow: a dark nova
+            case Power.Shadow: // a dark nova
                 foreach (var e in enemies.ToArray())
                 {
                     if (e == null || e.Disguised || (e.grid - me).magnitude > radius) continue;
@@ -140,6 +140,7 @@ public partial class IslandGame
                 Ring(radius, col, 24); Ring(radius * 0.6f, new Color(0.2f, 0.1f, 0.35f), 16);
                 Sfx.Play("hurt", 0.4f);
                 break;
+            default: hits = NewPowerAttack(me, radius, dmg, col); break; // the later continents' fruits (IslandGame.NewPowers.cs)
         }
         AttackBurstFx(power, me, radius);
         powerAtkCd = PowerAttackCooldown;

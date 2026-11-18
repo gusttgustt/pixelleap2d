@@ -827,6 +827,7 @@ public partial class IslandGame
         if (voyage != null) amount *= 1f - RaftArmor; // a sturdier raft keeps you out of the water
         amount *= 1f - GearArmor; // hide vest and other armour
         amount *= 1f - 0.05f * SkillLv(Skill.AwGuard); // awakened: Spirit Armour
+        if (ironT > 0f) amount *= 0.2f;                // iron skin (IslandGame.NewPowers.cs)
         if (voyage != null && Count(Item.Balloon) > 0) amount *= 0.3f; // flying above the waves
         if (health - amount <= 0f && SkillLv(Skill.AwGrit) > 0 && Time.time >= gritReadyAt) // awakened: Never Give Up
         {

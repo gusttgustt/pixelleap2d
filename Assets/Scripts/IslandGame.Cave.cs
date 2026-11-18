@@ -350,7 +350,7 @@ public partial class IslandGame
         AddXp(120 + island * 12, at);
         Give(Item.GoldCoin, 15 + island * 2, null);
         Give(Item.CrystalShard, 2 + tier, null);
-        if (rnd.NextDouble() < 0.3) Give(FruitFor(caveBiome), 1, null);
+        if (rnd.NextDouble() < 0.3) Give(FruitHere(caveBiome), 1, null);
         string f = "caveboss" + WorldKey(island, continent);
         bool first = !Flag(f);
         if (first) { flags.Add(f); skillPoints++; }

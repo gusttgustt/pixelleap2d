@@ -32,12 +32,12 @@ public partial class IslandGame
     float AwakenReach => Awakened ? (Awaken2 ? 1.9f : 1.5f) : 1f;
     int AwakenDmg(int d) => Awakened ? Mathf.CeilToInt(d * (Awaken2 ? 2.4f : 1.75f)) : d;
     float AwakenSpeed => !Awakened ? 1f : power == Power.Dash ? (Awaken2 ? 1.75f : 1.5f) : Awaken2 ? 1.2f : 1.1f;
-    float AwakenArmor => Awakened && power == Power.Bubble ? (Awaken2 ? 0.25f : 0.4f) : Awakened && Awaken2 ? 0.85f : 1f;
+    float AwakenArmor => Awakened && power == Power.Bubble ? (Awaken2 ? 0.25f : 0.4f) : Awakened && power == Power.Iron ? (Awaken2 ? 0.35f : 0.5f) : Awakened && Awaken2 ? 0.85f : 1f;
 
     public static string UltimateName(Power p) => p switch
     {
         Power.Dash => "พันสายฟ้าฟาด", Power.Shadow => "ราตรีนิรันดร์", Power.Vine => "ป่าพิโรธ",
-        Power.Magnet => "หลุมแม่เหล็กโลก", Power.Bubble => "สึนามิฟองสมุทร", _ => "-",
+        Power.Magnet => "หลุมแม่เหล็กโลก", Power.Bubble => "สึนามิฟองสมุทร", _ => NewUltimateName(p),
     };
 
     /// Level 99, awakened, Y again: a blast of the fruit's power all around (once per awakening).
@@ -74,7 +74,7 @@ public partial class IslandGame
     public static string AwakenName(Power p) => p switch
     {
         Power.Dash => "เทพสายฟ้า", Power.Shadow => "ราชันเงา", Power.Vine => "ป่าคืนชีพ",
-        Power.Magnet => "ราชาแม่เหล็ก", Power.Bubble => "ป้อมฟองสมุทร", _ => "-",
+        Power.Magnet => "ราชาแม่เหล็ก", Power.Bubble => "ป้อมฟองสมุทร", _ => NewAwakenName(p),
     };
 
     static string AwakenDesc(Power p) => p switch
@@ -84,7 +84,7 @@ public partial class IslandGame
         Power.Vine => "ฟื้นเลือดทุกวินาที ศัตรูใกล้ตัวถูกเถาวัลย์รัดไว้",
         Power.Magnet => "ดูดของรอบตัวเข้ากระเป๋าเอง ศัตรูที่เข้าใกล้ถูกผลักกระเด็น",
         Power.Bubble => "รับดาเมจน้อยลงมาก กันพิษ มีโล่ฟองและฟื้นเลือดช้าๆ",
-        _ => "",
+        _ => NewAwakenDesc(p),
     };
 
     /// Right click: the power (R); if it's recharging, the special move (T); then the awakening (Y).
@@ -214,6 +214,7 @@ public partial class IslandGame
                 health = Mathf.Min(MaxHealth, health + (Awaken2 ? 3.5f : 1.5f));
                 poisonT = 0f;
                 break;
+            default: NewAwakenTick(me, col); break; // the later continents' fruits (IslandGame.NewPowers.cs)
         }
     }
 
