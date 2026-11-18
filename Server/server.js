@@ -408,7 +408,10 @@ function onMessage(socket, text) {
   const named = m.t !== "register" && m.t !== "login" && m.t !== "token";
   if (named && m.name !== undefined) m.name = socket.name; // nor go by another name than the one checked at hello
 
-  if (m.t === "chat") { m.text = cleanText(m.text, 80); if (!m.text) return; } // nothing oversized, no rich-text tags
+  if (m.t === "chat") {
+    m.text = cleanText(m.text, 80); if (!m.text) return; // nothing oversized, no rich-text tags
+    if (!bucket(socket, "chatBucket", CHAT_RATE, CHAT_BURST)) return; // nor a flood over the whole room
+  }
   if (m.t === "hit") {
     // a blow on the host's creature (passed on below): the host's game caps it too (AllowHit)
     m.dmg = num(m.dmg, 0, 100000);
@@ -456,7 +459,7 @@ function onMessage(socket, text) {
       const ver = cur + 1;
       saveVersions.set(socket.acct, ver);
       const lv = trustLevel(socket, saveLevel(text));
-      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver, lv: lv.lv, lvAt: lv.at }));
+      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver, lv: lv.lv, lvCredit: Math.floor(lv.credit * 100) / 100 }));
       socket.acctLv = lv.lv || socket.acctLv;
       send(socket, { t: "saved", ver });
       return;
@@ -514,7 +517,7 @@ function onMessage(socket, text) {
       // rebuilt from the fields the game reads (IslandGame.Crew.cs), nothing big passed on
       send(s, { t: "crew", from: socket.pid, to: s.pid, ev: cleanText(m.ev, 16), name: socket.name, island: m.island | 0,
                 d: m.d | 0, x: num(m.x, -1e6, 1e6), y: num(m.y, -1e6, 1e6), look: int(m.look, 0, 2000000), lv: m.lv | 0,
-                text: typeof m.text === "string" ? m.text.slice(0, 2000) : "" });
+                text: cleanText(m.text, 2000) }); // (crew lists, names: no rich-text tags either)
       return;
     }
     case "knock": {
@@ -554,7 +557,8 @@ function onMessage(socket, text) {
       if (!socket.island) return;
       const p = playerUpdate(m);
       if (!p) return;
-      if (socket.acctLv) p.lv = socket.acctLv; // an account's level is the one in its save here, not what the game says
+      // an account's level is the one in its save here, not what the game says; a guest's rises no faster than play
+      p.lv = socket.acctLv || guestLevel(socket, p.lv);
       if (p.t === "p") { limitMove(socket, p); socket.downed = p.dn === 1; }
       toRoom(socket.island, p, socket.pid);
       return;
@@ -620,7 +624,42 @@ const MAX_EN = 200;                   // creatures in one "en" update (an island
 const BITE_RATE = 3, BITE_BURST = 6;  // bites one player may take per second (each creature bites every 1.3 s)
 const BITE_REACH = 4;                 // tiles: a bite needs one of the host's creatures this close to the player
 const MAX_BITE = 2500;                // the game takes no more than this from one bite either (MaxNetBite)
+// All bites on one player together: the strongest boss bites ~250 every 1.3 s, a swarm a few times
+// that; even the toughest player (~1500 health) takes some seconds to go down from a changed host.
+const BITE_DMG_RATE = 500, BITE_DMG_BURST = 1000;
+// Where the host's creatures are, as the server lets them be: the fastest walks ~2.3 tiles/s (a dash,
+// a knock back a little more), so one may move no faster than this between "en" updates. A creature
+// the host makes up next to someone has to be new: new ones are few a second, and only bite once
+// they have been around a little.
+const EN_RATE = 6, EN_BURST = 4;      // tiles/s, tiles
+const NEW_EN_RATE = 2, NEW_EN_BURST = 120; // new creatures a room may get per second
+const EN_SETTLE = 1500;               // ms before a new creature can bite
+const CHAT_RATE = 2, CHAT_BURST = 5;  // chat lines one player may send per second
 const KILL_RATE = 6, KILL_BURST = 20; // kills a host may announce per second
+
+/// The host's creatures as the server keeps them (room.enemies: id -> { x, y, since, seen }): each
+/// moves toward where the host says, but no faster than a creature can; new ones come a few at a time.
+function trackEnemies(r, en) {
+  const now = Date.now();
+  const map = r.enemies || (r.enemies = new Map());
+  for (const e of en) {
+    let t = map.get(e.id);
+    if (!t) {
+      if (!bucket(r, "newEnBucket", NEW_EN_RATE, NEW_EN_BURST)) continue; // a flood of made-up ones: not tracked, can't bite
+      t = { x: e.x, y: e.y, since: now, budget: EN_BURST };
+      map.set(e.id, t);
+    } else {
+      // as limitMove: a budget of tiles that refills at EN_RATE, up to EN_BURST
+      t.budget = Math.min(EN_BURST, t.budget + EN_RATE * (now - t.seen) / 1000);
+      const dx = e.x - t.x, dy = e.y - t.y, d = Math.hypot(dx, dy), k = d > t.budget ? t.budget / d : 1;
+      t.x += dx * k; t.y += dy * k; t.budget -= d * k;
+    }
+    t.seen = now;
+  }
+  for (const [id, t] of map) if (now - t.seen > 60000) map.delete(id); // gone a while: forgotten
+  if (map.size > MAX_EN * 4) for (const [id, t] of map) if (t.seen !== now) map.delete(id);
+  r.enemiesAt = now;
+}
 
 /// A token bucket kept on any object: true while there's room for one more.
 function bucket(o, key, rate, burst) {
@@ -641,7 +680,7 @@ const RELAY = {
       x: num(e.x, -1000, 1000), y: num(e.y, -1000, 1000), // (not only island maps: creatures at sea too)
     }));
     const r = rooms.get(socket.island);
-    if (r) { r.enemies = en; r.enemiesAt = Date.now(); } // where the host's creatures are: bites are checked against it
+    if (r) trackEnemies(r, en); // where the host's creatures are: bites are checked against it
     return { en };
   },
   dmg: (m, socket) => {
@@ -651,14 +690,23 @@ const RELAY = {
     // creatures itself would stop that fully.)
     const s = clients.get(m.to | 0);
     if (!s || s === socket || s.island !== socket.island) return null;
-    const r = rooms.get(socket.island);
-    if (s.pos && r && r.enemies) {
-      if (Date.now() - r.enemiesAt > 3000) return null;
-      if (!r.enemies.some(e => Math.hypot(e.x - s.pos.x, e.y - s.pos.y) <= BITE_REACH)) return null;
-    } else if (s.pos) return null;     // creatures never reported: nothing can be biting
+    // on a private island only its owner's game runs the creatures (a visitor first in the room doesn't)
+    if (socket.island < 0 && !onHomeOf(socket, socket.pid)) return null;
+    // creatures chase only players whose place they know ("p"), and leave a knocked-out one alone
+    if (!s.pos || s.downed) return null;
+    const r = rooms.get(socket.island), now = Date.now();
+    if (!r || !r.enemies || now - r.enemiesAt > 3000) return null; // creatures never reported: nothing can be biting
+    let near = false;
+    for (const e of r.enemies.values())
+      if (e.seen === r.enemiesAt && now - e.since >= EN_SETTLE && Math.hypot(e.x - s.pos.x, e.y - s.pos.y) <= BITE_REACH) { near = true; break; }
+    if (!near) return null;
     if (!bucket(s, "biteBucket", BITE_RATE, BITE_BURST)) return null;
-    const dmg = num(m.dmg, 0, MAX_BITE);
+    // all bites together no more than BITE_DMG_RATE a second (what is left of it, if a bite is bigger)
+    const b = s.biteDmg || (s.biteDmg = { n: BITE_DMG_BURST, at: now });
+    b.n = Math.min(BITE_DMG_BURST, b.n + (now - b.at) / 1000 * BITE_DMG_RATE); b.at = now;
+    const dmg = Math.min(num(m.dmg, 0, MAX_BITE), b.n);
     if (!(dmg > 0)) return null;
+    b.n -= dmg;
     return { to: s.pid, dmg, why: cleanText(m.why, 40) };
   },
   kill: (m, socket) => {
@@ -708,22 +756,49 @@ function limitMove(socket, p) {
 /// The save comes whole from the player's game, so the server can't know what really happened in
 /// it. What it can do: the level others see (and the one kept with the save as "lv") rises no faster
 /// than playing can raise it. A save claiming more is still kept for that player (it is their own
-/// game), but everyone else sees the level the server let through. The first save of an account
-/// may bring the level a guest had already reached before making it.
-const LEVEL_FREE = 5, LEVELS_PER_MIN = 2;
-const trustedLv = new Map();          // account -> { lv, at }
-function trustLevel(socket, claimed) {
-  const key = socket.acct, prev = trustedLv.get(key);
+/// game), but everyone else sees the level the server let through.
+/// Levels are earned as credit only while the player is online and in the game (LEVELS_PER_MIN, at
+/// most LEVEL_BANK kept): a day away gives nothing to jump with. A guest starts at FIRST_LEVEL at most
+/// and rises the same way; a new account's first save brings at most FIRST_LEVEL or what that
+/// connection already showed as a guest.
+const LEVEL_FREE = 5, LEVELS_PER_MIN = 2, LEVEL_BANK = 60, FIRST_LEVEL = 10;
+const trustedLv = new Map();          // account -> { lv, credit }
+
+/// Credit for the time this connection has been in the game since it was last counted.
+function earnLevels(socket, t) {
   const now = Date.now();
-  if (!claimed) return prev || { lv: 0, at: now };
-  if (!prev || !prev.lv) { const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t; }
-  if (claimed <= prev.lv) { const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t; } // (a level lost: fine)
-  const most = prev.lv + LEVEL_FREE + Math.floor((now - prev.at) / 60000 * LEVELS_PER_MIN);
-  if (claimed > most) {
-    if (now - (socket.lvLogAt || 0) > 60000) { socket.lvLogAt = now; log("! " + socket.name + " (" + socket.ip + ") save says level " + claimed + ", was " + prev.lv + ": shown as " + most); }
-    return { lv: most, at: prev.at };   // not stored: the clock keeps running from the last real rise
+  if (socket.playing && socket.lvClock) t.credit = Math.min(LEVEL_BANK, (t.credit || 0) + (now - socket.lvClock) / 60000 * LEVELS_PER_MIN);
+  socket.lvClock = now;
+}
+
+/// The level shown for a claimed one: as much of the rise as the credit allows.
+function allowLevel(socket, t, claimed) {
+  earnLevels(socket, t);
+  if (claimed <= t.lv) { t.lv = claimed; return t.lv; } // (a level lost: fine)
+  const up = Math.min(claimed - t.lv, Math.floor(t.credit));
+  t.lv += up; t.credit -= up;
+  if (t.lv < claimed && Date.now() - (socket.lvLogAt || 0) > 60000) { socket.lvLogAt = Date.now(); log("! " + socket.name + " (" + socket.ip + ") says level " + claimed + ": shown as " + t.lv); }
+  return t.lv;
+}
+
+function trustLevel(socket, claimed) {
+  const key = socket.acct;
+  let t = trustedLv.get(key);
+  if (!t || !t.lv) {
+    if (!claimed) return t || { lv: 0, credit: 0 };
+    const guest = socket.guestLv ? socket.guestLv.lv : 0;
+    t = { lv: Math.min(claimed, Math.max(FIRST_LEVEL, guest)), credit: 0 };
+    trustedLv.set(key, t);
+    earnLevels(socket, t);
   }
-  const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t;
+  if (claimed) allowLevel(socket, t, claimed);
+  return t;
+}
+
+/// A guest's level as others see it (kept per connection: a new one starts again from FIRST_LEVEL).
+function guestLevel(socket, claimed) {
+  if (!socket.guestLv) { socket.guestLv = { lv: Math.min(claimed, FIRST_LEVEL), credit: 0 }; earnLevels(socket, socket.guestLv); }
+  return allowLevel(socket, socket.guestLv, claimed);
 }
 
 /// The level in an account's save (the save's own "level", near its start), or 0 if none.
@@ -928,8 +1003,9 @@ function authOk(socket, acc) {
   const data = readSave(socket.acct);
   if (!trustedLv.has(socket.acct)) {
     const lv = data.lv | 0 || saveLevel(data.save); // the level the server let through last time (older saves: their own)
-    if (lv) trustedLv.set(socket.acct, { lv, at: +data.lvAt || +data.at || Date.now() });
+    if (lv) trustedLv.set(socket.acct, { lv, credit: Number.isFinite(+data.lvCredit) ? Math.max(0, Math.min(LEVEL_BANK, +data.lvCredit)) : LEVEL_FREE }); // (time away earns nothing)
   }
+  socket.lvClock = Date.now(); // this account's credit counts from now
   socket.acctLv = (trustedLv.get(socket.acct) || {}).lv || 1; // shown to others from here on (a new account: 1 until its first save)
   send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.acct) });
   log("  " + socket.name + " logged in as " + acc.name);
