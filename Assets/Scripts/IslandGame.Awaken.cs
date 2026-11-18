@@ -14,20 +14,62 @@ using UnityEngine;
 public partial class IslandGame
 {
     public const int AwakenLevel = 60;
-    const float AwakenDuration = 20f;   // seconds the awakening lasts
-    const float AwakenRecharge = 60f;   // seconds after it ends before it can be used again
+    /// Level 99: the second awakening. It lasts longer, comes back sooner, hits harder and further,
+    /// its buff is stronger, and while it's on, Y once more lets loose the fruit's finishing move.
+    public const int Awaken2Level = 99;
+    float AwakenDuration => Awaken2 ? 35f : 20f;   // seconds the awakening lasts
+    float AwakenRecharge => Awaken2 ? 45f : 60f;   // seconds after it ends before it can be used again
     const float AwakenSkillCd = 0.5f;   // R and T cooldown while awakened
 
     float awakenT, awakenCd, awakenTickT, awakenAuraT, awakenRingT;
+    bool ultimateUsed; // the finishing move: once per awakening
 
     public bool Awakened => awakenT > 0f && power != Power.None;
     public bool CanAwaken => level >= AwakenLevel && power != Power.None;
+    public bool Awaken2 => level >= Awaken2Level;
     public float AwakenReady => !CanAwaken ? 0f : Awakened ? 1f : 1f - Mathf.Clamp01(awakenCd / AwakenRecharge);
 
-    float AwakenReach => Awakened ? 1.5f : 1f;
-    int AwakenDmg(int d) => Awakened ? Mathf.CeilToInt(d * 1.75f) : d;
-    float AwakenSpeed => !Awakened ? 1f : power == Power.Dash ? 1.5f : 1.1f;
-    float AwakenArmor => Awakened && power == Power.Bubble ? 0.4f : 1f;
+    float AwakenReach => Awakened ? (Awaken2 ? 1.9f : 1.5f) : 1f;
+    int AwakenDmg(int d) => Awakened ? Mathf.CeilToInt(d * (Awaken2 ? 2.4f : 1.75f)) : d;
+    float AwakenSpeed => !Awakened ? 1f : power == Power.Dash ? (Awaken2 ? 1.75f : 1.5f) : Awaken2 ? 1.2f : 1.1f;
+    float AwakenArmor => Awakened && power == Power.Bubble ? (Awaken2 ? 0.25f : 0.4f) : Awakened && Awaken2 ? 0.85f : 1f;
+
+    public static string UltimateName(Power p) => p switch
+    {
+        Power.Dash => "พันสายฟ้าฟาด", Power.Shadow => "ราตรีนิรันดร์", Power.Vine => "ป่าพิโรธ",
+        Power.Magnet => "หลุมแม่เหล็กโลก", Power.Bubble => "สึนามิฟองสมุทร", _ => "-",
+    };
+
+    /// Level 99, awakened, Y again: a blast of the fruit's power all around (once per awakening).
+    void UseUltimate()
+    {
+        if (!Awakened || !Awaken2 || ultimateUsed || player == null) return;
+        ultimateUsed = true;
+        var c = PowerColor(power);
+        Vector2 me = MeGrid;
+        int dmg = AwakenDmg(20 + 8 * powerLv);
+        int hits = 0;
+        foreach (var e in enemies.ToArray())
+        {
+            if (e == null || e.Disguised || (e.grid - me).magnitude > 5f) continue;
+            HitWithPower(e, dmg);
+            if (power == Power.Vine) e.Stun(4f);
+            if (power == Power.Magnet) e.Push((me - e.grid).normalized * 1.5f); // dragged into the middle
+            hits++;
+        }
+        if (power == Power.Shadow) invisibleT = Mathf.Max(invisibleT, 8f);
+        if (power == Power.Bubble) { bubbleT = Mathf.Max(bubbleT, 10f); bubbleHits = Mathf.Max(bubbleHits, 5); }
+        if (power == Power.Vine) health = Mathf.Min(MaxHealth, health + MaxHealth * 0.3f);
+        Shockwave(me, 5f, c, 0.9f);
+        Shockwave(me, 3.5f, Color.white, 0.8f, 0.1f, 0.6f);
+        Shockwave(me, 6f, c, 1f, 0.25f, 0.5f);
+        Fx.Radial(PlayerPos + Vector3.up * 0.4f, c, 60, 4.5f, 0.6f, 2.5f);
+        if (power == Power.Dash) for (int i = 0; i < 6; i++) LightningFlash();
+        ScreenFlash(new Color(c.r, c.g, c.b, 0.5f), 0.7f);
+        Shake(0.18f, 0.6f);
+        Sfx.Play("levelup", 1f);
+        Popup($"ท่าไม้ตาย! {UltimateName(power)}" + (hits > 0 ? $" x{hits}" : ""), PlayerPos + Vector3.up * 1.6f, c);
+    }
 
     public static string AwakenName(Power p) => p switch
     {
@@ -58,11 +100,13 @@ public partial class IslandGame
     {
         if (power == Power.None) { Hint("ยังไม่มีพลัง กินผลไม้พิเศษจากต้นไม้เรืองแสงก่อน", 3f); return; }
         if (level < AwakenLevel) { Hint($"ปลุกพลังผลไม้ได้ตอนเลเวล {AwakenLevel} (ตอนนี้เลเวล {level})", 3f); return; }
+        if (Awakened && Awaken2 && !ultimateUsed && player != null) { UseUltimate(); return; } // level 99: Y again
         if ((player == null && voyage == null) || dead || Busy || Awakened) return;
         if (awakenCd > 0f) { Hint($"ปลุกพลังได้อีกครั้งใน {Mathf.CeilToInt(awakenCd)} วิ", 2f); return; }
 
         awakenT = AwakenDuration;
         awakenCd = AwakenDuration + AwakenRecharge;
+        ultimateUsed = false;
         awakenTickT = 0.3f;
         powerCd = 0f; powerAtkCd = 0f;
         if (power == Power.Shadow) invisibleT = Mathf.Max(invisibleT, AwakenDuration);
@@ -80,7 +124,17 @@ public partial class IslandGame
         Shake(0.1f, 0.4f);
         if (power == Power.Dash) LightningFlash();
         Popup($"ปลุกพลัง! {AwakenName(power)}", at + Vector3.up * 1.4f, c);
-        Hint($"{AwakenName(power)}: {AwakenDesc(power)} สกิลคูลดาวน์ 0.5 วิ โจมตีแรงขึ้น ไกลขึ้น กว้างขึ้น ({AwakenDuration:0} วิ)", 6f);
+        Hint($"{AwakenName(power)}: {AwakenDesc(power)} สกิลคูลดาวน์ 0.5 วิ โจมตีแรงขึ้น ไกลขึ้น กว้างขึ้น ({AwakenDuration:0} วิ)"
+            + (Awaken2 ? $" · ปลุกพลังขั้น 2: กด Y อีกครั้งเพื่อใช้ท่าไม้ตาย \"{UltimateName(power)}\"" : ""), 6f);
+    }
+
+    /// Reached level 99 (from AddXp).
+    void Awaken2Unlocked()
+    {
+        QuestBanner("ปลุกพลังขั้น 2!", power == Power.None
+            ? "กินผลไม้พิเศษแล้วจะได้ปลุกพลังขั้น 2: นานขึ้น แรงขึ้น และท่าไม้ตาย"
+            : $"ปลุกพลังนานขึ้น ({AwakenDuration:0} วิ) แรงขึ้น บัพแรงขึ้น · ท่าไม้ตายใหม่ \"{UltimateName(power)}\" (ระหว่างปลุกพลังกด Y อีกครั้ง)", new Color(1f, 0.82f, 0.3f));
+        if (power != Power.None) { var c = PowerColor(power); Shockwave(MeGrid, 4.5f, c, 0.9f); ScreenFlash(new Color(c.r, c.g, c.b, 0.35f), 0.6f); }
     }
 
     /// Reached level 60 (from AddXp).
@@ -125,13 +179,13 @@ public partial class IslandGame
                     float d = (e.grid - me).magnitude;
                     if (d < bd) { bd = d; best = e; }
                 }
-                if (best != null) { SkyBoltFx(best, col); HitWithPower(best, 2 + powerLv); Sfx.Play("hit", 0.4f); }
+                if (best != null) { SkyBoltFx(best, col); HitWithPower(best, (2 + powerLv) * (Awaken2 ? 2 : 1)); Sfx.Play("hit", 0.4f); }
                 break;
             case Power.Shadow:
                 invisibleT = Mathf.Max(invisibleT, awakenT);
                 break;
             case Power.Vine:
-                health = Mathf.Min(MaxHealth, health + 3f);
+                health = Mathf.Min(MaxHealth, health + (Awaken2 ? 6f : 3f));
                 if (player == null) break;
                 foreach (var e in enemies)
                 {
@@ -157,7 +211,7 @@ public partial class IslandGame
                 }
                 break;
             case Power.Bubble:
-                health = Mathf.Min(MaxHealth, health + 1.5f);
+                health = Mathf.Min(MaxHealth, health + (Awaken2 ? 3.5f : 1.5f));
                 poisonT = 0f;
                 break;
         }
@@ -222,7 +276,7 @@ public partial class IslandGame
         if (!CanAwaken) return y;
         var c = PowerColor(power);
         float ready = AwakenReady;
-        string text = Awakened ? $"ปลุกพลัง: {AwakenName(power)} เหลือ {awakenT:0.0} วิ"
+        string text = Awakened ? $"ปลุกพลัง{(Awaken2 ? "ขั้น 2" : "")}: {AwakenName(power)} เหลือ {awakenT:0.0} วิ" + (Awaken2 && !ultimateUsed ? $" · ท่าไม้ตาย [Y]" : "")
                     : ready >= 1f ? $"ปลุกพลัง: {AwakenName(power)} [Y]"
                     : $"ปลุกพลัง: {AwakenName(power)} ({Mathf.CeilToInt(awakenCd)} วิ)";
         float fill = Awakened ? awakenT / AwakenDuration : ready;

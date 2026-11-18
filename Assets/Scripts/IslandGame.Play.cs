@@ -162,7 +162,7 @@ public partial class IslandGame
             if (kb.leftBracketKey.wasPressedThisFrame) { CurrentTab = (CurrentTab + CraftTabs.Length - 1) % CraftTabs.Length; craftScroll = Vector2.zero; }
             if (kb.rightBracketKey.wasPressedThisFrame) { CurrentTab = (CurrentTab + 1) % CraftTabs.Length; craftScroll = Vector2.zero; }
         }
-        if (skillsOpen)
+        if (skillsOpen && skillsTab < 2) // the third tab is the list of level rewards: nothing to upgrade
         {
             int first = skillsTab == 0 ? 0 : BaseSkills; // the tab on show (basic / awakened)
             for (int i = 0; first + i < skills.Length && i < 8; i++)
@@ -781,6 +781,7 @@ public partial class IslandGame
             Fx.Burst(PlayerPos + Vector3.up * 0.4f, new Color(1f, 0.85f, 0.3f), 20, 1.4f, 2f, 1f, 3f);
             Sfx.Play("levelup", 0.7f);
             Hint($"เลเวล {level}! มีแต้มสกิล {skillPoints} แต้ม {KeyOr("กด K", "แตะปุ่ม \"สกิล\"")} เพื่ออัปสกิล", 5f);
+            if (level == Awaken2Level) Awaken2Unlocked(); // IslandGame.Awaken.cs
             if (level == AwakenLevel)
             {
                 AwakenUnlocked();

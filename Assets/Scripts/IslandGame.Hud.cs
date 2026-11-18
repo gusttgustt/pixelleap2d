@@ -940,7 +940,45 @@ public partial class IslandGame
         Fill(new Rect(hb.x, hb.y, hb.width * Mathf.Clamp01((float)m.hp / m.maxHp), hb.height), m.Hittable ? new Color(0.85f, 0.25f, 0.3f) : new Color(0.45f, 0.3f, 0.35f));
     }
 
-    int skillsTab; // 0 basic skills, 1 awakened skills (level 60)
+    int skillsTab; // 0 basic skills, 1 awakened skills (level 60), 2 what each level brings
+
+    /// What reaching a level gives, with a tick for what you have and how far the rest is.
+    void DrawLevelRewards(Rect r)
+    {
+        string pw = power != Power.None ? PowerName(power) : "ผลไม้พิเศษ";
+        var rows = new (int lv, string title, string what)[]
+        {
+            (2, "ทุกเลเวล", "แต้มสกิล +1 · พลังชีวิตฟื้น +25"),
+            (AwakenLevel, "ปลุกพลังขั้น 1", $"สกิล Y ปลุกพลัง{pw} 20 วิ: สกิลคูลดาวน์ 0.5 วิ แรงขึ้น x1.75 ไกลขึ้น + บัพของผลไม้"),
+            (AwakenLevel, "สกิลปลุกพลัง 8 อย่าง", "แท็บ \"ปลุกพลัง\": ต่อสู้ เอาตัวรอด ใช้ชีวิต ฟาร์มของ (ใช้แต้มได้อีก 40 แต้ม)"),
+            (Awaken2Level, "ปลุกพลังขั้น 2", "ปลุกพลังนาน 35 วิ ชาร์จเร็วขึ้น แรงขึ้น x2.4 ไกลขึ้น บัพแรงขึ้น รับดาเมจน้อยลง"),
+            (Awaken2Level, "ท่าไม้ตาย", power != Power.None ? $"\"{UltimateName(power)}\" ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว" : "ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว (ต้องมีผลไม้พิเศษ)"),
+        };
+        float y = r.y;
+        foreach (var (lv, title, what) in rows)
+        {
+            bool got = level >= lv;
+            var row = new Rect(r.x, y, r.width, 50f);
+            Fill(row, got ? new Color(0.3f, 0.6f, 0.3f, 0.25f) : new Color(1f, 1f, 1f, 0.05f));
+            if (got) Fill(new Rect(row.x, row.y, 3f, row.height), new Color(0.5f, 1f, 0.55f));
+            string head = lv <= 2 ? $"<b>{title}</b>" : $"<b>เลเวล {lv}: {title}</b>";
+            string state = got ? "<color=#8fe38f>✓ ได้แล้ว</color>" : $"<color=#ffd84d>อีก {lv - level} เลเวล</color>";
+            CrispGUI.Label(new Rect(row.x + 10, row.y + 4, row.width - 110, 20), head, label);
+            CrispGUI.Label(new Rect(row.xMax - 100, row.y + 6, 94, 18), state, new GUIStyle(small) { alignment = TextAnchor.UpperRight, richText = true });
+            CrispGUI.Label(new Rect(row.x + 10, row.y + 25, row.width - 16, 22), $"<color=#cccccc>{what}</color>", new GUIStyle(small) { wordWrap = true, richText = true });
+            y += 54f;
+        }
+        // the bar towards the next one
+        int next = level < AwakenLevel ? AwakenLevel : level < Awaken2Level ? Awaken2Level : 0;
+        if (next > 0)
+        {
+            var bar = new Rect(r.x + 10, y + 8, r.width - 20, 12);
+            Fill(bar, new Color(0f, 0f, 0f, 0.5f));
+            Fill(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01((float)level / next), bar.height), new Color(1f, 0.82f, 0.3f));
+            ShadowLabel(new Rect(bar.x, bar.yMax + 2, bar.width, 18), $"เลเวล {level} / {next}", new GUIStyle(small) { alignment = TextAnchor.MiddleCenter });
+        }
+        else ShadowLabel(new Rect(r.x, y + 6, r.width, 18), "ได้รางวัลเลเวลครบทุกขั้นแล้ว!", new GUIStyle(small) { alignment = TextAnchor.MiddleCenter }, new Color(1f, 0.85f, 0.3f));
+    }
     float gritReadyAt; // awakened "Never Give Up": when it can save you again
 
     void DrawSkills(float W, float H)
@@ -955,17 +993,18 @@ public partial class IslandGame
 
         // tabs: the basic eight, and the awakened eight from level 60
         bool awake = level >= AwakenLevel;
-        string[] tabs = { "พื้นฐาน", awake ? "ปลุกพลัง ★" : $"ปลุกพลัง (เลเวล {AwakenLevel})" };
-        for (int t = 0; t < 2; t++)
+        string[] tabs = { "พื้นฐาน", awake ? "ปลุกพลัง ★" : $"ปลุกพลัง (เลเวล {AwakenLevel})", "รางวัลเลเวล" };
+        for (int t = 0; t < tabs.Length; t++)
         {
-            var tr = new Rect(panel.x + 8 + t * 150f, panel.y + 48, 146f, 26f);
+            var tr = new Rect(panel.x + 8 + t * 141f, panel.y + 48, 137f, 26f);
             var ts = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
             ts.normal.textColor = skillsTab == t ? new Color(1f, 0.85f, 0.3f) : new Color(0.8f, 0.8f, 0.8f);
             if (skillsTab == t) Fill(new Rect(tr.x - 2, tr.y - 2, tr.width + 4, tr.height + 4), new Color(1f, 0.85f, 0.3f, 0.5f));
             if (CrispGUI.Button(tr, tabs[t], ts)) skillsTab = t;
         }
+        if (skillsTab == 2) { DrawLevelRewards(new Rect(panel.x + 8, panel.y + 80, pw - 16, panel.height - 88)); return; }
         if (!awake && skillsTab == 1)
-            ShadowLabel(new Rect(panel.x + 310, panel.y + 52, pw - 316, 18), "ดูได้ อัปได้ตอนเลเวล 60", small, new Color(1f, 0.6f, 0.55f));
+            ShadowLabel(new Rect(panel.x + 12, panel.y + 76, pw - 24, 18), "<color=#ff9a8a>ดูได้ อัปได้ตอนเลเวล 60</color>", small);
 
         for (int k = 0; k < n; k++)
         {
