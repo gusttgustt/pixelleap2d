@@ -318,6 +318,8 @@ function toRoom(island, obj, exceptId) {
 
 function leaveRoom(socket) {
   const island = socket.island;
+  socket.pos = null;                    // the next island starts the move check afresh
+  socket.downed = false;
   if (!island) return;
   socket.island = 0;
   const r = rooms.get(island);
@@ -424,6 +426,7 @@ function onMessage(socket, text) {
       const ver = cur + 1;
       saveVersions.set(socket.acct, ver);
       saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver }));
+      socket.acctLv = saveLevel(text) || socket.acctLv;
       send(socket, { t: "saved", ver });
       return;
     }
@@ -431,6 +434,7 @@ function onMessage(socket, text) {
       const acc = socket.acct && accounts[socket.acct];
       if (acc && m.ev) { acc.tokens = (acc.tokens || []).filter(t => t !== hashToken(m.ev)); saveAccountsSoon(); }
       socket.acct = null;
+      socket.acctLv = 0;
       nameCheck(socket);
       return;
     }
@@ -501,7 +505,18 @@ function onMessage(socket, text) {
       if (!socket.island) return;
       const p = playerUpdate(m);
       if (!p) return;
+      if (socket.acctLv) p.lv = socket.acctLv; // an account's level is the one in its save here, not what the game says
+      if (p.t === "p") { limitMove(socket, p); socket.downed = p.dn === 1; }
       toRoom(socket.island, p, socket.pid);
+      return;
+    }
+    case "rev": {
+      // bringing a knocked-out friend back: only someone standing next to them, and only if they are down
+      const s = clients.get(m.to | 0);
+      if (!s || s === socket || s.island !== socket.island || !s.downed || !socket.pos || !s.pos) return;
+      if (Math.hypot(s.pos.x - socket.pos.x, s.pos.y - socket.pos.y) > REVIVE_REACH) return;
+      s.downed = false;
+      send(s, { t: "rev", from: socket.pid, to: s.pid });
       return;
     }
     case "node":
@@ -531,6 +546,36 @@ function num(v, lo, hi) {
 const int = (v, lo, hi) => Math.floor(num(v, lo, hi));
 
 const MAX_LEVEL = 999, MAX_POS = 5000;
+
+// How far a player may move, in tiles. The fastest real walker (every speed skill, wings, awakened
+// dash power, well rested) does ~11.5 tiles/s; a dash power jumps up to ~16. Faster than that is a
+// changed game: the others see it move no faster than this, toward where it claims to be (a real
+// jump - respawning, being carried by wind - just looks like a quick glide for others).
+const MOVE_RATE = 13, MOVE_BURST = 22;
+const REVIVE_REACH = 3;               // tiles (the game revives within 1.3; some room for lag)
+
+function limitMove(socket, p) {
+  const now = Date.now();
+  if (!socket.pos) { socket.pos = { x: p.x, y: p.y }; socket.moveBudget = MOVE_BURST; socket.moveAt = now; return; } // first update on this island
+  socket.moveBudget = Math.min(MOVE_BURST, socket.moveBudget + (now - socket.moveAt) / 1000 * MOVE_RATE);
+  socket.moveAt = now;
+  const dx = p.x - socket.pos.x, dy = p.y - socket.pos.y, d = Math.hypot(dx, dy);
+  if (d > socket.moveBudget) {
+    const k = socket.moveBudget / d;
+    p.x = socket.pos.x + dx * k;
+    p.y = socket.pos.y + dy * k;
+    socket.moveBudget = 0;
+    if (now - (socket.fastLogAt || 0) > 60000) { socket.fastLogAt = now; log("! " + socket.name + " #" + socket.pid + " (" + socket.ip + ") moves faster than the game allows: slowed down"); }
+  } else socket.moveBudget -= d;
+  socket.pos.x = p.x;
+  socket.pos.y = p.y;
+}
+
+/// The level in an account's save (the save's own "level", near its start), or 0 if none.
+function saveLevel(text) {
+  const m = /"level":(\d+)/.exec(String(text || "").slice(0, 4000));
+  return m ? Math.max(1, Math.min(MAX_LEVEL, m[1] | 0)) : 0;
+}
 
 /// A player's "p" (on an island) or "sp" (a boat at sea) update, rebuilt from only the fields
 /// the game sends (IslandGame.Net.cs NetTick / SeaTick), each clamped. null = not worth passing on.
@@ -694,12 +739,14 @@ function authOk(socket, acc) {
       log("  " + acc.name + " logged in again: closing the older connection #" + s.pid);
       send(s, { t: "kicked", why: "บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว" });
       s.acct = null; // its saves stop reaching the account right away
+      s.acctLv = 0;
       const old = s;
       setTimeout(() => { old.destroy(); drop(old); }, 300); // let the message go out first
     }
   const pending = saveTimers.get(socket.acct); // a save still waiting to be written: on disk first,
   if (pending && pending.timer) { clearTimeout(pending.timer); pending.write(); } // so this login gets the newest
   const data = readSave(socket.acct);
+  socket.acctLv = saveLevel(data.save) || 1; // shown to others from here on (a new account: 1 until its first save)
   send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.acct) });
   log("  " + socket.name + " logged in as " + acc.name);
 }
