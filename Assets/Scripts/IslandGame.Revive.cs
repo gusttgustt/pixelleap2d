@@ -50,17 +50,33 @@ public partial class IslandGame
         var d = SaveSystem.Read(); // written when you fell (CheckDeath)
         if (d == null) { StartGame(null); return; } // no save at all: a brand new run
         if (voyage != null) EndVoyage(); // lost at sea: back to the last island
-        StartGame(Reborn(d));
-        Hint("คุณฟื้นขึ้นมาแล้ว! ของและเลเวลยังอยู่ครบ", 4f);
+        int lost = deathXpLost;
+        deathXpLost = 0;
+        StartGame(Reborn(d, false));
+        Hint(lost > 0 ? $"คุณฟื้นขึ้นมาแล้ว! ของและเลเวลยังอยู่ แต่เสีย {lost} XP · ยังหิวและเหนื่อยอยู่ รีบหาอะไรกิน"
+                      : "คุณฟื้นขึ้นมาแล้ว! ของและเลเวลยังอยู่ · ยังหิวและเหนื่อยอยู่ รีบหาอะไรกิน", 6f);
     }
 
-    /// A save made at death, fixed up to wake up alive: full health, not starving, in the middle of the island.
-    static SaveData Reborn(SaveData d)
+    int deathXpLost; // XP the last death cost (told when you get up)
+
+    // Dying has a price, so it's never the easy way out of hunger, thirst or tiredness: you get up
+    // with half your health, still hungry, thirsty and tired (just enough not to fall again at once),
+    // and the fall costs half the XP made towards the next level (never a level).
+    const float RebornVitals = 25f;
+
+    /// A save fixed up to wake up alive, in the middle of the island. `fall`: this is the save
+    /// written as you fell, so the death's XP is taken here (once; Respawn reads it back as is).
+    SaveData Reborn(SaveData d, bool fall)
     {
-        d.health = 9999f;                // StartGame caps it at MaxHealth
-        d.hunger = Mathf.Max(d.hunger, 60f);
-        d.thirst = Mathf.Max(d.thirst, 60f);
-        d.energy = Mathf.Max(d.energy, 60f); // IslandGame.Sleep.cs
+        d.health = MaxHealth * 0.5f;
+        d.hunger = Mathf.Max(d.hunger, RebornVitals);
+        d.thirst = Mathf.Max(d.thirst, RebornVitals);
+        d.energy = Mathf.Max(d.energy, RebornVitals); // IslandGame.Sleep.cs
+        if (fall)
+        {
+            deathXpLost = d.xp / 2;
+            d.xp -= deathXpLost;
+        }
         d.player = new Vector2(-1f, -1f); // not land: StartGame puts you in the middle of the island
         return d;
     }
@@ -70,6 +86,7 @@ public partial class IslandGame
     {
         if (!downed) return;
         downed = false;
+        deathXpLost = 0; // a friend got me up: the fall costs nothing (the next save replaces the one written as I fell)
         dead = false;
         health = MaxHealth * 0.35f;
         hunger = Mathf.Max(hunger, 35f); // don't fall over again at once from hunger or thirst

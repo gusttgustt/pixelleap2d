@@ -247,7 +247,7 @@ public partial class IslandGame : MonoBehaviour
     public int Day => 1 + Mathf.FloorToInt(clock / DayLength + 0.05f);
     public bool IsNight => daylight < 0.35f;
     public int SkillLv(Skill s) => skills[(int)s];
-    public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + GearSum(g => g.hp); // all worn gear (IslandGame.Bag.cs)
+    public float MaxHealth => 100f + 15f * SkillLv(Skill.Toughness) + GearSum(g => g.hp) + MasteryHp * mastery; // all worn gear (IslandGame.Bag.cs), training (IslandGame.Play.cs)
     public float SpeedMultiplier => (1f + 0.08f * SkillLv(Skill.Agility) + 0.04f * SkillLv(Skill.AwStride) +(Count(Item.ButterflyWings) > 0 ? 0.15f : 0f)) * SlowFactor * WeatherSpeed * AwakenSpeed * EnergySpeed; // tired walks slower (IslandGame.Sleep.cs)
     public static int XpToNext(int lv) => 25 + 15 * lv;
 
@@ -547,6 +547,7 @@ public partial class IslandGame : MonoBehaviour
         System.Array.Clear(skills, 0, skills.Length);
         for (int i = 0; i < skills.Length && i < data.skills.Count; i++) skills[i] = data.skills[i];
         level = Mathf.Max(1, data.level); xp = data.xp; skillPoints = data.skillPoints; flaskWater = data.flaskWater;
+        mastery = Mathf.Clamp(data.mastery, 0, MasteryMax);
         health = Mathf.Min(data.health, MaxHealth); hunger = data.hunger; thirst = data.thirst; clock = data.clock;
         if (atHome) { if (!inHouse) SpawnHomeFolk(); } // the town's shopkeepers (IslandGame.Shop.cs)
         else if (inCave) SpawnCaveMonsters(); // IslandGame.Cave.cs
@@ -727,7 +728,7 @@ public partial class IslandGame : MonoBehaviour
         {
             seed = seed, island = island, clock = clock, health = health, hunger = hunger, thirst = thirst,
             player = player != null ? player.grid : Center, stickCap = stickCap, rockCap = rockCap, obsidianCap = obsidianCap,
-            level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, raftLevel = raftLevel, boatLook = boatLook,
+            level = level, xp = xp, skillPoints = skillPoints, flaskWater = flaskWater, mastery = mastery, raftLevel = raftLevel, boatLook = boatLook,
             biomeId = (int)biome + 1, hatId = hat.HasValue ? (int)hat.Value + 1 : 0,
             outfitId = outfit.HasValue ? (int)outfit.Value + 1 : 0, elderHealDay = elderHealDay,
             trinketId = trinket.HasValue ? (int)trinket.Value + 1 : 0,

@@ -275,6 +275,9 @@ public partial class IslandGame
         HitSea(c, RollDamage(c.transform.position), Color.white);
     }
 
+    /// A fruit power's hit at sea: grows with your gear like on land (PowerScale, IslandGame.Power.cs).
+    bool HitSeaPower(SeaCreature c, int dmg, Color popupCol) => HitSea(c, Mathf.Max(1, Mathf.RoundToInt(dmg * PowerScale)), popupCol);
+
     /// Hit a sea creature (weapon or power). Returns true if it died.
     bool HitSea(SeaCreature c, int dmg, Color popupCol)
     {

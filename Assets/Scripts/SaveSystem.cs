@@ -13,6 +13,7 @@ public class SaveData
     public float clock, health, hunger, thirst;
     public int stickCap, rockCap, obsidianCap; // how many of each respawning material the island keeps
     public int level = 1, xp, skillPoints, flaskWater;
+    public int mastery;           // training levels, where skill points go once every skill is full (IslandGame.Play.cs)
     public int raftLevel;         // 0 = no raft yet. Lv N can reach island N+1.
     public int boatLook;          // the boat look picked at the shipwright, 1-8 (0 = always the newest; IslandGame.Boat.cs)
     public int biomeId;           // biome + 1 (0 = older save: use the old 3-island cycle)

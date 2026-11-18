@@ -270,9 +270,15 @@ public partial class IslandGame
         return true;
     }
 
+    /// Fruit powers grow with you: their damage is multiplied by how hard you hit with your gear
+    /// (weapon, accessories, Strength) - one quarter of it, never less than x1. A bare-handed
+    /// beginner's powers are as before; with the void scythe they hit about twenty times harder,
+    /// so the fruit stays worth using on the later continents.
+    float PowerScale => Mathf.Max(1f, WeaponDamage / 4f);
+
     void HitWithPower(Enemy e, int dmg)
     {
-        dmg = AwakenDmg(dmg);
+        dmg = AwakenDmg(Mathf.Max(1, Mathf.RoundToInt(dmg * PowerScale)));
         Vector3 at = e.transform.position;
         if (e.puppet) { e.Hit(dmg, player.grid); Send(new NetMsg { t = "hit", to = hostId, id = e.netId, dmg = dmg }); return; }
         if (e.Hit(dmg, player.grid))
@@ -398,6 +404,7 @@ public partial class IslandGame
             ShadowLabel(new Rect(bar.xMax + 8, r.y + 27, 120, 18), $"ใช้อีก {Mathf.Max(0, PowerXpNeed[powerLv] - powerXp)} ครั้ง ถึง Lv {powerLv + 1}", small, new Color(0.85f, 0.85f, 0.85f));
         }
         else ShadowLabel(new Rect(r.x + 58, r.y + 28, r.width - 64, 18), "ฝึกพลังครบทุกขั้นแล้ว", small, new Color(1f, 0.85f, 0.3f));
+        ShadowLabel(new Rect(r.xMax - 150, r.y + 6, 144, 18), $"แรงตามอาวุธ x{PowerScale:0.#}", new GUIStyle(small) { alignment = TextAnchor.UpperRight }, new Color(1f, 0.85f, 0.5f));
 
         string Cd(float ready, float left, float full) => ready >= 1f ? $"<color=#8fe38f>พร้อม</color> · คูลดาวน์ {full:0.#} วิ"
                                                                        : $"<color=#ffd84d>อีก {Mathf.CeilToInt(left)} วิ</color> · คูลดาวน์ {full:0.#} วิ";
@@ -405,12 +412,12 @@ public partial class IslandGame
         {
             ($"พลัง{PowerName(power)}" + (keys ? "  [R / คลิกขวา]" : ""), Cd(PowerReady, powerCd, PowerCooldown), PowerDesc(power), true),
             ($"ท่าพิเศษ: {PowerAttackName(power)}" + (keys ? "  [T]" : ""), Cd(PowerAttackReady, powerAtkCd, PowerAttackCooldown),
-                $"ดาเมจ {AwakenDmg(PowerAttackDamage)} · ระยะ {PowerAttackRadius:0.#} ช่อง (แรงและไกลขึ้นตามเลเวลพลัง)", true),
+                $"ดาเมจ {AwakenDmg(Mathf.RoundToInt(PowerAttackDamage * PowerScale))} · ระยะ {PowerAttackRadius:0.#} ช่อง (แรงขึ้นตามเลเวลพลังและอาวุธ)", true),
             ($"ปลุกพลัง: {AwakenName(power)}" + (keys && CanAwaken ? "  [Y]" : ""),
                 !CanAwaken ? $"<color=#ff9a8a>ได้ตอนเลเวล {AwakenLevel}</color>" : Awakened ? $"<color=#8fe38f>เปิดอยู่ อีก {awakenT:0} วิ</color>" : Cd(AwakenReady, awakenCd, AwakenRecharge),
                 $"{AwakenDesc(power)} · นาน {AwakenDuration:0} วิ ระหว่างนั้นสกิลคูลดาวน์ {AwakenSkillCd} วิ แรงขึ้น x{(Awaken2 ? 2.4f : 1.75f)}", CanAwaken),
             ($"ท่าไม้ตาย: {UltimateName(power)}", !Awaken2 ? $"<color=#ff9a8a>ได้ตอนเลเวล {Awaken2Level}</color>" : !Awakened ? "ใช้ระหว่างปลุกพลัง" : ultimateUsed ? "ใช้ไปแล้วรอบนี้" : "<color=#8fe38f>พร้อม</color>",
-                (keys ? "ระหว่างปลุกพลังกด Y อีกครั้ง" : "ระหว่างปลุกพลังแตะปุ่มปลุกพลังอีกครั้ง") + $": ระเบิดพลังรอบตัว ดาเมจ {AwakenDmg(20 + 8 * powerLv)} (ครั้งเดียวต่อการปลุก)", Awaken2),
+                (keys ? "ระหว่างปลุกพลังกด Y อีกครั้ง" : "ระหว่างปลุกพลังแตะปุ่มปลุกพลังอีกครั้ง") + $": ระเบิดพลังรอบตัว ดาเมจ {AwakenDmg(Mathf.RoundToInt((20 + 8 * powerLv) * PowerScale))} (ครั้งเดียวต่อการปลุก)", Awaken2),
         };
         float y = r.y + 60f;
         foreach (var (head, state, what, on) in rows)

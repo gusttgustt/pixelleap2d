@@ -169,6 +169,7 @@ public partial class IslandGame
             int first = skillsTab == 0 ? 0 : BaseSkills; // the tab on show (basic / awakened)
             for (int i = 0; first + i < skills.Length && i < 8; i++)
                 if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) UpgradeSkill((Skill)(first + i));
+            if (kb.digit9Key.wasPressedThisFrame) TrainMastery(); // the training row under the eight
         }
     }
 
@@ -200,7 +201,7 @@ public partial class IslandGame
         // Death doesn't wipe the character: save everything as it is now, and Respawn() wakes you
         // up on this island with it all (at sea or visiting, the last save on land stands).
         // Written already healed, so closing the game on the death screen also comes back alive.
-        if (player != null && voyage == null && !visiting && sailT <= 0f && !InPrison) SaveSystem.Write(Reborn(Snapshot())); // dying in the sunken prison is like dying at sea
+        if (player != null && voyage == null && !visiting && sailT <= 0f && !InPrison) SaveSystem.Write(Reborn(Snapshot(), true)); // dying in the sunken prison is like dying at sea
         return true;
     }
 
@@ -342,7 +343,7 @@ public partial class IslandGame
     /// A hit's damage: the weapon's, doubled on an awakened critical.
     int RollDamage(Vector3 at)
     {
-        int dmg = Mathf.Max(1, Mathf.RoundToInt(WeaponDamage * (WornOut ? 0.7f : Rested ? 1.1f : 1f))); // how rested you are (IslandGame.Sleep.cs)
+        int dmg = Mathf.Max(1, Mathf.RoundToInt(WeaponDamage * (WornOut ? 0.7f : Rested ? 1.1f : 1f) * MasteryDamage)); // how rested you are (IslandGame.Sleep.cs), training
         if (rnd.NextDouble() < 0.06 * SkillLv(Skill.AwPower))
         {
             dmg *= 2;
@@ -801,6 +802,37 @@ public partial class IslandGame
                 QuestBanner("สกิลปลุกพลังเปิดแล้ว!", $"{KeyOr("กด K", "แตะปุ่ม \"สกิล\"")} แล้วเลือกแท็บ \"ปลุกพลัง\" ใช้แต้มสกิลอัปต่อได้", new Color(1f, 0.82f, 0.3f));
             }
         }
+    }
+
+    // ------------------------------------------------------------------ training (ฝึกฝนต่อ)
+    // A skill point comes with every level and more from caves, bosses and the prison, far more than
+    // the 27 basic + 40 awakened skill levels take. Once every skill you can reach is full, the
+    // points go into training: a little more damage and health each, up to MasteryMax.
+    public int mastery;
+    const int MasteryMax = 60, MasteryDamagePct = 1, MasteryHp = 4;
+    float MasteryDamage => 1f + 0.01f * MasteryDamagePct * mastery;
+
+    /// Every skill you can reach is full (the awakened ones count from level 60).
+    bool MasteryOpen
+    {
+        get
+        {
+            int upTo = level >= AwakenLevel ? SkillInfo.Length : BaseSkills;
+            for (int i = 0; i < upTo; i++) if (skills[i] < SkillInfo[i].max) return false;
+            return true;
+        }
+    }
+
+    void TrainMastery()
+    {
+        if (!MasteryOpen) { Hint(level < AwakenLevel ? "ฝึกฝนต่อได้เมื่ออัปสกิลพื้นฐานเต็มทุกอันแล้ว" : "ฝึกฝนต่อได้เมื่ออัปสกิลทุกอัน (รวมสกิลปลุกพลัง) เต็มแล้ว", 2.5f); return; }
+        if (skillPoints <= 0) { Hint("ไม่มีแต้มสกิล ล้มสัตว์ร้ายเพื่อเลเวลอัป", 2f); return; }
+        if (mastery >= MasteryMax) { Hint("ฝึกฝนครบแล้ว", 2f); return; }
+        mastery++;
+        skillPoints--;
+        health += MasteryHp;
+        Sfx.Play("craft", 0.5f);
+        Popup($"ฝึกฝนต่อ ระดับ {mastery}", PlayerPos + Vector3.up * 1.2f, new Color(1f, 0.85f, 0.3f));
     }
 
     void UpgradeSkill(Skill s)

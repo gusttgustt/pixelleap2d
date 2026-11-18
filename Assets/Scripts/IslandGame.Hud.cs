@@ -988,14 +988,14 @@ public partial class IslandGame
     /// Every tab is the same height (the eight-row skill list), so the box never jumps.
     Rect SkillsPanelRect(float W)
     {
-        const float pw = 440f, rowH = 40f;
-        int n = Mathf.Max(BaseSkills, SkillInfo.Length - BaseSkills);
+        const float pw = 440f, rowH = 38f;
+        int n = Mathf.Max(BaseSkills, SkillInfo.Length - BaseSkills) + 1; // + the training row (ฝึกฝนต่อ)
         return new Rect(W / 2f - pw / 2f, 54f, pw, 94f + n * (rowH + 4f));
     }
 
     void DrawSkills(float W, float H)
     {
-        const float pw = 440f, rowH = 40f;
+        const float pw = 440f, rowH = 38f;
         int first = skillsTab == 0 ? 0 : BaseSkills, n = skillsTab == 0 ? BaseSkills : SkillInfo.Length - BaseSkills;
         var panel = SkillsPanelRect(W);
         GUI.Box(panel, GUIContent.none);
@@ -1041,9 +1041,25 @@ public partial class IslandGame
             CrispGUI.Label(new Rect(row.x + 210, row.y + 3, 100, 18), pips.ToString(), label);
 
             GUI.enabled = skillPoints > 0 && lv < info.max && (i < BaseSkills || awake);
-            if (CrispGUI.Button(new Rect(row.xMax - 46, row.y + 8, 40, 24), lv >= info.max ? "เต็ม" : "+")) UpgradeSkill((Skill)i);
+            if (CrispGUI.Button(new Rect(row.xMax - 46, row.y + 7, 40, 24), lv >= info.max ? "เต็ม" : "+")) UpgradeSkill((Skill)i);
             GUI.enabled = true;
         }
+        DrawMasteryRow(new Rect(panel.x + 8, panel.y + 80 + n * (rowH + 4f), pw - 16, rowH), n + 1);
+    }
+
+    /// The last row on both skill tabs: where skill points go once every skill you can reach is full.
+    void DrawMasteryRow(Rect row, int number)
+    {
+        bool open = MasteryOpen;
+        Fill(row, open ? new Color(1f, 0.85f, 0.3f, 0.12f) : new Color(1f, 1f, 1f, 0.04f));
+        Fill(new Rect(row.x, row.y, 3f, row.height), new Color(1f, 0.85f, 0.3f, open ? 0.9f : 0.3f));
+        ShadowLabel(new Rect(row.x + 8, row.y + 2, 260, 20), $"{number}. ฝึกฝนต่อ  <size=11>ระดับ {mastery}/{MasteryMax}</size>", label, new Color(1f, 0.88f, 0.5f, open ? 1f : 0.6f));
+        string desc = open ? $"ดาเมจ +{MasteryDamagePct}% · พลังชีวิตสูงสุด +{MasteryHp} ต่อระดับ (ตอนนี้ +{mastery * MasteryDamagePct}% · +{mastery * MasteryHp})"
+                           : level < AwakenLevel ? "ใช้แต้มได้เมื่ออัปสกิลพื้นฐานเต็มทุกอัน" : "ใช้แต้มได้เมื่ออัปสกิลพื้นฐานและสกิลปลุกพลังเต็มทุกอัน";
+        CrispGUI.Label(new Rect(row.x + 8, row.y + 20, row.width - 64, 18), $"<color=#cccccc>{desc}</color>", small);
+        GUI.enabled = open && skillPoints > 0 && mastery < MasteryMax;
+        if (CrispGUI.Button(new Rect(row.xMax - 46, row.y + 7, 40, 24), mastery >= MasteryMax ? "เต็ม" : "+")) TrainMastery();
+        GUI.enabled = true;
     }
 
     void DrawPrompt(float s)

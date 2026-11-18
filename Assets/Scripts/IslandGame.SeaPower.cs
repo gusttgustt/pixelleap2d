@@ -46,7 +46,7 @@ public partial class IslandGame
     bool SeaNova()
     {
         int hits = 0;
-        foreach (var c in SeaInRange(2f + 0.4f * powerLv)) { HitSea(c, 2 + powerLv, new Color(1f, 0.9f, 0.4f)); hits++; }
+        foreach (var c in SeaInRange(2f + 0.4f * powerLv)) { HitSeaPower(c, 2 + powerLv, new Color(1f, 0.9f, 0.4f)); hits++; }
         Ring(2f + 0.4f * powerLv, PowerColor(power), 20);
         Popup($"พลัง{PowerName(power)}!" + (hits > 0 ? $" x{hits}" : ""), PlayerPos + Vector3.up * 1.1f, PowerColor(power));
         return true;
@@ -70,7 +70,7 @@ public partial class IslandGame
             {
                 if (c == null || !c.Hittable) continue;
                 if (DistToSegment(c.pos, start, end) > 0.6f + c.Reach) continue;
-                HitSea(c, 1 + powerLv, new Color(1f, 0.9f, 0.4f));
+                HitSeaPower(c, 1 + powerLv, new Color(1f, 0.9f, 0.4f));
             }
         return true;
     }
@@ -83,7 +83,7 @@ public partial class IslandGame
         if (c.IsBig) c.Stun(2f);                          // far too big to pull: the vines just hold it
         else c.pos = voyage.raft + (c.pos - voyage.raft).normalized * 0.9f;
         VineFx(c.transform.position);
-        HitSea(c, 1 + powerLv, new Color(1f, 0.9f, 0.4f));
+        HitSeaPower(c, 1 + powerLv, new Color(1f, 0.9f, 0.4f));
         return true;
     }
 
@@ -152,7 +152,7 @@ public partial class IslandGame
                     Shockwave(me, ring, col, 0.5f);
                     LightningFlash();
                 }
-                foreach (var c in done) HitSea(c, dmg, new Color(1f, 0.9f, 0.4f));
+                foreach (var c in done) HitSeaPower(c, dmg, new Color(1f, 0.9f, 0.4f));
                 if (hits == 0) Fx.Burst(PlayerPos + Vector3.up * 1.2f, col, 14, 0.6f, 1.6f);
                 Sfx.Play("hit", 0.7f);
                 break;
@@ -162,7 +162,7 @@ public partial class IslandGame
                 {
                     c.Stun(1.4f + 0.35f * powerLv);
                     Fx.Rise(c.transform.position, new Color(0.3f, 0.55f, 0.18f), 6 + powerLv * 2, 0.15f, 2f + 0.3f * powerLv, 0.35f, powerLv >= 3 ? 2f : 1f, 0f);
-                    HitSea(c, dmg, new Color(1f, 0.9f, 0.4f));
+                    HitSeaPower(c, dmg, new Color(1f, 0.9f, 0.4f));
                     hits++;
                 }
                 Ring(radius, col, 20);
@@ -172,21 +172,21 @@ public partial class IslandGame
                 foreach (var c in SeaInRange(radius))
                 {
                     c.Push((c.pos - v.raft).normalized * (1.5f + 0.3f * powerLv));
-                    HitSea(c, dmg, new Color(1f, 0.9f, 0.4f));
+                    HitSeaPower(c, dmg, new Color(1f, 0.9f, 0.4f));
                     hits++;
                 }
                 Ring(radius * 0.5f, col, 12); Ring(radius, col, 22);
                 Sfx.Play("hit", 0.6f);
                 break;
             case Power.Bubble:
-                foreach (var c in SeaInRange(radius)) { HitSea(c, dmg, new Color(1f, 0.9f, 0.4f)); hits++; }
+                foreach (var c in SeaInRange(radius)) { HitSeaPower(c, dmg, new Color(1f, 0.9f, 0.4f)); hits++; }
                 for (int i = 0; i < 6 + powerLv * 3; i++)
                     Fx.Burst(GridToWorld(me + Random.insideUnitCircle * radius) + Vector3.up * 0.3f, col, 4, 0.3f, 0.8f, 0.7f, -1f);
                 health = Mathf.Min(MaxHealth, health + 2f * powerLv);
                 Sfx.Play("splash", 0.6f);
                 break;
             default: // Shadow: a dark nova
-                foreach (var c in SeaInRange(radius)) { HitSea(c, dmg + 1, new Color(1f, 0.9f, 0.4f)); hits++; }
+                foreach (var c in SeaInRange(radius)) { HitSeaPower(c, dmg + 1, new Color(1f, 0.9f, 0.4f)); hits++; }
                 Ring(radius, col, 24); Ring(radius * 0.6f, new Color(0.2f, 0.1f, 0.35f), 16);
                 Sfx.Play("hurt", 0.4f);
                 break;
