@@ -790,6 +790,13 @@ public static partial class PixelArt
         EnemyKind.FrostQueen => FrostQueen(frame & 1),
         EnemyKind.MagmaHydra => MagmaHydra(frame & 1),
         EnemyKind.VoidTitan => VoidTitan(frame & 1),
+        EnemyKind.MirrorWraith => MirrorWraith(frame & 1),   // the later continents (PixelArt.Monsters.cs)
+        EnemyKind.FrostMammoth => FrostMammoth(frame & 1),
+        EnemyKind.LavaSalamander => LavaSalamander(frame & 1),
+        EnemyKind.MagmaGolem => MagmaGolem(frame & 1),
+        EnemyKind.SkyJelly => SkyJelly(frame & 1),
+        EnemyKind.StarWatcher => StarWatcher(frame & 1),
+        EnemyKind.FruitUser => Villager(3, frame % 3),       // a person: tinted with their fruit's colour
         _ => Crab(frame),
     };
 

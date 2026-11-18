@@ -1,7 +1,9 @@
 using UnityEngine;
 
 public enum EnemyKind { Crab, Snake, Boar, Mimic, SporeSpider, ShroomKing, Barnacle, HermitCrab, StormCloud, ChimeBird, LanternFish, StoneSquid, WindupDoll, TimeBeetle, Snowman, Snowling, FrostBat, Eel, DeepCrab, Kraken, SkeletonPirate, PirateMonkey, Captain, CrystalGolem, MirrorWisp, ThunderToad, StormHawk, Thunderbird, WorkerAnt, SoldierAnt, GiantBee, AntQueen,
-    TideLord, FrostQueen, MagmaHydra, VoidTitan } // the continent bosses (IslandGame.ContinentBoss.cs)
+    TideLord, FrostQueen, MagmaHydra, VoidTitan, // the continent bosses (IslandGame.ContinentBoss.cs)
+    MirrorWraith, FrostMammoth, LavaSalamander, MagmaGolem, SkyJelly, StarWatcher, // each later continent's own creatures (IslandGame.Monsters.cs)
+    FruitUser } // people with a fruit power, awakened further out (IslandGame.Monsters.cs)
 
 /// Hostile creature. Chases the player when close, wanders otherwise, is scared of campfires.
 ///   Crab  - night only, comes up on beaches, walks back into the sea at sunrise.
@@ -87,6 +89,19 @@ public class Enemy : MonoBehaviour
         baseColor = new Color(1f, 0.92f, 0.7f);
     }
 
+    /// The later continents' creatures and the fruit users (IslandGame.Monsters.cs).
+    public float abilityT = 3f;
+    float fadeT, shieldT;
+    public void Fade(float seconds) => fadeT = Mathf.Max(fadeT, seconds);     // a shadow power: hard to see
+    public void Shield(float seconds) => shieldT = Mathf.Max(shieldT, seconds); // a bubble power: blows soak away
+    /// A tougher one (an awakened fruit user): health, bite and XP times these, tinted.
+    public void Empower(float hpMul, float dmgMul, float xpMul, Color tint)
+    {
+        maxHp = Mathf.Max(1, Mathf.RoundToInt(maxHp * hpMul)); hp = maxHp;
+        damage *= dmgMul; xp = Mathf.RoundToInt(xp * xpMul);
+        baseColor = tint;
+    }
+
     public static bool IsContinentBoss(EnemyKind k) => k is EnemyKind.TideLord or EnemyKind.FrostQueen or EnemyKind.MagmaHydra or EnemyKind.VoidTitan;
     public bool ContinentBoss => IsContinentBoss(kind);
 
@@ -132,7 +147,10 @@ public class Enemy : MonoBehaviour
         EnemyKind.ThunderToad => "คางคกฟ้าร้อง", EnemyKind.StormHawk => "เหยี่ยวพายุ", EnemyKind.Thunderbird => "นกอัสนี",
         EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์",
         EnemyKind.TideLord => "เจ้าสมุทรคลื่นคลั่ง", EnemyKind.FrostQueen => "ราชินีกระจกเหมันต์",
-        EnemyKind.MagmaHydra => "ไฮดราเพลิงกัลป์", EnemyKind.VoidTitan => "ไททันหลุมดำ", _ => "ราชินีมด",
+        EnemyKind.MagmaHydra => "ไฮดราเพลิงกัลป์", EnemyKind.VoidTitan => "ไททันหลุมดำ",
+        EnemyKind.FruitUser => IslandGame.FruitUserName(this),
+        EnemyKind.MirrorWraith or EnemyKind.FrostMammoth or EnemyKind.LavaSalamander or EnemyKind.MagmaGolem or EnemyKind.SkyJelly or EnemyKind.StarWatcher => IslandGame.MonsterName(kind),
+        _ => "ราชินีมด",
     };
     /// A mimic that hasn't sprung yet: it can't be targeted and doesn't move.
     public bool Disguised { get; private set; }
@@ -206,6 +224,13 @@ public class Enemy : MonoBehaviour
             EnemyKind.FrostQueen => (2600, 20f, 1.1f, 11f, 1800),
             EnemyKind.MagmaHydra => (3000, 23f, 0.8f, 11f, 2200),
             EnemyKind.VoidTitan => (3400, 26f, 1.0f, 12f, 2800),
+            EnemyKind.MirrorWraith => (9, 11f, 1.5f, 8f, 34),
+            EnemyKind.FrostMammoth => (22, 16f, 1.0f, 7f, 48),
+            EnemyKind.LavaSalamander => (11, 12f, 1.6f, 8f, 36),
+            EnemyKind.MagmaGolem => (26, 18f, 0.7f, 6f, 52),
+            EnemyKind.SkyJelly => (12, 12f, 0.9f, 7f, 40),
+            EnemyKind.StarWatcher => (16, 14f, 1.0f, 9f, 50),
+            EnemyKind.FruitUser => (14, 12f, 1.6f, 8f, 45),
             _ => (3, 8f, 1.25f, 9f, 10),
         };
         baseMaxHp = 0;
@@ -221,6 +246,9 @@ public class Enemy : MonoBehaviour
 
         sr = gameObject.AddComponent<SpriteRenderer>();
         if (IsContinentBoss(k)) transform.localScale = Vector3.one * 1.4f; // towering over everything else
+        if (k == EnemyKind.FrostMammoth || k == EnemyKind.MagmaGolem) transform.localScale = Vector3.one * 1.2f;
+        if (k == EnemyKind.FruitUser) IslandGame.I.SetupFruitUser(this); // its power, awakened or not (IslandGame.Monsters.cs)
+        abilityT = Random.Range(2f, 4f);
         height = IslandGame.I.HeightAt(g);
         Apply();
         GroundShadow.Attach(sr, Mathf.Clamp(sr.sprite != null ? sr.sprite.bounds.size.x * 1.4f : 1f, 0.6f, 3f));
@@ -290,7 +318,10 @@ public class Enemy : MonoBehaviour
                 }
             }
         }
-        if (kind is EnemyKind.StormCloud or EnemyKind.StormHawk) // crackle, then charge
+        if (fadeT > 0f) fadeT -= dt;
+        if (shieldT > 0f) shieldT -= dt;
+        if (kind >= EnemyKind.MirrorWraith && game.CreatureAbility(this, dt, targetGrid, targetWho, dist)) { Apply(); return; } // IslandGame.Monsters.cs
+        if (kind is EnemyKind.StormCloud or EnemyKind.StormHawk or EnemyKind.FrostMammoth) // crackle (or stamp), then charge
         {
             chargeCd -= dt;
             if (dashT > 0f)
@@ -298,7 +329,12 @@ public class Enemy : MonoBehaviour
                 dashT -= dt;
                 Vector2 step = dashDir * 6f * dt;
                 if (CanGo(grid + step)) grid += step; else dashT = 0f;
-                if (dist < 0.7f && attackCd <= 0f && targetWho == 0) { attackCd = 1.2f; game.DamagePlayer(damage, "สายฟ้า!"); }
+                if (dist < 0.7f && attackCd <= 0f && targetWho == 0)
+                {
+                    attackCd = 1.2f;
+                    game.DamagePlayer(damage, kind == EnemyKind.FrostMammoth ? "แมมมอธพุ่งชน!" : "สายฟ้า!");
+                    if (kind == EnemyKind.FrostMammoth) { game.Slow(2f); game.Chill(10f); }
+                }
                 Apply();
                 return;
             }
@@ -455,6 +491,8 @@ public class Enemy : MonoBehaviour
                     if (kind == EnemyKind.FrostBat) game.Chill(15f);
                     if (kind == EnemyKind.Eel) game.Slow(2f);
                     if (kind == EnemyKind.GiantBee) game.Slow(1.5f);
+                    if (kind == EnemyKind.MirrorWraith) { game.Chill(12f); game.Slow(1f); }
+                    if (kind == EnemyKind.SkyJelly) game.Slow(1.2f);
                     if (kind == EnemyKind.ChimeBird && stolenCount == 0)
                     {
                         (stolenItem, stolenCount) = game.StealItem();
@@ -492,7 +530,10 @@ public class Enemy : MonoBehaviour
         transform.position = flat + Vector3.up * height;
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         sr.sprite = PixelArt.Enemy(kind, Disguised ? 2 : kind == EnemyKind.HermitCrab && shellHp <= 0 ? frame + 2 : frame);
-        sr.color = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : baseColor;
+        var col = hurtT > 0f ? new Color(1f, 0.4f, 0.4f) : baseColor;
+        if (fadeT > 0f) col.a = 0.22f;                                              // in the shadows
+        if (shieldT > 0f) col = Color.Lerp(col, new Color(0.7f, 0.95f, 1f), 0.5f);  // inside a bubble
+        sr.color = col;
     }
 
     /// Returns true if the enemy died.
@@ -514,8 +555,9 @@ public class Enemy : MonoBehaviour
             }
             return false;
         }
-        if (variant == IslandGame.Variant.Armored || kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem)
-            dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem ? 0.5f : 0.6f))); // armour soaks blows
+        if (variant == IslandGame.Variant.Armored || kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem or EnemyKind.MagmaGolem)
+            dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * (kind is EnemyKind.DeepCrab or EnemyKind.CrystalGolem or EnemyKind.MagmaGolem ? 0.5f : 0.6f))); // armour soaks blows
+        if (shieldT > 0f) dmg = Mathf.Max(1, Mathf.RoundToInt(dmg * 0.3f)); // a fruit user's bubble
         if (kind == EnemyKind.MirrorWisp) IslandGame.I.DamagePlayer(2f, "เศษแก้วสะท้อน!"); // splinters fly back
         if (kind == EnemyKind.WorkerAnt) IslandGame.I.ProvokeAnts(grid); // the whole colony is angry now
         hp -= dmg;

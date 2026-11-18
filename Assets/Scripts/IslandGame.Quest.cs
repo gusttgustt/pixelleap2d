@@ -217,6 +217,8 @@ public partial class IslandGame
         EnemyKind.WorkerAnt => "มดงาน", EnemyKind.SoldierAnt => "มดทหาร", EnemyKind.GiantBee => "ผึ้งยักษ์", EnemyKind.AntQueen => "ราชินีมด",
         EnemyKind.TideLord => "เจ้าสมุทรคลื่นคลั่ง", EnemyKind.FrostQueen => "ราชินีกระจกเหมันต์",
         EnemyKind.MagmaHydra => "ไฮดราเพลิงกัลป์", EnemyKind.VoidTitan => "ไททันหลุมดำ",
+        EnemyKind.FruitUser => "นักล่าผลไม้",
+        EnemyKind.MirrorWraith or EnemyKind.FrostMammoth or EnemyKind.LavaSalamander or EnemyKind.MagmaGolem or EnemyKind.SkyJelly or EnemyKind.StarWatcher => MonsterName(k),
         _ => k.ToString(),
     };
 

@@ -50,6 +50,7 @@ public partial class IslandGame
                 var want = QuestTargets(); // a creature an accepted quest wants, if any (testing quest hunts)
                 var kind = EnemyKind.Boar;
                 foreach (var k in want.Keys) { kind = k; break; }
+                if (kb.ctrlKey.isPressed) kind = EnemyKind.MirrorWraith + i % 7; // ctrl: the later continents' creatures and fruit users (testing)
                 e.Init(kind, g, tier, ++enemyCounter);
                 enemies.Add(e);
             }

@@ -116,6 +116,7 @@ public partial class IslandGame
         TickCrew();      // crew members on and off the captain's boat (IslandGame.Crew.cs)
         TickCave(dt);    // the crew list, the cave boss (IslandGame.Cave.cs)
         TickContinentBoss(dt); // the boss of the continent's last island (IslandGame.ContinentBoss.cs)
+        TickMonsters(dt);      // fruit users' auras, pulls (IslandGame.Monsters.cs)
         TickStarterPet(); // pick your first pet (IslandGame.Pet.cs)
         HandleChatKeys(kb);
         HandleInput(inputKb);
@@ -749,8 +750,17 @@ public partial class IslandGame
             EnemyKind.SoldierAnt => (Item.Chitin, 2),
             EnemyKind.GiantBee => (Item.Honey, 1),
             EnemyKind.AntQueen => (Item.Chitin, 10),
+            EnemyKind.MirrorWraith => (Item.IceShard, 2),
+            EnemyKind.FrostMammoth => (Item.Fur, 3),
+            EnemyKind.LavaSalamander => (Item.Obsidian, 2),
+            EnemyKind.MagmaGolem => (Item.Copper, 3),
+            EnemyKind.SkyJelly => (Item.CloudCotton, 2),
+            EnemyKind.StarWatcher => (Item.CrystalShard, 2),
+            EnemyKind.FruitUser => (Item.GoldCoin, 8),
+            EnemyKind.TideLord or EnemyKind.FrostQueen or EnemyKind.MagmaHydra or EnemyKind.VoidTitan => (Item.GoldCoin, 1), // the real spoils: IslandGame.ContinentBoss.cs
             _ => (Item.CrabMeat, 1),
         };
+        if (kind == EnemyKind.FruitUser) FruitUserDown(at); // a wanted person: bounty, sometimes a fruit (IslandGame.Monsters.cs)
         QuestKill(kind, at);
         BossDown(kind);
         if (kind == EnemyKind.Captain) AddBounty(CaptainBounty, at + Vector3.up * 1f, null); // the pirate warship's captain: the government notices
@@ -899,10 +909,14 @@ public partial class IslandGame
         EnemyKind.StormHawk => (IsNight ? 3 : 2) + tier,
         EnemyKind.WorkerAnt => 5 + tier,
         EnemyKind.SoldierAnt => (IsNight ? 3 : 1) + tier,
+        EnemyKind.MirrorWraith or EnemyKind.LavaSalamander or EnemyKind.SkyJelly => (IsNight ? 3 : 2) + tier,
+        EnemyKind.FrostMammoth or EnemyKind.MagmaGolem or EnemyKind.StarWatcher => (IsNight ? 2 : 1) + tier,
+        EnemyKind.FruitUser => FruitUserCap,
         _ => 0,
     };
 
-    EnemyKind[] BiomeEnemies() => EnemiesOf(biome, tier > 0); // IslandGame.ItemInfo.cs
+    /// The island's creatures, plus its continent's own and the fruit users further out (IslandGame.Monsters.cs).
+    EnemyKind[] BiomeEnemies() => inCave || atHome ? EnemiesOf(biome, tier > 0) : WithContinentEnemies(EnemiesOf(biome, tier > 0));
 
     void UpdateEnemies(float dt)
     {
