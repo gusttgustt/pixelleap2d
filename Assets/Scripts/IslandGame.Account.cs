@@ -33,7 +33,8 @@ public partial class IslandGame
     {
         acctUser = (acctUser ?? "").Trim();
         if (acctUser.Length < 3) { netStatus = "ใส่ชื่อบัญชีอย่างน้อย 3 ตัว"; return; }
-        if ((acctPass ?? "").Length < 4) { netStatus = "ใส่รหัสผ่านอย่างน้อย 4 ตัว"; return; }
+        if ((acctPass ?? "").Length < 4) { netStatus = "ใส่รหัสผ่านอย่างน้อย 4 ตัว"; return; } // older accounts may have 4
+        if (register && acctPass.Length < 8) { netStatus = "รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัว"; return; } // the server asks 8 for new accounts
         pendingAuth = register ? "register" : "login";
         authSent = false;
         PlayOnline();

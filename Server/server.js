@@ -82,6 +82,7 @@ const SAVE_EVERY = 5000;              // ms between save writes per account (the
 const MAX_ACCOUNTS = 5000;
 const REGISTER_PER_IP = 3, REGISTER_ALL = 30, REGISTER_WINDOW = 60 * 60 * 1000; // new accounts per hour
 const FAILS_PER_IP = 10, FAILS_PER_ACCOUNT = 5, FAIL_LOCK = 15 * 60 * 1000;      // wrong passwords, then a 15 min wait
+const FAILS_ACCOUNT_ALL = 30;         // ... on one account from all addresses together (its saved logins on devices still work)
 
 const clients = new Map();            // id -> socket
 const rooms = new Map();              // island -> { order: [ids], events: Map(nodeId -> event) }
@@ -128,10 +129,9 @@ const server = http.createServer((req, res) => {
   const host = (req.headers.host || "").split(":")[0];
   const local = host === "localhost" || host === "127.0.0.1" || /^192\.168\./.test(host) || /^10\./.test(host);
   if (!local) {
-    // Play on GitHub Pages, connected back to this server through the Cloudflare tunnel to this PC.
-    const secure = (req.headers["x-forwarded-proto"] || "").includes("https") || /trycloudflare\.com$/.test(host);
-    const ws = (secure ? "wss://" : "ws://") + req.headers.host + "/ws";
-    res.writeHead(302, { Location: GAME_URL + "?server=" + encodeURIComponent(ws) });
+    // Play on GitHub Pages: the page finds this server through server.txt (a ?server= in the address
+    // is ignored there, so a link can't point players at someone else's server)
+    res.writeHead(302, { Location: GAME_URL });
     res.end();
     return;
   }
@@ -163,7 +163,8 @@ function originOk(origin) {
   if (origin === GAME_ORIGIN || EXTRA_ORIGINS.includes(origin)) return true;
   let u;
   try { u = new URL(origin); } catch (e) { return false; }
-  if (u.protocol === "https:" && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname)) return true;
+  // (no *.trycloudflare.com: anyone can make one of those, and this server never serves the game
+  // page through the tunnel - it sends people to GAME_URL instead)
   if (u.protocol !== "http:" && u.protocol !== "https:") return false;
   const h = u.hostname;
   return h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /^192\.168\.\d+\.\d+$/.test(h) || /^10\.\d+\.\d+\.\d+$/.test(h);
@@ -229,18 +230,26 @@ server.on("upgrade", (req, socket) => {
   socket.strikes = 0;
   socket.lastHeard = Date.now();
 
+  // Pieces that arrive are kept in a list and joined once there's enough for the next frame:
+  // joining on every piece copied a big message over and over (a 4 MB save in 64 KB pieces).
+  let waitList = [], waitLen = 0, need = 2;
   socket.on("data", chunk => {
-    buf = Buffer.concat([buf, chunk]);
+    waitList.push(chunk); waitLen += chunk.length;
+    if (waitLen < need) return;
+    buf = waitList.length === 1 ? waitList[0] : Buffer.concat(waitList, waitLen);
+    waitList = []; waitLen = 0;
+    const keep = n => { need = n; if (buf.length) { waitList.push(buf); waitLen = buf.length; } buf = Buffer.alloc(0); };
     for (;;) {
-      if (buf.length < 2) return;
+      if (buf.length < 2) return keep(2);
       const fin = (buf[0] & 0x80) !== 0, op = buf[0] & 0x0f, masked = (buf[1] & 0x80) !== 0;
       let len = buf[1] & 0x7f, at = 2;
-      if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); at = 4; }
-      else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); at = 10; }
+      if (len === 126) { if (buf.length < 4) return keep(4); len = buf.readUInt16BE(2); at = 4; }
+      else if (len === 127) { if (buf.length < 10) return keep(10); len = Number(buf.readBigUInt64BE(2)); at = 10; }
       if (len > frameLimit(socket)) { socket.destroy(); return; }
       const maskAt = at;
       if (masked) at += 4;
-      if (buf.length < at + len) return;
+      if (buf.length < at + len) return keep(at + len);
+      need = 2;
       const payload = Buffer.from(buf.subarray(at, at + len));
       if (masked) for (let i = 0; i < len; i++) payload[i] ^= buf[maskAt + (i & 3)];
       buf = buf.subarray(at + len);
@@ -409,9 +418,17 @@ function onMessage(socket, text) {
 
   switch (m.t) {
     case "join": {
+      const island = (m.island | 0) || 1; // below 0: someone's private island (not remembered)
+      if (island < 0 && !mayEnterHome(socket, Math.floor(-island / 2))) {
+        // someone else's private island needs its owner online and sharing it (as "visit" does), and a
+        // "visit" asked for this connection (or the one before a reconnect from the same address):
+        // no walking onto an island whose owner is away, hosting it and changing its farm
+        log("! " + socket.name + " #" + socket.pid + " (" + socket.ip + ") tried to join private island " + island + " without visiting");
+        leaveRoom(socket);
+        return;
+      }
       leaveRoom(socket);
       socket.playing = true; // in the game now: counts as online
-      const island = (m.island | 0) || 1; // below 0: someone's private island (not remembered)
       const r = room(island);
       socket.island = island;
       r.order.push(socket.pid);
@@ -438,8 +455,9 @@ function onMessage(socket, text) {
       if (m.ver !== undefined && (m.ver | 0) !== cur) { send(socket, { t: "saveold", ver: cur }); return; }
       const ver = cur + 1;
       saveVersions.set(socket.acct, ver);
-      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver }));
-      socket.acctLv = saveLevel(text) || socket.acctLv;
+      const lv = trustLevel(socket, saveLevel(text));
+      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver, lv: lv.lv, lvAt: lv.at }));
+      socket.acctLv = lv.lv || socket.acctLv;
       send(socket, { t: "saved", ver });
       return;
     }
@@ -476,6 +494,8 @@ function onMessage(socket, text) {
     case "visit": {
       const s = clients.get(m.id | 0);
       if (!s || !s.home || !s.home.text) { send(socket, { t: "visit", id: m.id | 0, text: "" }); return; }
+      if (s === socket) { send(socket, { t: "visit", id: s.pid, text: "" }); return; }
+      allowVisit(socket.ip, s.pid);
       send(socket, { t: "visit", id: s.pid, name: s.name, text: s.home.text, room: s.home.room, lv: s.home.lv, pets: s.home.pets });
       log("  " + socket.name + " visits " + s.name + "'s island");
       return;
@@ -491,7 +511,10 @@ function onMessage(socket, text) {
         if (m.d <= 0) return;
         m.text = typeof m.text === "string" ? m.text.slice(0, 24) : "";
       }
-      m.name = socket.name; send(s, m);
+      // rebuilt from the fields the game reads (IslandGame.Crew.cs), nothing big passed on
+      send(s, { t: "crew", from: socket.pid, to: s.pid, ev: cleanText(m.ev, 16), name: socket.name, island: m.island | 0,
+                d: m.d | 0, x: num(m.x, -1e6, 1e6), y: num(m.y, -1e6, 1e6), look: int(m.look, 0, 2000000), lv: m.lv | 0,
+                text: typeof m.text === "string" ? m.text.slice(0, 2000) : "" });
       return;
     }
     case "knock": {
@@ -505,10 +528,15 @@ function onMessage(socket, text) {
       // Only the owner, or someone standing on that private island, may change it.
       const owner = m.id | 0;
       if (owner <= 0 || (owner !== socket.pid && !onHomeOf(socket, owner))) return;
-      if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); return; }
-      if (socket.island) toRoom(socket.island, m, socket.pid);
+      // the whole island (ev "full": big, as big as a shared home) or only what just changed (small)
+      const one = m.to > 0, full = m.ev === "full" && owner === socket.pid;
+      const h = { t: "hnode", from: socket.pid, id: owner, text: String(m.text || "").slice(0, full ? 400000 : 100000),
+                  room: String(m.room || "").slice(0, 100000), fl: int(m.fl, 0, 1), lv: int(m.lv, 0, 1000) };
+      if (full) h.ev = "full";
+      if (one) { const s = clients.get(m.to | 0); if (s && s.island === socket.island) send(s, h); return; }
+      if (socket.island) toRoom(socket.island, h, socket.pid);
       const o = clients.get(owner);
-      if (o && o !== socket && o.island !== socket.island) send(o, m);
+      if (o && o !== socket && o.island !== socket.island) send(o, h);
       return;
     }
     case "hgift": {
@@ -541,22 +569,104 @@ function onMessage(socket, text) {
       return;
     }
     case "node":
-    case "spawn":
+    case "spawn": {
       if (!socket.island) return;
-      if (socket.island > 0) remember(room(socket.island), m);
-      toRoom(socket.island, m, socket.pid);
+      // a player harvests or builds a couple of times a second at most: a flood of made-up world
+      // changes (filling the island's MAX_EVENTS for hours) is dropped, and someone who keeps at it
+      // stops being remembered at all for this island
+      if (!bucket(socket, "eventBucket", EVENT_RATE, EVENT_BURST)) return;
+      const ev = m.t === "spawn"
+        ? { t: "spawn", from: socket.pid, id: m.id | 0, kind: int(m.kind, 0, 10000), x: num(m.x, MAP_MIN, MAP_MAX), y: num(m.y, MAP_MIN, MAP_MAX) }
+        : { t: "node", from: socket.pid, id: m.id | 0, ev: NODE_EVENTS.has(m.ev) ? m.ev : null, dur: num(m.dur, 0, 7 * 24 * 3600), hits: int(m.hits, 0, 100000) };
+      if (ev.t === "node" && !ev.ev) return;
+      if (socket.island > 0) {
+        const r = room(socket.island);
+        let keep = true;
+        if (ev.t === "spawn") {
+          // things built here, per player (by address: a new connection doesn't start afresh)
+          const built = r.built || (r.built = new Map()), n = (built.get(socket.ip) || 0) + 1;
+          built.set(socket.ip, n);
+          keep = n <= SPAWNS_PER_PLAYER;
+        }
+        if (keep) remember(r, ev);
+      }
+      toRoom(socket.island, ev, socket.pid);
       return;
-    default:
+    }
+    default: {
       if (!socket.island) return;
-      // what only the room's host may say: the creatures (en), their bites (dmg), who killed one
+      // Only the kinds the game sends, each rebuilt from the fields the game reads: nothing else is
+      // passed on (before, anything unknown went to the whole room as it came, megabytes included).
+      // What only the room's host may say: the creatures (en), their bites (dmg), who killed one
       // (kill), the clock. Anyone else sending them is cheating (or out of date): dropped.
+      const build = RELAY[m.t];
+      if (!build) return;
       if (HOST_ONLY.has(m.t) && !isHostOf(socket)) return;
-      if (m.to > 0) { const s = clients.get(m.to); if (s && s.island === socket.island) send(s, m); }
-      else toRoom(socket.island, m, socket.pid);
+      const out = build(m, socket);
+      if (!out) return;
+      out.t = m.t; out.from = socket.pid;
+      if (out.to > 0) { const s = clients.get(out.to); if (s && s.island === socket.island) send(s, out); }
+      else { delete out.to; toRoom(socket.island, out, socket.pid); }
+    }
   }
 }
 
 const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
+const NODE_EVENTS = new Set(["deplete", "remove", "stump", "hits", "set"]); // what ApplyEvent knows
+const EVENT_RATE = 6, EVENT_BURST = 40; // world changes one player may send per second
+const SPAWNS_PER_PLAYER = 300;        // things one address may build on an island that are remembered
+
+const MAX_EN = 200;                   // creatures in one "en" update (an island has a few dozen)
+const BITE_RATE = 3, BITE_BURST = 6;  // bites one player may take per second (each creature bites every 1.3 s)
+const BITE_REACH = 4;                 // tiles: a bite needs one of the host's creatures this close to the player
+const MAX_BITE = 2500;                // the game takes no more than this from one bite either (MaxNetBite)
+const KILL_RATE = 6, KILL_BURST = 20; // kills a host may announce per second
+
+/// A token bucket kept on any object: true while there's room for one more.
+function bucket(o, key, rate, burst) {
+  const now = Date.now(), b = o[key] || (o[key] = { n: burst, at: now });
+  b.n = Math.min(burst, b.n + (now - b.at) / 1000 * rate); b.at = now;
+  if (b.n < 1) return false;
+  b.n -= 1; return true;
+}
+
+const RELAY = {
+  chat: m => ({ text: m.text }),      // cleaned above
+  hit: m => ({ to: m.to | 0, id: m.id, dmg: m.dmg, ev: m.ev }),
+  clock: m => ({ clock: num(m.clock, 0, 1e9) }),
+  en: (m, socket) => {
+    if (!Array.isArray(m.en)) return null;
+    const en = m.en.slice(0, MAX_EN).filter(e => e && typeof e === "object").map(e => ({
+      id: e.id | 0, k: int(e.k, 0, 10000), hp: int(e.hp, 0, 1e9), mhp: int(e.mhp, 0, 1e9), fl: int(e.fl, 0, 1),
+      x: num(e.x, -1000, 1000), y: num(e.y, -1000, 1000), // (not only island maps: creatures at sea too)
+    }));
+    const r = rooms.get(socket.island);
+    if (r) { r.enemies = en; r.enemiesAt = Date.now(); } // where the host's creatures are: bites are checked against it
+    return { en };
+  },
+  dmg: (m, socket) => {
+    // A bite from the host's creature. The host is just another player's game, so: only someone in
+    // this room, only with one of the host's creatures next to them, and no more often than
+    // creatures bite. (A changed host can still bite within that; only the server running the
+    // creatures itself would stop that fully.)
+    const s = clients.get(m.to | 0);
+    if (!s || s === socket || s.island !== socket.island) return null;
+    const r = rooms.get(socket.island);
+    if (s.pos && r && r.enemies) {
+      if (Date.now() - r.enemiesAt > 3000) return null;
+      if (!r.enemies.some(e => Math.hypot(e.x - s.pos.x, e.y - s.pos.y) <= BITE_REACH)) return null;
+    } else if (s.pos) return null;     // creatures never reported: nothing can be biting
+    if (!bucket(s, "biteBucket", BITE_RATE, BITE_BURST)) return null;
+    const dmg = num(m.dmg, 0, MAX_BITE);
+    if (!(dmg > 0)) return null;
+    return { to: s.pid, dmg, why: cleanText(m.why, 40) };
+  },
+  kill: (m, socket) => {
+    const r = rooms.get(socket.island);
+    if (!r || !bucket(r, "killBucket", KILL_RATE, KILL_BURST)) return null;
+    return { id: m.id | 0, by: m.by | 0, kind: int(m.kind, 0, 10000), hits: int(m.hits, 0, 1000000), x: num(m.x, -1000, 1000), y: num(m.y, -1000, 1000) };
+  },
+};
 
 /// A number within lo..hi (anything else - text, NaN, Infinity, missing - becomes lo, or 0 if inside).
 function num(v, lo, hi) {
@@ -593,6 +703,27 @@ function limitMove(socket, p) {
   } else socket.moveBudget -= d;
   socket.pos.x = p.x;
   socket.pos.y = p.y;
+}
+
+/// The save comes whole from the player's game, so the server can't know what really happened in
+/// it. What it can do: the level others see (and the one kept with the save as "lv") rises no faster
+/// than playing can raise it. A save claiming more is still kept for that player (it is their own
+/// game), but everyone else sees the level the server let through. The first save of an account
+/// may bring the level a guest had already reached before making it.
+const LEVEL_FREE = 5, LEVELS_PER_MIN = 2;
+const trustedLv = new Map();          // account -> { lv, at }
+function trustLevel(socket, claimed) {
+  const key = socket.acct, prev = trustedLv.get(key);
+  const now = Date.now();
+  if (!claimed) return prev || { lv: 0, at: now };
+  if (!prev || !prev.lv) { const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t; }
+  if (claimed <= prev.lv) { const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t; } // (a level lost: fine)
+  const most = prev.lv + LEVEL_FREE + Math.floor((now - prev.at) / 60000 * LEVELS_PER_MIN);
+  if (claimed > most) {
+    if (now - (socket.lvLogAt || 0) > 60000) { socket.lvLogAt = now; log("! " + socket.name + " (" + socket.ip + ") save says level " + claimed + ", was " + prev.lv + ": shown as " + most); }
+    return { lv: most, at: prev.at };   // not stored: the clock keeps running from the last real rise
+  }
+  const t = { lv: claimed, at: now }; trustedLv.set(key, t); return t;
 }
 
 /// The level in an account's save (the save's own "level", near its start), or 0 if none.
@@ -642,6 +773,23 @@ function nameCheck(socket) {
   socket.name = name; // the others see the change with this player's next update
 }
 
+/// Visits handed out: "address>owner" -> when. Kept by address, not connection, so a visitor whose
+/// line drops and comes back (a new connection, a new id) can go back onto the island they were on.
+const visits = new Map();
+const VISIT_KEEP = 3 * 60 * 60 * 1000;
+function allowVisit(ip, owner) { visits.set(ip + ">" + owner, Date.now()); }
+setInterval(() => { const now = Date.now(); for (const [k, t] of visits) if (now - t > VISIT_KEEP) visits.delete(k); }, 10 * 60 * 1000).unref();
+
+/// May this player go onto owner's private island? Their own always; someone else's only while the
+/// owner is online and sharing it, and after asking to visit it.
+function mayEnterHome(socket, owner) {
+  if (owner === socket.pid) return true;
+  const o = clients.get(owner);
+  if (!o || !o.home || !o.home.text) return false;
+  const t = visits.get(socket.ip + ">" + owner);
+  return !!t && Date.now() - t < VISIT_KEEP;
+}
+
 /// Is this player on that owner's private island (outside or in the house)?
 function onHomeOf(socket, owner) {
   return socket.island === -(owner * 2) || socket.island === -(owner * 2 + 1);
@@ -673,6 +821,8 @@ const boardKey = socket => socket.acct ? "a:" + socket.acct : "g:" + keyOf(socke
 
 const BOUNTY_STEP = 15000000;          // the most a bounty may grow at once (a continent boss's is 3-12 million)
 const BOUNTY_EVERY = 5000;             // ms between rises
+const BOUNTY_HOUR = 120000000;         // the most a bounty may grow in an hour
+const bountyGrowth = new Map();        // board key -> { left, at }
 
 function setBounty(socket, m) {
   // the board everyone sees: logged-in players only (a guest's name isn't theirs to keep), and a
@@ -683,8 +833,14 @@ function setBounty(socket, m) {
   const was = old ? old.b : 0, now = Date.now();
   if (b > was) {
     if (now - (socket.bountyAt || 0) < BOUNTY_EVERY) return;
-    b = Math.min(b, was + BOUNTY_STEP);
+    // and no more than BOUNTY_HOUR in an hour (ten continent bosses), per account across connections
+    const g = bountyGrowth.get(key) || { left: BOUNTY_HOUR, at: now };
+    g.left = Math.min(BOUNTY_HOUR, g.left + (now - g.at) / 3600000 * BOUNTY_HOUR); g.at = now;
+    b = Math.min(b, was + BOUNTY_STEP, was + Math.floor(g.left));
+    g.left -= b - was;
+    bountyGrowth.set(key, g);
     socket.bountyAt = now;
+    if (b <= was) return;
   }
   if (socket.acct) delete board["g:" + keyOf(socket.name)]; // played as a guest before making the account
   if (old && old.b === b && old.lk === (m.look | 0) && old.name === socket.name) return;
@@ -770,7 +926,11 @@ function authOk(socket, acc) {
   const pending = saveTimers.get(socket.acct); // a save still waiting to be written: on disk first,
   if (pending && pending.timer) { clearTimeout(pending.timer); pending.write(); } // so this login gets the newest
   const data = readSave(socket.acct);
-  socket.acctLv = saveLevel(data.save) || 1; // shown to others from here on (a new account: 1 until its first save)
+  if (!trustedLv.has(socket.acct)) {
+    const lv = data.lv | 0 || saveLevel(data.save); // the level the server let through last time (older saves: their own)
+    if (lv) trustedLv.set(socket.acct, { lv, at: +data.lvAt || +data.at || Date.now() });
+  }
+  socket.acctLv = (trustedLv.get(socket.acct) || {}).lv || 1; // shown to others from here on (a new account: 1 until its first save)
   send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.acct) });
   log("  " + socket.name + " logged in as " + acc.name);
 }
@@ -861,7 +1021,7 @@ function locked(id) {
   const f = fails.get(id);
   if (!f) return false;
   if (Date.now() > f.until) { fails.delete(id); return false; }
-  return f.n >= (id.startsWith("ip:") ? FAILS_PER_IP : FAILS_PER_ACCOUNT);
+  return f.n >= (id.startsWith("ip:") ? FAILS_PER_IP : id.startsWith("all:") ? FAILS_ACCOUNT_ALL : FAILS_PER_ACCOUNT);
 }
 function failed(id) {
   const f = fails.get(id);
@@ -880,6 +1040,9 @@ function hashPassAsync(pass, salt) {
 }
 
 const TOO_MANY = "ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่";
+const WRONG_LOGIN = "ชื่อบัญชีหรือรหัสผ่านไม่ถูกต้อง (ยังไม่มีบัญชี? กดสมัครได้เลย)";
+const MIN_PASS = 8;                    // new accounts (older ones keep the password they have)
+const DUMMY_SALT = crypto.randomBytes(16).toString("hex");
 
 async function onAccount(socket, m) {
   if (socket.authBusy) return;          // one at a time per connection
@@ -891,7 +1054,7 @@ async function onAccount(socket, m) {
   try {
     if (m.t === "register") {
       if (!/^[\p{L}\p{M}\p{N}_.\-]{3,20}$/u.test(name)) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค" }); return; }
-      if (pass.length < 4) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย 4 ตัว" }); return; }
+      if (pass.length < MIN_PASS) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย " + MIN_PASS + " ตัว" }); return; } // (accounts made before keep theirs)
       if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
       const now = Date.now(), mine = (registers.get(socket.ip) || []).filter(t => now - t < REGISTER_WINDOW);
       registersAll = registersAll.filter(t => now - t < REGISTER_WINDOW);
@@ -921,16 +1084,20 @@ async function onAccount(socket, m) {
       authOk(socket, acc);
       return;
     }
-    if (locked(ipId) || locked(acctId)) { send(socket, { t: "auth", hits: 0, why: TOO_MANY }); return; }
-    if (!acc) { send(socket, { t: "auth", hits: 0, why: "ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)" }); return; } // not a wrong password: don't count it
-    const h = await hashPassAsync(pass, acc.salt);
+    const allId = "all:" + key;       // wrong passwords from every address together (many addresses guessing one account)
+    if (locked(ipId) || locked(acctId) || locked(allId)) { send(socket, { t: "auth", hits: 0, why: TOO_MANY }); return; }
+    // an unknown name gets the same answer, as slowly, as a wrong password: the login doesn't tell
+    // which account names exist
+    const h = await hashPassAsync(pass, acc ? acc.salt : DUMMY_SALT);
     if (socket.destroyed) return;
-    if (!crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) {
-      failed(ipId); failed(acctId);
-      if (locked(acctId)) log("! account " + acc.name + " locked for 15 min from " + socket.ip + " (wrong passwords)");
-      send(socket, { t: "auth", hits: 0, why: locked(ipId) || locked(acctId) ? TOO_MANY : "รหัสผ่านไม่ถูกต้อง" });
+    if (!acc || !crypto.timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(acc.hash, "hex"))) {
+      failed(ipId);
+      if (acc) { failed(acctId); failed(allId); }
+      if (acc && (locked(acctId) || locked(allId))) log("! account " + acc.name + " locked for 15 min" + (locked(allId) ? " (wrong passwords from many addresses)" : " from " + socket.ip + " (wrong passwords)"));
+      send(socket, { t: "auth", hits: 0, why: locked(ipId) || locked(acctId) || locked(allId) ? TOO_MANY : WRONG_LOGIN });
       return;
     }
+    fails.delete(allId);
     fails.delete(acctId);
     authOk(socket, acc);
   } catch (e) {
