@@ -8,7 +8,7 @@ using UnityEngine;
 /// meanwhile (its islands come out differently now: back to the title screen for that).
 public partial class IslandGame
 {
-    bool reconnecting, reauthPending, reconnectAbort;
+    bool reconnecting, reauthPending, reauthChar, reconnectAbort;
     float reconnectAt, reconnectStart;
     int reconnectTries, reconnectSeed;
     string reconnectAcct;              // logged in before the drop: log in again with the device's token
@@ -18,10 +18,10 @@ public partial class IslandGame
     bool StartReconnect()
     {
         if (title || kickedWhy != null) return false;
-        reconnecting = true; reauthPending = false; reconnectAbort = false;
+        reconnecting = true; reauthPending = false; reauthChar = false; reconnectAbort = false;
         reconnectTries = 0; reconnectAt = Time.time + 1f;
         reconnectSeed = worldSeed;
-        reconnectAcct = acctName;
+        reconnectAcct = charId != null ? acctName : null; // an account character (not one played offline)
         return true;
     }
 
@@ -55,10 +55,10 @@ public partial class IslandGame
         }
         if (link.Connected && !helloSent) { Send(new NetMsg { t = "hello", name = playerName }); helloSent = true; }
         bool stuck = myId == 0 && (link.Dead || Time.time - reconnectStart > 12f);
-        bool noLogin = reauthPending && Time.time - reconnectStart > 25f;
+        bool noLogin = (reauthPending || reauthChar) && Time.time - reconnectStart > 25f;
         if (stuck || noLogin)
         {
-            link.Close(); link = null; myId = 0; reauthPending = false;
+            link.Close(); link = null; myId = 0; reauthPending = false; reauthChar = false;
             reconnectAt = Time.time + Mathf.Min(30f, 2f * reconnectTries);
         }
     }
@@ -70,28 +70,44 @@ public partial class IslandGame
         if (reconnectAcct != null && SavedToken.Length > 0 && SavedUser.Length > 0)
         {
             reauthPending = true;
-            Send(new NetMsg { t = "token", name = SavedUser, text = SavedToken });
+            Send(new NetMsg { t = "token", name = SavedUser, text = SavedToken, kind = 1 });
             return;
         }
         Rejoined();
     }
 
-    /// The answer to the token sent while getting back online.
+    /// The answer to the token sent while getting back online: then the same character again.
     void OnReauth(NetMsg m)
     {
         reauthPending = false;
-        if (m.hits == 1)
+        if (m.hits == 1 && charId != null)
         {
             acctName = m.name;
             PlayerPrefs.SetString("acctToken", m.ev ?? "");
+            PlayerPrefs.Save();
+            reauthChar = true;
+            Send(new NetMsg { t = "char", hits = charSlotPlaying, name = playerName, look = lookCode });
+            return;
+        }
+        if (m.hits == 1) acctName = m.name;
+        else { acctName = null; Hint("ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)", 6f); }
+        Rejoined();
+    }
+
+    /// The character's save version from the server, after getting back online.
+    void OnReauthChar(NetMsg m)
+    {
+        reauthChar = false;
+        if (m.hits >= 0)
+        {
             // a save on its way when the line dropped may have arrived: then the server's version is ours + 1
             if (cloudWaiting && m.ver == cloudVer + 1) cloudVer = m.ver;
             cloudWaiting = false;
             if (m.ver != cloudVer) OnSaveOld(m); // another device saved meanwhile: don't put this one's progress over it
-            else { PlayerPrefs.SetInt(VerKey(acctName), cloudVer); cloudDirty = true; cloudPushT = 0f; }
+            else { PlayerPrefs.SetInt(VerKey(charId), cloudVer); cloudDirty = true; cloudPushT = 0f; }
             PlayerPrefs.Save();
         }
-        else Hint("ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)", 6f);
+        else { acctName = null; Hint("ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่โหลดตัวละครไม่ได้ (ตอนนี้เซฟอยู่ในเครื่องนี้)", 6f); }
         Rejoined();
     }
 

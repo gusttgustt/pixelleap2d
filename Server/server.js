@@ -28,6 +28,13 @@
 //                                                     (another device played meanwhile) is refused -> {t:"saveold", ver}
 //                                                     otherwise -> {t:"saved", ver} (the new version)
 //                        {t:"logout", ev: token}
+//   Characters (3 per account; kind:1 on register/login/token = a game that knows them):
+//                                                     -> {t:"auth", hits:1, name, ev: token, text: {list:[{used, name, look, lv, at}]}}
+//                        {t:"char", hits: slot, name?, look?}  play this one (name/look: only for an older one with no name yet)
+//                                                     -> {t:"char", hits: slot, name, text: save, room: keep, ver} or {t:"char", hits:-1, why}
+//                        {t:"charnew", hits: slot, name, look}  -> {t:"chars", text: list} or {t:"chars", why}
+//                        {t:"chardel", hits: slot}    -> {t:"chars", text: list}  (its save file is kept aside, not erased)
+//                        A game that logs in without kind:1 gets slot 0 picked for it and its save in "auth", as before.
 //   Bounties (wanted posters, kept in DATA_DIR/bounty.json):
 //                        {t:"bounty", hits, look}     my bounty and how I look (kept per account, or per name for guests)
 //                        {t:"wanted"}                 -> {t:"wanted", players: [{name, b, lk, c}]}  highest first (c:1 = you)
@@ -413,7 +420,7 @@ function onMessage(socket, text) {
   }
   if (!socket.pid) return;      // must say hello first
   m.from = socket.pid;          // no one can speak for someone else
-  const named = m.t !== "register" && m.t !== "login" && m.t !== "token";
+  const named = m.t !== "register" && m.t !== "login" && m.t !== "token" && m.t !== "char" && m.t !== "charnew";
   if (named && m.name !== undefined) m.name = socket.name; // nor go by another name than the one checked at hello
 
   if (m.t === "chat") {
@@ -463,30 +470,38 @@ function onMessage(socket, text) {
     case "token":
       onAccount(socket, m);
       return;
+    case "char": onChar(socket, m); return;
+    case "charnew": onCharNew(socket, m); return;
+    case "chardel": onCharDel(socket, m); return;
     case "save": {
-      if (!socket.acct || !accounts[socket.acct]) return;
+      if (!socket.acct || !accounts[socket.acct] || !socket.ckey) return;
       const text = String(m.text || ""), keep = String(m.room || "");
       if (text.length > MAX_SAVE || keep.length > MAX_SAVE) return;
-      const cur = saveVersion(socket.acct);
+      const cur = saveVersion(socket.ckey);
       // a game from before save versions sends none: taken as before. Otherwise the save must build
       // on the newest one, or it would put back progress another device has already moved past.
       if (m.ver !== undefined && (m.ver | 0) !== cur) { send(socket, { t: "saveold", ver: cur }); return; }
       // a save the game can't have made: quietly not kept (the account keeps its last good one).
       // The game is told it was saved, so a changed game gets no hint of what gave it away.
-      const bad = checkSave(socket.acct, text);
+      const bad = checkSave(socket.ckey, text);
       if (bad) { noteCheat(socket, bad); send(socket, { t: "saved", ver: cur }); return; }
       const ver = cur + 1;
-      saveVersions.set(socket.acct, ver);
+      saveVersions.set(socket.ckey, ver);
       const lv = trustLevel(socket, saveLevel(text));
-      saveSoon(socket.acct, JSON.stringify({ save: text, keep, at: Date.now(), ver, lv: lv.lv, lvCredit: Math.floor(lv.credit * 100) / 100 }));
+      saveSoon(socket.ckey, JSON.stringify({ save: text, keep, at: Date.now(), ver, lv: lv.lv, lvCredit: Math.floor(lv.credit * 100) / 100 }));
       socket.acctLv = lv.lv || socket.acctLv;
+      const ch = charsOf(socket.acct)[socket.slot];
+      if (ch && ch.used) { // what the character screen shows: written with the accounts when the level moves
+        ch.at = Date.now();
+        if (lv.lv && ch.lv !== lv.lv) { ch.lv = lv.lv; saveAccountsSoon(); }
+      }
       send(socket, { t: "saved", ver });
       return;
     }
     case "logout": {
       const acc = socket.acct && accounts[socket.acct];
       if (acc && m.ev) { acc.tokens = (acc.tokens || []).filter(t => t !== hashToken(m.ev)); saveAccountsSoon(); }
-      socket.acct = null;
+      socket.acct = null; socket.ckey = null; socket.slot = -1;
       socket.acctLv = 0;
       nameCheck(socket);
       return;
@@ -828,7 +843,7 @@ function allowLevel(socket, t, claimed) {
 }
 
 function trustLevel(socket, claimed) {
-  const key = socket.acct;
+  const key = socket.ckey || socket.acct;
   let t = trustedLv.get(key);
   if (!t || !t.lv) {
     if (!claimed) return t || { lv: 0, credit: 0 };
@@ -909,7 +924,7 @@ function noteCheat(socket, why) {
   if (Date.now() - (socket.cheatLogAt || 0) > 60000) { socket.cheatLogAt = Date.now(); log("! " + socket.name + " (" + socket.ip + "): save not kept - " + why); }
   if (!acc) return;
   if (acc.cheatWhy !== why) { acc.cheats = (acc.cheats | 0) + 1; acc.cheatWhy = why; acc.cheatAt = Date.now(); saveAccountsSoon(); }
-  if (board["a:" + socket.acct]) { delete board["a:" + socket.acct]; saveBoardSoon(); }
+  if (socket.ckey && board["a:" + socket.ckey]) { delete board["a:" + socket.ckey]; saveBoardSoon(); }
 }
 
 /// The level in an account's save (the save's own "level", near its start), or 0 if none.
@@ -1003,7 +1018,7 @@ function saveBoardSoon() {
     try { writeFileSafe(path.join(DATA_DIR, "bounty.json"), JSON.stringify(board)); } catch (e) { log("! bounty board not saved: " + e.message); }
   }, 3000);
 }
-const boardKey = socket => socket.acct ? "a:" + socket.acct : "g:" + keyOf(socket.name);
+const boardKey = socket => socket.ckey ? "a:" + socket.ckey : "g:" + keyOf(socket.name);
 
 const BOUNTY_STEP = 15000000;          // the most a bounty may grow at once (a continent boss's is 3-12 million)
 const BOUNTY_EVERY = 5000;             // ms between rises
@@ -1013,7 +1028,7 @@ const bountyGrowth = new Map();        // board key -> { left, at }
 function setBounty(socket, m) {
   // the board everyone sees: logged-in players only (a guest's name isn't theirs to keep), and a
   // bounty rises no faster than the game can raise it, so a changed game can't top the board at once
-  if (!socket.acct) return;
+  if (!socket.acct || !socket.ckey) return;
   if ((accounts[socket.acct] || {}).cheats) return; // a save of theirs was turned away (noteCheat)
   const key = boardKey(socket), old = board[key];
   let b = Math.max(0, Math.min(2000000000, Math.floor(+m.hits || 0)));
@@ -1091,7 +1106,7 @@ function readSave(key) {
   try { return JSON.parse(fs.readFileSync(saveFile(key), "utf8")); } catch (e) { return { save: "", keep: "" }; }
 }
 
-function authOk(socket, acc) {
+function authOk(socket, acc, kind) {
   const token = crypto.randomBytes(24).toString("hex");
   acc.tokens = (acc.tokens || []).concat(hashToken(token)).slice(-8); // up to 8 devices stay logged in
   acc.at = Date.now();
@@ -1105,23 +1120,135 @@ function authOk(socket, acc) {
     if (s !== socket && s.acct === socket.acct) {
       log("  " + acc.name + " logged in again: closing the older connection #" + s.pid);
       send(s, { t: "kicked", why: "บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว" });
-      s.acct = null; // its saves stop reaching the account right away
+      s.acct = null; s.ckey = null; // its saves stop reaching the account right away
       s.acctLv = 0;
       const old = s;
       setTimeout(() => { old.destroy(); drop(old); }, 300); // let the message go out first
     }
-  const pending = saveTimers.get(socket.acct); // a save still waiting to be written: on disk first,
-  if (pending && pending.timer) { clearTimeout(pending.timer); pending.write(); } // so this login gets the newest
-  const data = readSave(socket.acct);
-  if (!trustedLv.has(socket.acct)) {
-    const lv = data.lv | 0 || saveLevel(data.save); // the level the server let through last time (older saves: their own)
-    if (lv) trustedLv.set(socket.acct, { lv, credit: Number.isFinite(+data.lvCredit) ? Math.max(0, Math.min(LEVEL_BANK, +data.lvCredit)) : LEVEL_FREE }); // (time away earns nothing)
+  socket.ckey = null; socket.slot = -1;
+  if (kind === 1) { // a game that knows characters: it picks one next ("char")
+    socket.acctLv = 1;
+    send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, kind: 1, text: JSON.stringify({ list: charList(socket.acct) }) });
+  } else { // an older game: the first character, as before
+    const data = pickChar(socket, 0);
+    send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.ckey) });
   }
-  socket.lvClock = Date.now(); // this account's credit counts from now
-  socket.acctLv = (trustedLv.get(socket.acct) || {}).lv || 1; // shown to others from here on (a new account: 1 until its first save)
-  send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.acct) });
   log("  " + socket.name + " logged in as " + acc.name);
 }
+
+// ---------- characters ----------
+// Each account holds CHARS characters, each with its own save file. The first one (slot 0) is the
+// account's save from before characters, so nothing had to move: its key is the account's own.
+// The others are "<account>#<slot>" ('#' can't be in an account name). accounts[key].chars keeps
+// what the character screen shows: [{ used, name, look, lv, at, born }] (born 0 = the one from before characters).
+const CHARS = 3;
+const charKey = (acct, slot) => slot === 0 ? acct : acct + "#" + slot;
+
+function charsOf(acct) {
+  const acc = accounts[acct];
+  if (!acc) return [];
+  if (!Array.isArray(acc.chars)) {
+    // an account from before characters: its save (if it has one) is the first, still without a name
+    const data = readSave(acct);
+    acc.chars = [];
+    for (let i = 0; i < CHARS; i++) acc.chars.push({ used: 0 });
+    if (data.save) acc.chars[0] = { used: 1, name: "", look: 0, lv: data.lv | 0 || saveLevel(data.save) || 1, at: data.at || acc.at || 0 };
+    saveAccountsSoon();
+  }
+  while (acc.chars.length < CHARS) acc.chars.push({ used: 0 });
+  return acc.chars;
+}
+
+const charList = acct => charsOf(acct).slice(0, CHARS).map(c => c && c.used
+  ? { used: 1, name: c.name || "", look: c.look | 0, lv: c.lv | 0, at: Math.floor((c.at || 0) / 1000), born: c.born || 0 } : { used: 0 });
+
+/// This connection plays that character from now on: its save, version and level.
+function pickChar(socket, slot) {
+  socket.slot = slot;
+  socket.ckey = charKey(socket.acct, slot);
+  const pending = saveTimers.get(socket.ckey); // a save still waiting to be written: on disk first,
+  if (pending && pending.timer) { clearTimeout(pending.timer); pending.write(); } // so this one gets the newest
+  const data = readSave(socket.ckey);
+  if (!trustedLv.has(socket.ckey)) {
+    const lv = data.lv | 0 || saveLevel(data.save); // the level the server let through last time (older saves: their own)
+    if (lv) trustedLv.set(socket.ckey, { lv, credit: Number.isFinite(+data.lvCredit) ? Math.max(0, Math.min(LEVEL_BANK, +data.lvCredit)) : LEVEL_FREE }); // (time away earns nothing)
+  }
+  socket.lvClock = Date.now(); // this character's credit counts from now
+  socket.acctLv = (trustedLv.get(socket.ckey) || {}).lv || 1; // shown to others from here on (a new one: 1 until its first save)
+  return data;
+}
+
+// picking (sends the whole save), making and deleting: a few at a time per connection
+const CHAR_RATE = 0.5, CHAR_BURST = 6;
+const charOpOk = socket => bucket(socket, "charOps", CHAR_RATE, CHAR_BURST);
+const slotOf = m => { const n = Number(m.hits); return Number.isInteger(n) && n >= 0 && n < CHARS ? n : -1; };
+const acctName = socket => (accounts[socket.acct] || {}).name || "?";
+const listMsg = (socket, extra) => Object.assign({ t: "chars", text: JSON.stringify({ list: charList(socket.acct) }) }, extra);
+
+function onChar(socket, m) {
+  if (!charOpOk(socket)) { send(socket, { t: "char", hits: -1, why: "ช้าลงหน่อย แล้วลองใหม่" }); return; }
+  if (!socket.acct || !accounts[socket.acct]) { send(socket, { t: "char", hits: -1, why: "ต้องเข้าสู่ระบบก่อน" }); return; }
+  const slot = slotOf(m), chars = charsOf(socket.acct), c = chars[slot];
+  if (slot < 0 || !c || !c.used) { send(socket, { t: "char", hits: -1, why: "ไม่มีตัวละครในช่องนี้" }); return; }
+  // one character per connection: another one means going back to the title screen
+  if (socket.ckey && socket.slot !== slot) { send(socket, { t: "char", hits: -1, why: "เลือกตัวละครอื่นได้หลังจากกลับหน้าแรก" }); return; }
+  if (!c.name) { // a character from before names itself once
+    const name = cleanText(m.name, 16);
+    if (!name) { send(socket, { t: "char", hits: -1, why: "ตั้งชื่อให้ตัวละครนี้ก่อน" }); return; }
+    c.name = name; c.look = int(m.look, 0, 2000000);
+    saveAccountsSoon();
+  }
+  const data = pickChar(socket, slot);
+  socket.baseName = c.name;
+  nameCheck(socket);
+  send(socket, { t: "char", hits: slot, name: c.name, look: c.look | 0, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.ckey) });
+  log("  " + acctName(socket) + " plays " + c.name + " (slot " + (slot + 1) + ")");
+}
+
+function onCharNew(socket, m) {
+  if (!socket.acct || !accounts[socket.acct]) return;
+  if (!charOpOk(socket)) { send(socket, listMsg(socket, { why: "ช้าลงหน่อย แล้วลองใหม่" })); return; }
+  const slot = slotOf(m), chars = charsOf(socket.acct);
+  if (slot < 0 || chars[slot].used) { send(socket, listMsg(socket, { why: "ช่องนี้มีตัวละครอยู่แล้ว" })); return; }
+  const name = cleanText(m.name, 16);
+  if (!name) { send(socket, listMsg(socket, { why: "ตั้งชื่อตัวละครก่อน" })); return; }
+  setAside(charKey(socket.acct, slot)); // an old save left in this slot (there shouldn't be one) isn't the new character's
+  chars[slot] = { used: 1, name, look: int(m.look, 0, 2000000), lv: 1, at: Date.now(), born: Date.now() }; // born: a device's files of an older one in this slot aren't this one's
+  saveAccountsNow();
+  log("  " + acctName(socket) + " made character " + name + " (slot " + (slot + 1) + ")");
+  send(socket, listMsg(socket, { hits: slot }));
+}
+
+function onCharDel(socket, m) {
+  if (!socket.acct || !accounts[socket.acct]) return;
+  if (!charOpOk(socket)) { send(socket, listMsg(socket, { why: "ช้าลงหน่อย แล้วลองใหม่" })); return; }
+  const slot = slotOf(m), chars = charsOf(socket.acct);
+  if (slot < 0 || !chars[slot].used) return;
+  const key = charKey(socket.acct, slot);
+  for (const s of clients.values()) if (s.ckey === key) { send(socket, listMsg(socket, { why: "ตัวละครนี้กำลังเล่นอยู่ ลบไม่ได้" })); return; }
+  log("  " + acctName(socket) + " deleted character " + (chars[slot].name || "(no name)") + " (slot " + (slot + 1) + ")");
+  setAside(key);
+  if (board["a:" + key]) { delete board["a:" + key]; saveBoardSoon(); }
+  chars[slot] = { used: 0 };
+  saveAccountsNow();
+  send(socket, listMsg(socket, { hits: slot }));
+}
+
+/// A character's save goes aside (u_<hex>.json -> .deleted-<time>), never erased: a mistake can be undone by hand.
+function setAside(key) {
+  const t = saveTimers.get(key);
+  if (t && t.timer) { clearTimeout(t.timer); t.timer = null; }
+  saveTimers.delete(key); saveVersions.delete(key); saveFacts.delete(key); trustedLv.delete(key);
+  const f = saveFile(key);
+  try { if (fs.existsSync(f)) fs.renameSync(f, f + ".deleted-" + Date.now()); } catch (e) { log("! couldn't set a save aside: " + e.message); }
+  // only the newest KEEP_DELETED copies of a slot stay (make, save, delete over and over can't fill the disk)
+  try {
+    const base = path.basename(f) + ".deleted-";
+    const old = fs.readdirSync(DATA_DIR).filter(n => n.startsWith(base)).sort((a, b) => +b.slice(base.length) - +a.slice(base.length));
+    for (const n of old.slice(KEEP_DELETED)) fs.unlinkSync(path.join(DATA_DIR, n));
+  } catch (e) { log("! couldn't tidy set-aside saves: " + e.message); }
+}
+const KEEP_DELETED = 3;
 
 // Every accepted save gets the next version number (kept in the save file too).
 const saveVersions = new Map();        // account -> newest version
@@ -1281,7 +1408,7 @@ async function onAccount(socket, m) {
       mine.push(now); registers.set(socket.ip, mine); registersAll.push(now);
       accounts[key] = { name, salt, hash, tokens: [], at: Date.now() };
       log("+ account " + name);
-      authOk(socket, accounts[key]);
+      authOk(socket, accounts[key], m.kind | 0);
       saveAccountsNow(); // a new account is on disk straight away
       return;
     }
@@ -1294,7 +1421,7 @@ async function onAccount(socket, m) {
       if (!(await authTurn(socket, key))) return;
       if (!(acc.tokens || []).includes(hashToken(pass))) { send(socket, { t: "auth", hits: 0, ev: "token", why: "ต้องเข้าสู่ระบบใหม่อีกครั้ง" }); return; } // used meanwhile
       acc.tokens = acc.tokens.filter(t => t !== hashToken(pass)); // a fresh token each time
-      authOk(socket, acc);
+      authOk(socket, acc, m.kind | 0);
       return;
     }
     const allId = "all:" + key;       // wrong passwords from every address together (many addresses guessing one account)
@@ -1313,7 +1440,7 @@ async function onAccount(socket, m) {
     fails.delete(allId);
     fails.delete(acctId);
     if (!(await authTurn(socket, key))) return;
-    authOk(socket, acc);
+    authOk(socket, acc, m.kind | 0);
   } catch (e) {
     log("! account error: " + e.message);
   } finally {

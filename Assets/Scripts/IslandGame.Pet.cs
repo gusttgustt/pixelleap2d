@@ -144,7 +144,7 @@ public partial class IslandGame
     // ------------------------------------------------------------------ your first pet
     /// A new player picks a companion: dog, cat, bird or fish. Asked once per session until chosen
     /// (remembered in PlayerPrefs; anyone who already owns a pet is never asked).
-    const string StarterPetKey = "starter_pet_chosen";
+    static string StarterPetKey => "starter_pet_chosen" + SaveSystem.Profile; // per character
     bool starterAsked;
     static readonly (int code, string label)[] StarterPets =
     {

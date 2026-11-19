@@ -56,6 +56,19 @@ public partial class IslandGame
         if (!CharacterLook.CanChoose && look.preset == 0) look = CharacterLook.Default; // ready-made characters only (for now)
         lookCode = look.Code;
         LoadChannel(); // the channel picked last time (IslandGame.Channel.cs)
+        // logged in on this device: straight to its characters (kept here, so they show offline too)
+        guestMode = false; charId = null; SaveSystem.Profile = "";
+        acctUser = SavedUser;
+        oldCharName = PlayerPrefs.GetString("playerName", ""); // what an older character was called on this device
+        MoveOldAccountSave(); // IslandGame.Chars.cs
+        if (SavedToken.Length > 0 && SavedUser.Length > 0)
+        {
+            LoadCachedChars(SavedUser);
+            OldSaveAsFirstChar(SavedUser);
+            titleScreen = TitleScreen.Chars;
+            TitleConnect("token");
+        }
+        else titleScreen = TitleScreen.Login;
     }
 
     /// Remember name and look for next time.
@@ -67,29 +80,6 @@ public partial class IslandGame
         PlayerPrefs.SetString("playerName", playerName);
         PlayerPrefs.SetInt("look", lookCode);
         PlayerPrefs.Save();
-    }
-
-    void PlayOnline()
-    {
-        KeepCharacter();
-        link = NetLink.Open(NetLink.ServerUrl());
-        helloSent = false;
-        if (pendingAuth == null && SavedToken.Length > 0 && SavedUser.Length > 0) pendingAuth = "token"; // this device is logged in (IslandGame.Account.cs)
-        authSent = false;
-        connecting = true;
-        connectStart = Time.time;
-        netStatus = "กำลังเชื่อมต่อ...";
-    }
-
-    void PlayOffline()
-    {
-        KeepCharacter();
-        pendingAuth = null;
-        if (link != null) { link.Close(); link = null; }
-        connecting = false;
-        myId = 0;
-        title = false;
-        StartGame(SaveSystem.Read());
     }
 
     static string CleanName(string n)
@@ -109,18 +99,16 @@ public partial class IslandGame
         {
             if (TitleAuthStep()) return; // logging in first (IslandGame.Account.cs)
             connecting = false;
-            title = false;
-            StartGame(SaveSystem.Read());
+            if (guestMode) { title = false; StartGame(SaveSystem.Read()); } // no account: straight in
             return;
         }
         if (link.Dead && waited < 15f) { link = NetLink.Open(NetLink.ServerUrl()); helloSent = false; } // tunnel may still be starting
         if (waited > 4f) netStatus = $"กำลังเชื่อมต่อเซิร์ฟเวอร์... ({waited:0} วิ)";
         if (waited > 20f)
         {
-            link.Close();
-            link = null;
-            connecting = false;
-            netStatus = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (เซิร์ฟเวอร์อาจปิดอยู่) ลองใหม่อีกครั้ง หรือเล่นออฟไลน์";
+            TitleConnectFailed(titleScreen == TitleScreen.Chars && chars != null
+                ? "ต่อเซิร์ฟเวอร์ไม่ได้ - กด \"เล่นออฟไลน์\" เพื่อเล่นตัวนี้ในเครื่องนี้ หรือลองออนไลน์ใหม่อีกครั้ง"
+                : "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (เซิร์ฟเวอร์อาจปิดอยู่) ลองใหม่อีกครั้ง หรือเล่นออฟไลน์");
         }
     }
 
@@ -134,17 +122,19 @@ public partial class IslandGame
     {
         if (link == null) return;
         int budget = 200;
-        while (budget-- > 0 && link.TryReceive(out string text))
+        // (a message may close the connection while it's handled, e.g. a refused login: link goes null)
+        while (budget-- > 0 && link != null && link.TryReceive(out string text))
         {
             NetMsg m;
             try { m = JsonUtility.FromJson<NetMsg>(text); } catch { continue; }
             if (m != null) Handle(m);
         }
-        if (link.Dead && myId > 0) OnDisconnected();
+        if (link != null && link.Dead && myId > 0) OnDisconnected();
     }
 
     void OnDisconnected()
     {
+        if (title) { TitleConnectFailed("หลุดจากเซิร์ฟเวอร์ - ลองใหม่อีกครั้ง หรือเล่นออฟไลน์"); return; }
         link = null;
         myId = 0;
         inRoom = false;
@@ -335,6 +325,8 @@ public partial class IslandGame
             case "knock": OnKnock(m); break;
             case "crew": OnCrew(m); break;     // crews sailing together (IslandGame.Crew.cs)
             case "auth": OnAuth(m); break;       // logged in (IslandGame.Account.cs)
+            case "chars": OnChars(m); break;     // the account's characters changed (IslandGame.Chars.cs)
+            case "char": OnCharSave(m); break;   // the character picked, with its save
             case "hnode": OnHomeNodes(m); break;   // private island changes (IslandGame.HomeSync.cs)
             case "hgift": OnHomeGift(m); break;    // a friend harvested on my farm
             case "wanted": OnWanted(m.players); break; // the board of wanted posters (IslandGame.Bounty.cs)

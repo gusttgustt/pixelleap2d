@@ -59,22 +59,15 @@ E	หนวดฟาด!	Enemy.cs:423
 E	เศษแก้วสะท้อน!	Enemy.cs:562
 E	ใส่ชื่อบัญชีอย่างน้อย 3 ตัว	IslandGame.Account.cs:35
 E	ใส่รหัสผ่านอย่างน้อย 4 ตัว	IslandGame.Account.cs:36
-E	กำลังสมัครบัญชี...	IslandGame.Account.cs:40
-E	กำลังเข้าสู่ระบบ...	IslandGame.Account.cs:40
-E	ออกจากระบบแล้ว	IslandGame.Account.cs:50
-E	เซิร์ฟเวอร์นี้ยังไม่รองรับบัญชีผู้เล่น เล่นแบบไม่ล็อกอินไปก่อน	IslandGame.Account.cs:70
-E	ต้องเข้าสู่ระบบใหม่ (ตอนนี้เล่นแบบไม่ล็อกอิน เซฟอยู่ในเครื่องนี้)	IslandGame.Account.cs:98
-E	เข้าสู่ระบบไม่สำเร็จ	IslandGame.Account.cs:101
-T	เข้าสู่ระบบแล้ว: {0} เล่นตัวนี้ต่อจากเครื่องไหนก็ได้	IslandGame.Account.cs:146
-E	บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด	IslandGame.Account.cs:182
-E	บัญชีผู้เล่น  <size=11>(เล่นตัวเดิมได้จากทุกเครื่อง)</size>	IslandGame.Account.cs:188
-T	เข้าสู่ระบบเป็น <b>{0}</b>	IslandGame.Account.cs:193
-E	ออกจากระบบ	IslandGame.Account.cs:194
-E	กด "เล่นออนไลน์" แล้วจะได้ตัวละครจากบัญชีนี้	IslandGame.Account.cs:195
-E	ชื่อบัญชี	IslandGame.Account.cs:199
-E	รหัสผ่าน	IslandGame.Account.cs:202
-E	เข้าสู่ระบบ	IslandGame.Account.cs:206
-E	สมัครบัญชีใหม่	IslandGame.Account.cs:207
+E	รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัว	IslandGame.Account.cs:37
+E	กำลังสมัครบัญชี...	IslandGame.Account.cs:39
+E	กำลังเข้าสู่ระบบ...	IslandGame.Account.cs:39
+E	ออกจากระบบแล้ว	IslandGame.Account.cs:52
+E	เซิร์ฟเวอร์ไม่ตอบการเข้าสู่ระบบ ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	IslandGame.Account.cs:72
+E	ต้องเข้าสู่ระบบใหม่อีกครั้ง	IslandGame.Account.cs:101
+E	เข้าสู่ระบบไม่สำเร็จ	IslandGame.Account.cs:104
+E	เซิร์ฟเวอร์นี้ยังไม่รองรับตัวละครหลายตัว	IslandGame.Account.cs:115
+E	บัญชีนี้มีความคืบหน้าใหม่กว่าจากอีกเครื่อง เครื่องนี้หยุดเซฟขึ้นบัญชีแล้ว กลับหน้าแรกแล้วเล่นออนไลน์ใหม่เพื่อโหลดตัวล่าสุด	IslandGame.Account.cs:153
 E	พันสายฟ้าฟาด	IslandGame.Awaken.cs:39
 E	ราตรีนิรันดร์	IslandGame.Awaken.cs:39
 E	ป่าพิโรธ	IslandGame.Awaken.cs:39
@@ -305,6 +298,58 @@ T	เพิ่งย้าย channel รออีก {0} วินาที	Isl
 E	กำลังต่อสู้อยู่ ย้าย channel ไม่ได้ (หนีให้พ้นสัตว์ร้ายก่อน)	IslandGame.Channel.cs:128
 T	เลือก CH{0} แล้ว ไปเกาะผจญภัยครั้งต่อไปจะเข้า CH{1}	IslandGame.Channel.cs:147
 T	ย้ายมา CH{0} แล้ว ({1} เกาะที่ {2})	IslandGame.Channel.cs:163
+E	กำลังเชื่อมต่อ...	IslandGame.Chars.cs:51
+E	ยกเลิกแล้ว (เล่นออฟไลน์ได้)	IslandGame.Chars.cs:66
+T	สร้าง {0} แล้ว	IslandGame.Chars.cs:124
+E	ลบตัวละครแล้ว	IslandGame.Chars.cs:131
+E	กำลังสร้างตัวละคร...	IslandGame.Chars.cs:189
+E	กำลังโหลดตัวละคร...	IslandGame.Chars.cs:198
+E	โหลดตัวละครไม่สำเร็จ	IslandGame.Chars.cs:225
+T	เข้าเล่นเป็น {0} (บัญชี {1})	IslandGame.Chars.cs:261
+E	เข้าสู่ระบบอีกครั้งเพื่อเล่นออนไลน์	IslandGame.Chars.cs:269
+T	เล่นออฟไลน์เป็น {0} - เซฟในเครื่องนี้ แล้วส่งขึ้นบัญชีตอนเล่นออนไลน์ครั้งหน้า	IslandGame.Chars.cs:286
+E	เลือกตัวละครก่อน	IslandGame.Chars.cs:293
+E	ตั้งชื่อให้ตัวละครนี้ก่อน	IslandGame.Chars.cs:294
+E	ตั้งชื่อตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ	IslandGame.Chars.cs:341
+E	ยกเลิก	IslandGame.Chars.cs:361
+E	หันหลัง	IslandGame.Chars.cs:383
+E	หันหน้า	IslandGame.Chars.cs:383
+E	เข้าสู่ระบบ	IslandGame.Chars.cs:392
+E	หนึ่งบัญชีสร้างได้ 3 ตัวละคร · เล่นได้ทั้งออนไลน์และออฟไลน์	IslandGame.Chars.cs:393
+E	ชื่อบัญชี	IslandGame.Chars.cs:395
+E	รหัสผ่าน	IslandGame.Chars.cs:396
+E	ยังไม่มีบัญชี? สมัครบัญชีใหม่	IslandGame.Chars.cs:398
+E	ไม่อยากสมัคร? เล่นแบบไม่ล็อกอินได้ (เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น)	IslandGame.Chars.cs:401
+E	เล่นแบบไม่ล็อกอิน	IslandGame.Chars.cs:404
+E	ตัวละครเดิม (ยังไม่มีชื่อ)	IslandGame.Chars.cs:444
+T	เลเวล {0}	IslandGame.Chars.cs:446
+E	สร้างตัวละคร	IslandGame.Chars.cs:455
+T	ช่องที่ {0}	IslandGame.Chars.cs:456
+E	ยังไม่มีรายชื่อตัวละครในเครื่องนี้ - เล่นออนไลน์เพื่อโหลด	IslandGame.Chars.cs:461
+E	<color=#9dff9d>ออนไลน์</color>	IslandGame.Chars.cs:466
+E	<color=#ffcf8a>ออฟไลน์</color>	IslandGame.Chars.cs:466
+T	บัญชี <b>{0}</b>  ·  {1}	IslandGame.Chars.cs:467
+E	กดอีกครั้งเพื่อลบ	IslandGame.Chars.cs:472
+E	ลบตัวละคร	IslandGame.Chars.cs:472
+E	ตัวละครนี้	IslandGame.Chars.cs:474
+T	จะลบ {0} และความคืบหน้าทั้งหมด - กดอีกครั้งเพื่อยืนยัน	IslandGame.Chars.cs:474
+E	ต้องออนไลน์ก่อนถึงจะลบตัวละครได้	IslandGame.Chars.cs:475
+E	กำลังลบ...	IslandGame.Chars.cs:476
+E	ออกจากระบบ	IslandGame.Chars.cs:479
+E	ตั้งชื่อให้ตัวละครนี้ (ใช้ชื่อนี้ตลอดไป)	IslandGame.Chars.cs:482
+E	เล่นออนไลน์ (เจอผู้เล่นอื่น)	IslandGame.Chars.cs:485
+E	เล่นออฟไลน์	IslandGame.Chars.cs:487
+E	เลือกตัวละคร	IslandGame.Chars.cs:495
+T	สร้างตัวละคร  <size=11>(ช่องที่ {0})</size>	IslandGame.Chars.cs:495
+T	<b>{0}</b>  <size=11>· หมวก/ชุดที่สวมไม่แสดงบนตัว แต่ยังได้ค่าพลัง</size>	IslandGame.Chars.cs:497
+E	ชื่อตัวละคร	IslandGame.Chars.cs:499
+E	ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น ถ้าล้างเบราว์เซอร์หรือเปลี่ยนเครื่องจะเริ่มใหม่ — สมัครบัญชีเพื่อเล่นตัวเดิมได้ทุกเครื่อง	IslandGame.Chars.cs:504
+E	‹ กลับไปหน้าเข้าสู่ระบบ	IslandGame.Chars.cs:505
+E	ชื่อและหน้าตาจะผูกกับตัวละครนี้ เปลี่ยนภายหลังไม่ได้ · การสร้างตัวละครต้องต่อเซิร์ฟเวอร์	IslandGame.Chars.cs:510
+T	ย้ายความคืบหน้าจากการเล่นแบบไม่ล็อกอิน (เลเวล {0}) มาเป็นของตัวนี้	IslandGame.Chars.cs:517
+E	‹ กลับไปเลือกตัวละคร	IslandGame.Chars.cs:520
+E	ตั้งชื่อตัวละครก่อน	IslandGame.Chars.cs:523
+E	เข้าสู่ระบบอีกครั้งเพื่อสร้างตัวละคร	IslandGame.Chars.cs:525
 E	ออกจากถ้ำก่อน แล้วค่อยเปิดแผนที่ทะเล	IslandGame.Chart.cs:24
 T	แผนที่โลก - {0} Lv {1}	IslandGame.Chart.cs:25
 E	แผนที่โลก	IslandGame.Chart.cs:25
@@ -564,9 +609,9 @@ E	กำลังถมทะเลขยายเกาะ...	IslandGame.Home.c
 E	กลับบ้าน...	IslandGame.Home.cs:420
 E	ออกจากบ้าน...	IslandGame.Home.cs:421
 T	เหรียญทอง {0}	IslandGame.Home.cs:431
-E	เพื่อน	IslandGame.HomeSync.cs:187
-T	{0} ช่วยดูแลฟาร์มของคุณ: +{1} {2}	IslandGame.HomeSync.cs:188
-T	{0} ช่วยเก็บที่ฟาร์มของคุณ คุณได้ {1} +{2} ด้วย!	IslandGame.HomeSync.cs:189
+E	เพื่อน	IslandGame.HomeSync.cs:190
+T	{0} ช่วยดูแลฟาร์มของคุณ: +{1} {2}	IslandGame.HomeSync.cs:191
+T	{0} ช่วยเก็บที่ฟาร์มของคุณ คุณได้ {1} +{2} ด้วย!	IslandGame.HomeSync.cs:192
 T	นาฬิกาแดดยังชาร์จอยู่ ({0} วิ)	IslandGame.Hourglass.cs:20
 E	ใช้นาฬิกาแดดได้บนเกาะเท่านั้น	IslandGame.Hourglass.cs:21
 T	หยุดเวลา! ({0} ตัว)	IslandGame.Hourglass.cs:28
@@ -761,113 +806,92 @@ E	คุณไม่รอด...	IslandGame.Hud.cs:643
 T	ไปถึงเกาะที่ {0} เลเวล {1} วันที่ {2}	IslandGame.Hud.cs:644
 E	ยอมแพ้ เกิดใหม่ (R)	IslandGame.Hud.cs:650
 E	เกิดใหม่ (R)	IslandGame.Hud.cs:650
-E	ตั้งชื่อตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ	IslandGame.Hud.cs:678
-E	หันหลัง	IslandGame.Hud.cs:693
-E	หันหน้า	IslandGame.Hud.cs:693
-E	ชื่อ	IslandGame.Hud.cs:698
-E	ตัวละคร  <size=11>(แตะเพื่อเลือก)</size>	IslandGame.Hud.cs:704
-E	หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม	IslandGame.Hud.cs:706
-E	ตัวละคร	IslandGame.Hud.cs:711
-E	ตัวละครสำเร็จรูป: ปรับสีผม/เสื้อไม่ได้ และจะไม่เห็นหมวกหรือชุดที่สวมบนตัว (แต่ยังได้ค่าพลังเหมือนเดิม) — กด < เพื่อกลับไปปรับแต่งเอง	IslandGame.Hud.cs:715
-E	เพศ	IslandGame.Hud.cs:719
-E	สีผิว	IslandGame.Hud.cs:721
-E	ทรงผม	IslandGame.Hud.cs:722
-E	สีผม	IslandGame.Hud.cs:723
-E	เสื้อ	IslandGame.Hud.cs:724
-E	กระโปรง	IslandGame.Hud.cs:725
-E	กางเกง	IslandGame.Hud.cs:725
-E	สุ่มหน้าตา	IslandGame.Hud.cs:726
-T	เล่นออนไลน์ (บัญชี {0})	IslandGame.Hud.cs:733
-E	เล่นออนไลน์ (เจอผู้เล่นอื่น)	IslandGame.Hud.cs:733
-E	เล่นออฟไลน์	IslandGame.Hud.cs:734
-E	ยกเลิก	IslandGame.Hud.cs:739
-E	ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น  ·  ล็อกอิน: เล่นตัวเดิมได้จากทุกเครื่อง	IslandGame.Hud.cs:741
-E	ม.ค.	IslandGame.Hud.cs:747
-E	ก.พ.	IslandGame.Hud.cs:747
-E	มี.ค.	IslandGame.Hud.cs:747
-E	เม.ย.	IslandGame.Hud.cs:747
-E	พ.ค.	IslandGame.Hud.cs:747
-E	มิ.ย.	IslandGame.Hud.cs:747
-E	ก.ค.	IslandGame.Hud.cs:747
-E	ส.ค.	IslandGame.Hud.cs:747
-E	ก.ย.	IslandGame.Hud.cs:747
-E	ต.ค.	IslandGame.Hud.cs:747
-E	พ.ย.	IslandGame.Hud.cs:747
-E	ธ.ค.	IslandGame.Hud.cs:747
-T	อัปเดตล่าสุด {0} {1} {2} เวลา {3} น.	IslandGame.Hud.cs:761
-E	ออฟไลน์	IslandGame.Hud.cs:912
-T	ออนไลน์ - กลางทะเล เห็นเรือ {0} ลำ	IslandGame.Hud.cs:913
-E	ออนไลน์ - กลางทะเล	IslandGame.Hud.cs:913
-E	ออนไลน์ - กำลังเข้าเกาะ...	IslandGame.Hud.cs:914
-E	 (โฮสต์)	IslandGame.Hud.cs:915
-T	ออนไลน์ - บนเกาะนี้ {0} คน{1}	IslandGame.Hud.cs:915
-T	 · ทั้งหมด {0} คน (O)	IslandGame.Hud.cs:918
-E	หิวน้ำ -15%	IslandGame.Hud.cs:929
-E	ดาเมจ +1	IslandGame.Hud.cs:930
-E	พลังชีวิตสูงสุด +15	IslandGame.Hud.cs:931
-E	รับดาเมจ -20%	IslandGame.Hud.cs:932
-E	รับดาเมจ -35%, พลังชีวิต +20	IslandGame.Hud.cs:933
-E	โจมตีเร็ว +20%, ดาเมจ +1	IslandGame.Hud.cs:934
-E	รับภารกิจ	IslandGame.Hud.cs:966
-E	ส่งภารกิจ	IslandGame.Hud.cs:966
-T	เกาะ {0}	IslandGame.Hud.cs:995
-T	บ้าน{0}	IslandGame.Hud.cs:996
-T	เหลืออีก {0} ม.	IslandGame.Hud.cs:998
-T	{0} (ดำน้ำอยู่)	IslandGame.Hud.cs:1004
-E	ผลไม้พิเศษ	IslandGame.Hud.cs:1014
-E	ทุกเลเวล	IslandGame.Hud.cs:1017
-E	แต้มสกิล +1 · พลังชีวิตฟื้น +25	IslandGame.Hud.cs:1017
-E	ปลุกพลังขั้น 1	IslandGame.Hud.cs:1018
-T	สกิล Y ปลุกพลัง{0} 20 วิ: สกิลคูลดาวน์ 0.5 วิ แรงขึ้น x1.75 ไกลขึ้น + บัพของผลไม้	IslandGame.Hud.cs:1018
-E	สกิลปลุกพลัง 8 อย่าง	IslandGame.Hud.cs:1019
-E	แท็บ "ปลุกพลัง": ต่อสู้ เอาตัวรอด ใช้ชีวิต ฟาร์มของ (ใช้แต้มได้อีก 40 แต้ม)	IslandGame.Hud.cs:1019
-E	ปลุกพลังขั้น 2	IslandGame.Hud.cs:1020
-E	ปลุกพลังนาน 35 วิ ชาร์จเร็วขึ้น แรงขึ้น x2.4 ไกลขึ้น บัพแรงขึ้น รับดาเมจน้อยลง	IslandGame.Hud.cs:1020
-E	ท่าไม้ตาย	IslandGame.Hud.cs:1021
-T	"{0}" ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว	IslandGame.Hud.cs:1021
-E	ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว (ต้องมีผลไม้พิเศษ)	IslandGame.Hud.cs:1021
-T	<b>เลเวล {0}: {1}</b>	IslandGame.Hud.cs:1030
-E	<color=#8fe38f>✓ ได้แล้ว</color>	IslandGame.Hud.cs:1031
-T	<color=#ffd84d>อีก {0} เลเวล</color>	IslandGame.Hud.cs:1031
-T	เลเวล {0} / {1}	IslandGame.Hud.cs:1044
-E	ได้รางวัลเลเวลครบทุกขั้นแล้ว!	IslandGame.Hud.cs:1046
-T	ตัวละคร - เลเวล {0}   <color=#ffd84d>{1} แต้มสกิล</color>	IslandGame.Hud.cs:1066
-T	XP {0}/{1} - ล้มสัตว์ร้ายเพื่อเลเวลอัป	IslandGame.Hud.cs:1067
-T	XP {0}/{1} - ล้มสัตว์ร้ายเพื่อเลเวลอัป  (K ปิด, กดตัวเลขเพื่ออัป)	IslandGame.Hud.cs:1068
-E	พื้นฐาน	IslandGame.Hud.cs:1073
-E	ปลุกพลัง ★	IslandGame.Hud.cs:1073
-T	ปลุกพลัง (Lv {0})	IslandGame.Hud.cs:1073
-E	รางวัลเลเวล	IslandGame.Hud.cs:1073
-E	พลังผลไม้	IslandGame.Hud.cs:1073
-E	<color=#ff9a8a>ดูได้ อัปได้ตอนเลเวล 60</color>	IslandGame.Hud.cs:1086
-E	เต็ม	IslandGame.Hud.cs:1107
-T	{0}. ฝึกฝนต่อ  <size=11>ระดับ {1}/{2}</size>	IslandGame.Hud.cs:1119
-T	ดาเมจ +{0}% · พลังชีวิตสูงสุด +{1} ต่อระดับ (ตอนนี้ +{2}% · +{3})	IslandGame.Hud.cs:1120
-E	ใช้แต้มได้เมื่ออัปสกิลพื้นฐานเต็มทุกอัน	IslandGame.Hud.cs:1121
-E	ใช้แต้มได้เมื่ออัปสกิลพื้นฐานและสกิลปลุกพลังเต็มทุกอัน	IslandGame.Hud.cs:1121
-T	โจมตี{0} (ดาเมจ {1})	IslandGame.Hud.cs:1134
-E	แทงปลา	IslandGame.Hud.cs:1135
-E	ปลากินเบ็ด! กดเลย!	IslandGame.Hud.cs:1137
-E	รอปลากินเบ็ด... (E เก็บสาย)	IslandGame.Hud.cs:1137
-E	  [P] จับมาเลี้ยง!	IslandGame.Hud.cs:1141
-E	  แตะตาข่ายในช่องลัด จับมาเลี้ยง!	IslandGame.Hud.cs:1141
-T	คุยกับ{0}	IslandGame.Hud.cs:1144
-T	ของ{0} (ดูได้อย่างเดียว)	IslandGame.Hud.cs:1145
-E	ดื่มน้ำ	IslandGame.Hud.cs:1146
-E	ตกปลา (เบ็ด)	IslandGame.Hud.cs:1147
-T	  (คลิกเพื่อกิน, อิ่ม +{0})	IslandGame.Hud.cs:1185
-E	  (สวมอยู่ - คลิกเพื่อถอด)	IslandGame.Hud.cs:1186
-E	  (คลิกเพื่อสวม)	IslandGame.Hud.cs:1186
-E	  (คลิกเพื่อใช้ รักษาพิษ)	IslandGame.Hud.cs:1187
-T	  (คลิกเพื่อกิน ได้พลัง{0})	IslandGame.Hud.cs:1188
-E	  (เครื่องมือ)	IslandGame.Hud.cs:1189
-E	โต๊ะช่าง · ของใช้ในบ้าน	IslandGame.Hud.cs:1221
-E	ประดิษฐ์ · ของผจญภัย	IslandGame.Hud.cs:1221
-E	<color=#cccccc>ทำได้ในบ้านเท่านั้น · [ ] เปลี่ยนหมวด · ตัวเลขสร้าง</color>	IslandGame.Hud.cs:1223
-E	<color=#cccccc>ของใช้ในบ้านทำที่โต๊ะช่างในบ้าน · [ ] เปลี่ยนหมวด</color>	IslandGame.Hud.cs:1224
-E	ดับกองไฟ (X)	IslandGame.Hud.cs:1226
-E	<color=#cccccc>ยังไม่มีสูตรในหมวดนี้</color>	IslandGame.Hud.cs:1242
-E	สร้าง	IslandGame.Hud.cs:1286
+E	ม.ค.	IslandGame.Hud.cs:674
+E	ก.พ.	IslandGame.Hud.cs:674
+E	มี.ค.	IslandGame.Hud.cs:674
+E	เม.ย.	IslandGame.Hud.cs:674
+E	พ.ค.	IslandGame.Hud.cs:674
+E	มิ.ย.	IslandGame.Hud.cs:674
+E	ก.ค.	IslandGame.Hud.cs:674
+E	ส.ค.	IslandGame.Hud.cs:674
+E	ก.ย.	IslandGame.Hud.cs:674
+E	ต.ค.	IslandGame.Hud.cs:674
+E	พ.ย.	IslandGame.Hud.cs:674
+E	ธ.ค.	IslandGame.Hud.cs:674
+T	อัปเดตล่าสุด {0} {1} {2} เวลา {3} น.	IslandGame.Hud.cs:688
+E	ออฟไลน์	IslandGame.Hud.cs:809
+T	ออนไลน์ - กลางทะเล เห็นเรือ {0} ลำ	IslandGame.Hud.cs:810
+E	ออนไลน์ - กลางทะเล	IslandGame.Hud.cs:810
+E	ออนไลน์ - กำลังเข้าเกาะ...	IslandGame.Hud.cs:811
+E	 (โฮสต์)	IslandGame.Hud.cs:812
+T	ออนไลน์ - บนเกาะนี้ {0} คน{1}	IslandGame.Hud.cs:812
+T	 · ทั้งหมด {0} คน (O)	IslandGame.Hud.cs:815
+E	หิวน้ำ -15%	IslandGame.Hud.cs:826
+E	ดาเมจ +1	IslandGame.Hud.cs:827
+E	พลังชีวิตสูงสุด +15	IslandGame.Hud.cs:828
+E	รับดาเมจ -20%	IslandGame.Hud.cs:829
+E	รับดาเมจ -35%, พลังชีวิต +20	IslandGame.Hud.cs:830
+E	โจมตีเร็ว +20%, ดาเมจ +1	IslandGame.Hud.cs:831
+E	รับภารกิจ	IslandGame.Hud.cs:863
+E	ส่งภารกิจ	IslandGame.Hud.cs:863
+T	เกาะ {0}	IslandGame.Hud.cs:892
+T	บ้าน{0}	IslandGame.Hud.cs:893
+T	เหลืออีก {0} ม.	IslandGame.Hud.cs:895
+T	{0} (ดำน้ำอยู่)	IslandGame.Hud.cs:901
+E	ผลไม้พิเศษ	IslandGame.Hud.cs:911
+E	ทุกเลเวล	IslandGame.Hud.cs:914
+E	แต้มสกิล +1 · พลังชีวิตฟื้น +25	IslandGame.Hud.cs:914
+E	ปลุกพลังขั้น 1	IslandGame.Hud.cs:915
+T	สกิล Y ปลุกพลัง{0} 20 วิ: สกิลคูลดาวน์ 0.5 วิ แรงขึ้น x1.75 ไกลขึ้น + บัพของผลไม้	IslandGame.Hud.cs:915
+E	สกิลปลุกพลัง 8 อย่าง	IslandGame.Hud.cs:916
+E	แท็บ "ปลุกพลัง": ต่อสู้ เอาตัวรอด ใช้ชีวิต ฟาร์มของ (ใช้แต้มได้อีก 40 แต้ม)	IslandGame.Hud.cs:916
+E	ปลุกพลังขั้น 2	IslandGame.Hud.cs:917
+E	ปลุกพลังนาน 35 วิ ชาร์จเร็วขึ้น แรงขึ้น x2.4 ไกลขึ้น บัพแรงขึ้น รับดาเมจน้อยลง	IslandGame.Hud.cs:917
+E	ท่าไม้ตาย	IslandGame.Hud.cs:918
+T	"{0}" ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว	IslandGame.Hud.cs:918
+E	ระหว่างปลุกพลังกด Y อีกครั้ง: ระเบิดพลังรอบตัว (ต้องมีผลไม้พิเศษ)	IslandGame.Hud.cs:918
+T	<b>เลเวล {0}: {1}</b>	IslandGame.Hud.cs:927
+E	<color=#8fe38f>✓ ได้แล้ว</color>	IslandGame.Hud.cs:928
+T	<color=#ffd84d>อีก {0} เลเวล</color>	IslandGame.Hud.cs:928
+T	เลเวล {0} / {1}	IslandGame.Hud.cs:941
+E	ได้รางวัลเลเวลครบทุกขั้นแล้ว!	IslandGame.Hud.cs:943
+T	ตัวละคร - เลเวล {0}   <color=#ffd84d>{1} แต้มสกิล</color>	IslandGame.Hud.cs:963
+T	XP {0}/{1} - ล้มสัตว์ร้ายเพื่อเลเวลอัป	IslandGame.Hud.cs:964
+T	XP {0}/{1} - ล้มสัตว์ร้ายเพื่อเลเวลอัป  (K ปิด, กดตัวเลขเพื่ออัป)	IslandGame.Hud.cs:965
+E	พื้นฐาน	IslandGame.Hud.cs:970
+E	ปลุกพลัง ★	IslandGame.Hud.cs:970
+T	ปลุกพลัง (Lv {0})	IslandGame.Hud.cs:970
+E	รางวัลเลเวล	IslandGame.Hud.cs:970
+E	พลังผลไม้	IslandGame.Hud.cs:970
+E	<color=#ff9a8a>ดูได้ อัปได้ตอนเลเวล 60</color>	IslandGame.Hud.cs:983
+E	เต็ม	IslandGame.Hud.cs:1004
+T	{0}. ฝึกฝนต่อ  <size=11>ระดับ {1}/{2}</size>	IslandGame.Hud.cs:1016
+T	ดาเมจ +{0}% · พลังชีวิตสูงสุด +{1} ต่อระดับ (ตอนนี้ +{2}% · +{3})	IslandGame.Hud.cs:1017
+E	ใช้แต้มได้เมื่ออัปสกิลพื้นฐานเต็มทุกอัน	IslandGame.Hud.cs:1018
+E	ใช้แต้มได้เมื่ออัปสกิลพื้นฐานและสกิลปลุกพลังเต็มทุกอัน	IslandGame.Hud.cs:1018
+T	โจมตี{0} (ดาเมจ {1})	IslandGame.Hud.cs:1031
+E	แทงปลา	IslandGame.Hud.cs:1032
+E	ปลากินเบ็ด! กดเลย!	IslandGame.Hud.cs:1034
+E	รอปลากินเบ็ด... (E เก็บสาย)	IslandGame.Hud.cs:1034
+E	  [P] จับมาเลี้ยง!	IslandGame.Hud.cs:1038
+E	  แตะตาข่ายในช่องลัด จับมาเลี้ยง!	IslandGame.Hud.cs:1038
+T	คุยกับ{0}	IslandGame.Hud.cs:1041
+T	ของ{0} (ดูได้อย่างเดียว)	IslandGame.Hud.cs:1042
+E	ดื่มน้ำ	IslandGame.Hud.cs:1043
+E	ตกปลา (เบ็ด)	IslandGame.Hud.cs:1044
+T	  (คลิกเพื่อกิน, อิ่ม +{0})	IslandGame.Hud.cs:1082
+E	  (สวมอยู่ - คลิกเพื่อถอด)	IslandGame.Hud.cs:1083
+E	  (คลิกเพื่อสวม)	IslandGame.Hud.cs:1083
+E	  (คลิกเพื่อใช้ รักษาพิษ)	IslandGame.Hud.cs:1084
+T	  (คลิกเพื่อกิน ได้พลัง{0})	IslandGame.Hud.cs:1085
+E	  (เครื่องมือ)	IslandGame.Hud.cs:1086
+E	โต๊ะช่าง · ของใช้ในบ้าน	IslandGame.Hud.cs:1118
+E	ประดิษฐ์ · ของผจญภัย	IslandGame.Hud.cs:1118
+E	<color=#cccccc>ทำได้ในบ้านเท่านั้น · [ ] เปลี่ยนหมวด · ตัวเลขสร้าง</color>	IslandGame.Hud.cs:1120
+E	<color=#cccccc>ของใช้ในบ้านทำที่โต๊ะช่างในบ้าน · [ ] เปลี่ยนหมวด</color>	IslandGame.Hud.cs:1121
+E	ดับกองไฟ (X)	IslandGame.Hud.cs:1123
+E	<color=#cccccc>ยังไม่มีสูตรในหมวดนี้</color>	IslandGame.Hud.cs:1139
+E	สร้าง	IslandGame.Hud.cs:1183
 E	หนาวเหน็บ!	IslandGame.Ice.cs:32
 E	หนาวจนตัวสั่น! รีบไปผิงกองไฟหรือแช่บ่อน้ำร้อน	IslandGame.Ice.cs:54
 E	ความอบอุ่น (กำลังอุ่นขึ้น)	IslandGame.Ice.cs:62
@@ -918,6 +942,7 @@ T	สัตว์เลี้ยง {0} ตัว (P)	IslandGame.Menu.cs:39
 E	สัตว์เลี้ยง (P)	IslandGame.Menu.cs:39
 E	ป้ายประกาศค่าหัว (J)	IslandGame.Menu.cs:40
 T	ใครออนไลน์ / ย้าย CH{0} (O)	IslandGame.Menu.cs:46
+E	ตัวละคร	IslandGame.Menu.cs:64
 E	ผีหิมะหน้ากระจก	IslandGame.Monsters.cs:21
 E	แมมมอธน้ำแข็งสองหัว	IslandGame.Monsters.cs:21
 E	ซาลาแมนเดอร์ลาวา	IslandGame.Monsters.cs:22
@@ -957,27 +982,28 @@ T	 ยังเหลือเรืออีก {0} ลำ	IslandGame.Navy.cs:2
 T	จมเรือรัฐบาลได้หนึ่งลำ! ค่าหัว +{0} ยังเหลืออีกลำ!	IslandGame.Navy.cs:291
 T	จมเรือรัฐบาลได้แล้ว! ได้ของในห้องเก็บของเรือ ค่าหัวพุ่งขึ้นเป็น {0}	IslandGame.Navy.cs:292
 E	ชาวเกาะ	IslandGame.Net.cs:54
-E	กำลังเชื่อมต่อ...	IslandGame.Net.cs:81
-T	กำลังเชื่อมต่อเซิร์ฟเวอร์... ({0} วิ)	IslandGame.Net.cs:117
-E	เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (เซิร์ฟเวอร์อาจปิดอยู่) ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	IslandGame.Net.cs:123
-E	หลุดจากเซิร์ฟเวอร์ - กำลังต่อใหม่...	IslandGame.Net.cs:156
-T	{0} - เครื่องนี้เล่นออฟไลน์ต่อ (เซฟอยู่ในเครื่องนี้)	IslandGame.Net.cs:157
-E	หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์	IslandGame.Net.cs:157
-E	ตอนนี้คุณเป็นคนดูแลสัตว์บนเกาะนี้	IslandGame.Net.cs:204
-E	กด Enter	IslandGame.Net.cs:229
-E	แตะปุ่ม "แชต"	IslandGame.Net.cs:229
-T	มีเรือลำอื่นแล่นอยู่ในทะเลนี้ {0} ลำ! {1} เพื่อแชต	IslandGame.Net.cs:229
-T	มีผู้เล่นอื่นบนเกาะนี้ {0} คน! {1} เพื่อแชต	IslandGame.Net.cs:245
-T	เรือของ {0} แล่นเข้ามาในทะเลนี้	IslandGame.Net.cs:252
-T	{0} มาถึงเกาะแล้ว	IslandGame.Net.cs:252
-T	เรือของ {0} แล่นออกไปแล้ว	IslandGame.Net.cs:261
-T	{0} ออกจากเกาะไปแล้ว	IslandGame.Net.cs:261
-E	บัญชีนี้เข้าเล่นจากที่อื่นแล้ว	IslandGame.Net.cs:283
-E	ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว	IslandGame.Net.cs:482
-E	นกอัสนีร่วงลงแล้ว! พายุเบาลง	IslandGame.Net.cs:483
-E	กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว	IslandGame.Net.cs:484
-E	ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ	IslandGame.Net.cs:485
-E	อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร	IslandGame.Net.cs:486
+T	กำลังเชื่อมต่อเซิร์ฟเวอร์... ({0} วิ)	IslandGame.Net.cs:106
+E	ต่อเซิร์ฟเวอร์ไม่ได้ - กด "เล่นออฟไลน์" เพื่อเล่นตัวนี้ในเครื่องนี้ หรือลองออนไลน์ใหม่อีกครั้ง	IslandGame.Net.cs:110
+E	เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (เซิร์ฟเวอร์อาจปิดอยู่) ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	IslandGame.Net.cs:111
+E	หลุดจากเซิร์ฟเวอร์ - ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	IslandGame.Net.cs:136
+E	หลุดจากเซิร์ฟเวอร์ - กำลังต่อใหม่...	IslandGame.Net.cs:145
+T	{0} - เครื่องนี้เล่นออฟไลน์ต่อ (เซฟอยู่ในเครื่องนี้)	IslandGame.Net.cs:146
+E	หลุดจากเซิร์ฟเวอร์ - ตอนนี้กำลังเล่นออฟไลน์	IslandGame.Net.cs:146
+E	ตอนนี้คุณเป็นคนดูแลสัตว์บนเกาะนี้	IslandGame.Net.cs:194
+E	กด Enter	IslandGame.Net.cs:276
+E	แตะปุ่ม "แชต"	IslandGame.Net.cs:276
+T	มีเรือลำอื่นแล่นอยู่ในทะเลนี้ {0} ลำ! {1} เพื่อแชต	IslandGame.Net.cs:276
+T	มีผู้เล่นอื่นบนเกาะนี้ {0} คน! {1} เพื่อแชต	IslandGame.Net.cs:293
+T	เรือของ {0} แล่นเข้ามาในทะเลนี้	IslandGame.Net.cs:300
+T	{0} มาถึงเกาะแล้ว	IslandGame.Net.cs:300
+T	เรือของ {0} แล่นออกไปแล้ว	IslandGame.Net.cs:309
+T	{0} ออกจากเกาะไปแล้ว	IslandGame.Net.cs:309
+E	บัญชีนี้เข้าเล่นจากที่อื่นแล้ว	IslandGame.Net.cs:335
+E	ราชินีมดพ่ายแพ้! สวนดอกไม้ปลอดภัยแล้ว	IslandGame.Net.cs:535
+E	นกอัสนีร่วงลงแล้ว! พายุเบาลง	IslandGame.Net.cs:536
+E	กัปตันกระดูกดำแตกเป็นผง! ปืนใหญ่เงียบลงแล้ว	IslandGame.Net.cs:537
+E	ราชาเห็ดล้มแล้ว! ทางน้ำโล่งแล้ว กลับไปบอกช่างต่อเรือ	IslandGame.Net.cs:538
+E	อสูรหมึกยักษ์พ่ายแพ้! วิหารบาดาลเปิดแล้ว ไปบอก ดร.สมุทร	IslandGame.Net.cs:539
 E	น้ำแข็ง	IslandGame.NewPowers.cs:55
 E	กระจก	IslandGame.NewPowers.cs:55
 E	วายุ	IslandGame.NewPowers.cs:55
@@ -1224,20 +1250,20 @@ E	ออบซิเดียน	IslandGame.Play.cs:1212
 E	ผ้า	IslandGame.Play.cs:1212
 E	ไม้	IslandGame.Play.cs:1212
 T	อัปเกรดเรือเป็น Lv {0}	IslandGame.Play.cs:1218
-E	ตัวแพไม้ไผ่: เบาและเร็วขึ้น	IslandGame.Play.cs:1221
-E	หัวแพออบซิเดียน: ทนการกัด	IslandGame.Play.cs:1222
-E	ใบเรือผ้าทอ: รับลมได้มากขึ้น	IslandGame.Play.cs:1223
-E	เสริมพื้นแพให้ฝ่าคลื่นแรงได้	IslandGame.Play.cs:1224
-T	อัปเกรดเป็น{0} Lv {1} แล้ว: เร็วขึ้น {2}% รับดาเมจในทะเลลดลง {3}%	IslandGame.Play.cs:1239
-E	แพไม้	IslandGame.Play.cs:1245
-E	แพมีราว	IslandGame.Play.cs:1245
-E	เรือแคนู	IslandGame.Play.cs:1245
-E	เรือใบ	IslandGame.Play.cs:1245
-E	เรือใบสองเสา	IslandGame.Play.cs:1245
-E	เรือสำเภา	IslandGame.Play.cs:1246
-E	เรือกำปั่น	IslandGame.Play.cs:1246
-E	เรือมหาสมุทร	IslandGame.Play.cs:1246
-E	อาหารหรือน้ำไม่พอสำหรับการเดินทาง! เลือกอีกครั้งถ้าจะออกเรือเลย	IslandGame.Play.cs:1278
+E	ตัวแพไม้ไผ่: เบาและเร็วขึ้น	IslandGame.Play.cs:1222
+E	หัวแพออบซิเดียน: ทนการกัด	IslandGame.Play.cs:1223
+E	ใบเรือผ้าทอ: รับลมได้มากขึ้น	IslandGame.Play.cs:1224
+E	เสริมพื้นแพให้ฝ่าคลื่นแรงได้	IslandGame.Play.cs:1225
+T	อัปเกรดเป็น{0} Lv {1} แล้ว: เร็วขึ้น {2}% รับดาเมจในทะเลลดลง {3}%	IslandGame.Play.cs:1240
+E	แพไม้	IslandGame.Play.cs:1246
+E	แพมีราว	IslandGame.Play.cs:1246
+E	เรือแคนู	IslandGame.Play.cs:1246
+E	เรือใบ	IslandGame.Play.cs:1246
+E	เรือใบสองเสา	IslandGame.Play.cs:1246
+E	เรือสำเภา	IslandGame.Play.cs:1247
+E	เรือกำปั่น	IslandGame.Play.cs:1247
+E	เรือมหาสมุทร	IslandGame.Play.cs:1247
+E	อาหารหรือน้ำไม่พอสำหรับการเดินทาง! เลือกอีกครั้งถ้าจะออกเรือเลย	IslandGame.Play.cs:1279
 E	ฟ้าแลบ	IslandGame.Power.cs:47
 E	เงาจันทร์	IslandGame.Power.cs:47
 E	เถาวัลย์	IslandGame.Power.cs:47
@@ -1302,8 +1328,8 @@ E	จันทร์ทมิฬ	IslandGame.PowerAttack.cs:16
 E	หนามพันธนาการ	IslandGame.PowerAttack.cs:16
 E	คลื่นแม่เหล็ก	IslandGame.PowerAttack.cs:17
 E	ฟองระเบิด	IslandGame.PowerAttack.cs:17
-T	[dev] พลัง{0} Lv {1}	IslandGame.PowerFx.cs:27
-T	[dev] รับเควสบนเกาะนี้ {0} เควส	IslandGame.PowerFx.cs:77
+T	[dev] พลัง{0} Lv {1}	IslandGame.PowerFx.cs:30
+T	[dev] รับเควสบนเกาะนี้ {0} เควส	IslandGame.PowerFx.cs:80
 E	ชั้นพิเศษ	IslandGame.Prison.cs:37
 E	ชั้นลับ	IslandGame.Prison.cs:37
 T	ชั้น {0}	IslandGame.Prison.cs:37
@@ -1324,103 +1350,104 @@ T	ปราบผู้คุมชั้น {0} แล้ว!	IslandGame.Prison
 T	บันไดลงชั้น {0} เปิดแล้ว	IslandGame.Prison.cs:159
 E	บันไดลงชั้นพิเศษเปิดแล้ว	IslandGame.Prison.cs:159
 E	ผนังร้าวเลื่อนเปิด... มีทางลับ!	IslandGame.Prison.cs:175
-T	{0} นำ{1}มา {2}/{3}	IslandGame.Quest.cs:43
-T	{0} ปราบ{1} {2}/{3}	IslandGame.Quest.cs:45
-E	ภารกิจสำเร็จ!	IslandGame.Quest.cs:59
-T	{0}  ·  รางวัล: {1}	IslandGame.Quest.cs:59
-E	รับภารกิจแล้ว!	IslandGame.Quest.cs:69
-T	ขอบใจ! ภารกิจ "{0}" ดูความคืบหน้าได้ที่มุมขวาบน	IslandGame.Quest.cs:70
-E	\nตัวที่ต้องปราบจะมี<color=#ff6b5e><b>ป้ายแดง "เป้าหมาย"</b></color>อยู่เหนือหัว	IslandGame.Quest.cs:71
-T	เป้าหมาย {0}/{1}	IslandGame.Quest.cs:89
-E	ภารกิจพร้อมส่ง!	IslandGame.Quest.cs:93
-T	{0}  ·  กลับไปคุยกับคนที่มี ? เหนือหัว	IslandGame.Quest.cs:93
-T	ปราบ{0}ครบแล้ว!	IslandGame.Quest.cs:96
-E	ทำส่วนที่เหลือของภารกิจต่อ (ดูมุมขวาบน)	IslandGame.Quest.cs:96
-T	<size=15><color=#ffd84d><b>ภารกิจ: {0}</b></color></size>\n<color=#8fe38f><b>รางวัล:</b></color> {1}	IslandGame.Quest.cs:142
-E	นักล่าผลไม้	IslandGame.Quest.cs:220
-T	ช่างต่อเรือ: เสร็จแล้ว! ตอนนี้เป็น{0} Lv {1} ไปเกาะใหม่ได้แล้ว	IslandGame.Quest.cs:236
-E	พาน้องปุยกลับไปหาหมอโมรา	IslandGame.Quest.cs:242
-E	ปราบราชาเห็ดที่ขวางทางน้ำ	IslandGame.Quest.cs:242
-E	ปราบราชินีมดที่ส่งทหารมาแทะเรือ	IslandGame.Quest.cs:247
-E	ซ่อมสายล่อฟ้าให้ครบ ฟ้าจะได้ไม่ผ่าอู่เรือ	IslandGame.Quest.cs:252
-E	เปิดห้องนิรภัยผลึกด้วยแสงจากกระจก	IslandGame.Quest.cs:257
-E	ปราบกัปตันกระดูกดำให้ปืนใหญ่เงียบ	IslandGame.Quest.cs:262
-E	ปราบอสูรหมึกยักษ์ที่ขวางทางขึ้นผิวน้ำ	IslandGame.Quest.cs:267
-E	ช่วยพรานธาราจุดไฟให้หมู่บ้าน	IslandGame.Quest.cs:272
-E	ช่วยลุงฟันเฟืองไขลานหอนาฬิกา	IslandGame.Quest.cs:277
-E	ช่วยแม่มุกซ่อมโดมอากาศ	IslandGame.Quest.cs:282
-E	ช่วยปู่ลมพัดตามหากระดิ่งลม	IslandGame.Quest.cs:287
-E	ช่วยยายชบาขัดเพรียงให้ท่านเต่า	IslandGame.Quest.cs:292
-E	เรือแบบเจ้าแล่นไม่ผ่านคลองเห็ดหรอก ราชาเห็ดนอนขวางทางน้ำอยู่ แถมหมอโมราก็ร้อนใจเรื่องลูกหาย ช่วยเกาะนี้ก่อน แล้วข้าจะเสริมเรือให้ด้วยสปอร์เรืองแสง	IslandGame.Quest.cs:315
-E	เปลือกแมลงยักษ์ทั้งเบาทั้งแข็ง เอามาหุ้มเรือดีนักแล! แต่มดทหารชอบมาแทะไม้กระดานข้า ต้องจัดการราชินีมดที่ส่งพวกมันมาด้วย	IslandGame.Quest.cs:316
-E	ฟ้าผ่าอู่เรือข้าไปสามรอบแล้ว! ซ่อมสายล่อฟ้าให้ครบก่อน แล้วเอาทองแดงมาทำหมุดเรือ คางคกฟ้าร้องชอบกระโดดมาทับเครื่องมือข้า ไล่มันไปด้วย	IslandGame.Quest.cs:317
-E	ผลึกที่นี่ทำกระดูกงูเรือได้แข็งที่สุดที่ข้าเคยเห็น แต่โกเลมผลึกชอบมาเหยียบอู่เรือข้าพัง จัดการมันด้วย แล้วเปิดห้องนิรภัย ผลึกที่ผ่านแสงเท่านั้นถึงจะใช้ได้	IslandGame.Quest.cs:318
-E	ไม้ดีๆ ข้ามีครบ แต่ค่าแรงต้องจ่ายเป็นเหรียญทอง! ขุดสมบัติเอาสิ แล้วไล่ลูกเรือโครงกระดูกที่มาขโมยไม้ข้าด้วย ถ้าปืนใหญ่ยังยิงอยู่ ข้าซ่อมเรือไม่ได้หรอก	IslandGame.Quest.cs:319
-E	จะพาเรือขึ้นจากก้นทะเลได้ ต้องหุ้มด้วยมุกกับปะการังให้ทนแรงดัน ปูยักษ์ทะเลลึกชอบหนีบเชือกเรือขาด จัดการมันด้วย และอสูรหมึกยักษ์ต้องไม่อยู่ขวางทางขึ้น	IslandGame.Quest.cs:320
-E	ทะเลรอบเกาะอุ่น แต่ท้องเรือต้องหุ้มเกล็ดน้ำแข็งกันความร้อนเวลาผ่านกระแสน้ำเดือด แปลกดีไหมล่ะ ค้างคาวน้ำแข็งชอบมาเกาะเสากระโดงแล้วแช่แข็งเชือก ไล่มันไป แล้วช่วยพรานธาราด้วย	IslandGame.Quest.cs:321
-E	เวลาที่นี่เดี๋ยวเร็วเดี๋ยวช้า ไม้ที่ข้าตอกเมื่อเช้าผุไปแล้วตอนบ่าย! ต้องใช้เฟืองทองเหลืองกับทรายเวลายึดเรือให้ทนกาลเวลา ด้วงทรายชอบมาแทะเฟือง ช่วยไล่หน่อย แล้วช่วยลุงฟันเฟืองซ่อมหอนาฬิกาด้วย	IslandGame.Quest.cs:322
-E	จะพาเรือขึ้นจากใต้ทะเล ต้องหุ้มท้องเรือด้วยปะการังกับมุกให้ทนแรงดัน ปลาตะเกียงชอบล่อคนงานข้าหลงทาง ไล่พวกมันไป แล้วช่วยแม่มุกซ่อมโดมด้วย	IslandGame.Quest.cs:323
-E	เรือที่จะออกจากเกาะลอยฟ้าต้องเบาดั่งปุยเมฆ เอาปุยเมฆกับขนนกมา แล้วจัดการก้อนเมฆสายฟ้าที่ชอบผ่าเรือข้า และช่วยปู่ลมพัดให้ลมสงบก่อนด้วย	IslandGame.Quest.cs:324
-E	เปลือกหอยยักษ์ที่นี่แข็งยิ่งกว่าหิน ใช้หุ้มท้องเรือกันคลื่นได้ แต่ปูเสฉวนหวงเปลือกนัก ต้องตีให้เปลือกแตกก่อน แล้วไปช่วยยายชบาด้วย ท่านเต่าดำน้ำบ่อยจนข้าต่อเรือไม่ได้	IslandGame.Quest.cs:325
-E	ไม้ไผ่ที่นี่เบาและเหนียว ทำตัวเรือได้ดีที่สุด แต่งูชุมจนข้าเข้าป่าไม่ได้ ช่วยไล่มันหน่อย	IslandGame.Quest.cs:326
-E	ใบเรือผ้าทอรับลมได้ดีนัก แต่หมู่บ้านกำลังจะจัดงานเลี้ยง เอาปลาย่างมาช่วยด้วยนะ	IslandGame.Quest.cs:327
-E	ออบซิเดียนคมกริบ ทำหัวเรือฝ่าคลื่นได้ แต่หมูป่าดุเฝ้าลานลาวาอยู่ จัดการมันก่อน	IslandGame.Quest.cs:328
-E	ทะเลข้างหน้าคลื่นแรงขึ้นทุกเกาะ หาไม้กับเชือกมาให้ข้า แล้วไล่ปูที่มาแทะเรือตอนกลางคืนด้วย	IslandGame.Quest.cs:329
-E	ตามหาน้องปุย	IslandGame.Quest.cs:337
-E	หาน้องปุยในป่าเห็ด แล้วพากลับบ้าน	IslandGame.Quest.cs:338
-E	เรียนทำยาแก้พิษ	IslandGame.Quest.cs:339
-E	สปอร์เรืองแสง	IslandGame.Quest.cs:344
-E	เรียนทำโคมเห็ด	IslandGame.Quest.cs:347
-T	เทคโนโลยีใหม่: {0}!	IslandGame.Quest.cs:354
-E	กด Tab	IslandGame.Quest.cs:355
-E	แตะปุ่ม "สร้าง"	IslandGame.Quest.cs:355
-T	เรียนรู้{0}แล้ว! {1} เพื่อประดิษฐ์	IslandGame.Quest.cs:355
-E	ฮือ... หนูเดินตามเห็ดเรืองแสงมาจนหลงทาง กลับบ้านไม่ถูกแล้ว พี่พาหนูกลับไปหาแม่ได้ไหม?	IslandGame.Quest.cs:422
-E	ได้สิ ตามพี่มา (พากลับหมู่บ้าน)	IslandGame.Quest.cs:423
-E	ขอบคุณที่พาหนูกลับบ้านนะ! หนูจะไม่เดินตามเห็ดอีกแล้ว	IslandGame.Quest.cs:425
-E	ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น	IslandGame.Quest.cs:452
-T	{0} Lv {1} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ	IslandGame.Quest.cs:453
-E	ผีเสื้อกลับมาเต็มสวนแล้ว ปีกคู่นั้นจะพาเจ้าไปได้ไกลแสนไกล	IslandGame.Quest.cs:454
-E	ฟ้าสงบลงแล้ว น่าเสียดายนิดๆ นะ! ผ้าคลุมพายุจะทำให้เจ้าเร็วดั่งสายฟ้า	IslandGame.Quest.cs:455
-E	ชุดเกราะผลึกจะสะท้อนคมดาบทุกเล่ม สวมมันให้ภูมิใจนะ	IslandGame.Quest.cs:456
-E	ฮ่าฮ่า! อ่าวนี้เป็นของพวกเราอีกครั้ง เข็มทิศนั่นจะพาเจ้าไปหาสมบัติได้ทุกเกาะ	IslandGame.Quest.cs:457
-E	ตรีศูลของกษัตริย์บาดาลกลับมาโลดแล่นอีกครั้ง! ใช้มันให้สมเกียรตินะ	IslandGame.Quest.cs:458
-E	ขอบคุณมากนะ! ถ้าผ่านมาอีก แวะมาทักทายกันได้เสมอ	IslandGame.Quest.cs:459
-E	กองไฟใหญ่ลุกโชนแล้ว ทั้งหมู่บ้านอุ่นสบาย รองเท้าหนามคู่นั้นจะพาเจ้าเดินบนน้ำแข็งได้มั่นคง	IslandGame.Quest.cs:460
-E	ติ๊กต่อก... ได้ยินไหม หอนาฬิกาเดินแล้ว! นาฬิกาแดดของเจ้าใช้หยุดเวลาได้เมื่อจวนตัว	IslandGame.Quest.cs:461
-E	โดมแน่นหนาแล้ว หายใจได้เต็มปอดเลย ระฆังดำน้ำจะพาเจ้าเก็บมุกในทะเลได้อีกมาก	IslandGame.Quest.cs:462
-E	ได้ยินไหม เสียงกระดิ่งกลับมาแล้ว ลมสงบลงเยอะเลย บอลลูนจะพาเรือเจ้าลอยพ้นปากฉลาม	IslandGame.Quest.cs:463
-E	ท่านเต่าสบายตัวขึ้นมากแล้ว ขอบใจนะหลาน ใบเรือผ้าใบจะพาเจ้าแล่นได้เร็วดั่งลม	IslandGame.Quest.cs:464
-E	ขอบใจที่ช่วยเกาะเห็ดนะ ถ้าโดนพิษ ใช้ยาแก้พิษได้เลย และโคมเห็ดจะส่องทางให้ในคืนมืด	IslandGame.Quest.cs:465
-E	ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้	IslandGame.Quest.cs:481
-E	แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน	IslandGame.Quest.cs:482
-T	รับภารกิจ: {0}	IslandGame.Quest.cs:486
-E	<color=#8fe38f><b>ทำครบแล้ว! ส่งภารกิจได้เลย</b></color>\n\n	IslandGame.Quest.cs:491
-T	ส่งภารกิจ: {0} ★	IslandGame.Quest.cs:492
-E	ยังทำไม่ครบ (ดูรายการด้านบน)	IslandGame.Quest.cs:492
-E	น้องปุยกลับถึงบ้านแล้ว! กลับไปคุยกับหมอโมราได้เลย	IslandGame.Quest.cs:505
-E	ช่างโป๊ะ	IslandGame.Quest.cs:513
-E	หมอโมรา	IslandGame.Quest.cs:518
-E	น้องปุย	IslandGame.Quest.cs:520
-E	ยายชบา	IslandGame.Quest.cs:526
-E	ปู่ลมพัด	IslandGame.Quest.cs:532
-E	แม่มุก	IslandGame.Quest.cs:538
-E	ลุงฟันเฟือง	IslandGame.Quest.cs:544
-E	พรานธารา	IslandGame.Quest.cs:550
-E	ดร.สมุทร	IslandGame.Quest.cs:556
-E	ลุงตาเดียว	IslandGame.Quest.cs:562
-E	ป้าเรือนทอง	IslandGame.Quest.cs:563
-E	เพชรา	IslandGame.Quest.cs:566
-E	อัสนี	IslandGame.Quest.cs:568
-E	ป้าผีเสื้อ	IslandGame.Quest.cs:570
-E	ติดพิษ!	IslandGame.Quest.cs:652
-E	ยังไม่ได้ติดพิษ เก็บยาไว้ก่อน	IslandGame.Quest.cs:659
-E	หายพิษแล้ว	IslandGame.Quest.cs:663
-E	  <color=#ffd84d>ส่งได้แล้ว!</color>	IslandGame.Quest.cs:727
+T	{0} นำ{1}มา {2}/{3}	IslandGame.Quest.cs:44
+T	{0} ปราบ{1} {2}/{3}	IslandGame.Quest.cs:46
+E	ภารกิจสำเร็จ!	IslandGame.Quest.cs:60
+T	{0}  ·  รางวัล: {1}	IslandGame.Quest.cs:60
+E	รับภารกิจแล้ว!	IslandGame.Quest.cs:70
+T	ขอบใจ! ภารกิจ "{0}" ดูความคืบหน้าได้ที่มุมขวาบน	IslandGame.Quest.cs:71
+E	\nตัวที่ต้องปราบจะมี<color=#ff6b5e><b>ป้ายแดง "เป้าหมาย"</b></color>อยู่เหนือหัว	IslandGame.Quest.cs:72
+T	เป้าหมาย {0}/{1}	IslandGame.Quest.cs:90
+E	ภารกิจพร้อมส่ง!	IslandGame.Quest.cs:94
+T	{0}  ·  กลับไปคุยกับคนที่มี ? เหนือหัว	IslandGame.Quest.cs:94
+T	ปราบ{0}ครบแล้ว!	IslandGame.Quest.cs:97
+E	ทำส่วนที่เหลือของภารกิจต่อ (ดูมุมขวาบน)	IslandGame.Quest.cs:97
+T	<size=15><color=#ffd84d><b>ภารกิจ: {0}</b></color></size>\n<color=#8fe38f><b>รางวัล:</b></color> {1}	IslandGame.Quest.cs:143
+E	นักล่าผลไม้	IslandGame.Quest.cs:221
+T	ช่างต่อเรือ: เสร็จแล้ว! ตอนนี้เป็น{0} Lv {1} ไปเกาะใหม่ได้แล้ว	IslandGame.Quest.cs:237
+E	พาน้องปุยกลับไปหาหมอโมรา	IslandGame.Quest.cs:243
+E	ปราบราชาเห็ดที่ขวางทางน้ำ	IslandGame.Quest.cs:243
+E	ปราบราชินีมดที่ส่งทหารมาแทะเรือ	IslandGame.Quest.cs:248
+E	ซ่อมสายล่อฟ้าให้ครบ ฟ้าจะได้ไม่ผ่าอู่เรือ	IslandGame.Quest.cs:253
+E	เปิดห้องนิรภัยผลึกด้วยแสงจากกระจก	IslandGame.Quest.cs:258
+E	ปราบกัปตันกระดูกดำให้ปืนใหญ่เงียบ	IslandGame.Quest.cs:263
+E	ปราบอสูรหมึกยักษ์ที่ขวางทางขึ้นผิวน้ำ	IslandGame.Quest.cs:268
+E	ช่วยพรานธาราจุดไฟให้หมู่บ้าน	IslandGame.Quest.cs:273
+E	ช่วยลุงฟันเฟืองไขลานหอนาฬิกา	IslandGame.Quest.cs:278
+E	ช่วยแม่มุกซ่อมโดมอากาศ	IslandGame.Quest.cs:283
+E	ช่วยปู่ลมพัดตามหากระดิ่งลม	IslandGame.Quest.cs:288
+E	ช่วยยายชบาขัดเพรียงให้ท่านเต่า	IslandGame.Quest.cs:293
+E	เรือแบบเจ้าแล่นไม่ผ่านคลองเห็ดหรอก ราชาเห็ดนอนขวางทางน้ำอยู่ แถมหมอโมราก็ร้อนใจเรื่องลูกหาย ช่วยเกาะนี้ก่อน แล้วข้าจะเสริมเรือให้ด้วยสปอร์เรืองแสง	IslandGame.Quest.cs:316
+E	เปลือกแมลงยักษ์ทั้งเบาทั้งแข็ง เอามาหุ้มเรือดีนักแล! แต่มดทหารชอบมาแทะไม้กระดานข้า ต้องจัดการราชินีมดที่ส่งพวกมันมาด้วย	IslandGame.Quest.cs:317
+E	ฟ้าผ่าอู่เรือข้าไปสามรอบแล้ว! ซ่อมสายล่อฟ้าให้ครบก่อน แล้วเอาทองแดงมาทำหมุดเรือ คางคกฟ้าร้องชอบกระโดดมาทับเครื่องมือข้า ไล่มันไปด้วย	IslandGame.Quest.cs:318
+E	ผลึกที่นี่ทำกระดูกงูเรือได้แข็งที่สุดที่ข้าเคยเห็น แต่โกเลมผลึกชอบมาเหยียบอู่เรือข้าพัง จัดการมันด้วย แล้วเปิดห้องนิรภัย ผลึกที่ผ่านแสงเท่านั้นถึงจะใช้ได้	IslandGame.Quest.cs:319
+E	ไม้ดีๆ ข้ามีครบ แต่ค่าแรงต้องจ่ายเป็นเหรียญทอง! ขุดสมบัติเอาสิ แล้วไล่ลูกเรือโครงกระดูกที่มาขโมยไม้ข้าด้วย ถ้าปืนใหญ่ยังยิงอยู่ ข้าซ่อมเรือไม่ได้หรอก	IslandGame.Quest.cs:320
+E	จะพาเรือขึ้นจากก้นทะเลได้ ต้องหุ้มด้วยมุกกับปะการังให้ทนแรงดัน ปูยักษ์ทะเลลึกชอบหนีบเชือกเรือขาด จัดการมันด้วย และอสูรหมึกยักษ์ต้องไม่อยู่ขวางทางขึ้น	IslandGame.Quest.cs:321
+E	ทะเลรอบเกาะอุ่น แต่ท้องเรือต้องหุ้มเกล็ดน้ำแข็งกันความร้อนเวลาผ่านกระแสน้ำเดือด แปลกดีไหมล่ะ ค้างคาวน้ำแข็งชอบมาเกาะเสากระโดงแล้วแช่แข็งเชือก ไล่มันไป แล้วช่วยพรานธาราด้วย	IslandGame.Quest.cs:322
+E	เวลาที่นี่เดี๋ยวเร็วเดี๋ยวช้า ไม้ที่ข้าตอกเมื่อเช้าผุไปแล้วตอนบ่าย! ต้องใช้เฟืองทองเหลืองกับทรายเวลายึดเรือให้ทนกาลเวลา ด้วงทรายชอบมาแทะเฟือง ช่วยไล่หน่อย แล้วช่วยลุงฟันเฟืองซ่อมหอนาฬิกาด้วย	IslandGame.Quest.cs:323
+E	จะพาเรือขึ้นจากใต้ทะเล ต้องหุ้มท้องเรือด้วยปะการังกับมุกให้ทนแรงดัน ปลาตะเกียงชอบล่อคนงานข้าหลงทาง ไล่พวกมันไป แล้วช่วยแม่มุกซ่อมโดมด้วย	IslandGame.Quest.cs:324
+E	เรือที่จะออกจากเกาะลอยฟ้าต้องเบาดั่งปุยเมฆ เอาปุยเมฆกับขนนกมา แล้วจัดการก้อนเมฆสายฟ้าที่ชอบผ่าเรือข้า และช่วยปู่ลมพัดให้ลมสงบก่อนด้วย	IslandGame.Quest.cs:325
+E	เปลือกหอยยักษ์ที่นี่แข็งยิ่งกว่าหิน ใช้หุ้มท้องเรือกันคลื่นได้ แต่ปูเสฉวนหวงเปลือกนัก ต้องตีให้เปลือกแตกก่อน แล้วไปช่วยยายชบาด้วย ท่านเต่าดำน้ำบ่อยจนข้าต่อเรือไม่ได้	IslandGame.Quest.cs:326
+E	ไม้ไผ่ที่นี่เบาและเหนียว ทำตัวเรือได้ดีที่สุด แต่งูชุมจนข้าเข้าป่าไม่ได้ ช่วยไล่มันหน่อย	IslandGame.Quest.cs:327
+E	ใบเรือผ้าทอรับลมได้ดีนัก แต่หมู่บ้านกำลังจะจัดงานเลี้ยง เอาปลาย่างมาช่วยด้วยนะ	IslandGame.Quest.cs:328
+E	ออบซิเดียนคมกริบ ทำหัวเรือฝ่าคลื่นได้ แต่หมูป่าดุเฝ้าลานลาวาอยู่ จัดการมันก่อน	IslandGame.Quest.cs:329
+E	ทะเลข้างหน้าคลื่นแรงขึ้นทุกเกาะ หาไม้กับเชือกมาให้ข้า แล้วไล่ปูที่มาแทะเรือตอนกลางคืนด้วย	IslandGame.Quest.cs:330
+E	ตามหาน้องปุย	IslandGame.Quest.cs:338
+E	หาน้องปุยในป่าเห็ด แล้วพากลับบ้าน	IslandGame.Quest.cs:339
+E	เรียนทำยาแก้พิษ	IslandGame.Quest.cs:340
+E	สปอร์เรืองแสง	IslandGame.Quest.cs:345
+E	เรียนทำโคมเห็ด	IslandGame.Quest.cs:348
+T	เทคโนโลยีใหม่: {0}!	IslandGame.Quest.cs:355
+E	กด Tab	IslandGame.Quest.cs:356
+E	แตะปุ่ม "สร้าง"	IslandGame.Quest.cs:356
+T	เรียนรู้{0}แล้ว! {1} เพื่อประดิษฐ์	IslandGame.Quest.cs:356
+E	ฮือ... หนูเดินตามเห็ดเรืองแสงมาจนหลงทาง กลับบ้านไม่ถูกแล้ว พี่พาหนูกลับไปหาแม่ได้ไหม?	IslandGame.Quest.cs:423
+E	ได้สิ ตามพี่มา (พากลับหมู่บ้าน)	IslandGame.Quest.cs:424
+E	ขอบคุณที่พาหนูกลับบ้านนะ! หนูจะไม่เดินตามเห็ดอีกแล้ว	IslandGame.Quest.cs:426
+E	ยังไม่มีเรือเลยเหรอ? สร้างแพก่อน (Tab) แล้วข้าจะช่วยเสริมให้แข็งแรงขึ้น	IslandGame.Quest.cs:453
+T	{0} Lv {1} ของเจ้าพร้อมไปเกาะใหม่แล้ว เมื่อไปถึงเกาะใหม่ ช่างที่นั่นจะช่วยเจ้าต่อ	IslandGame.Quest.cs:454
+E	ผีเสื้อกลับมาเต็มสวนแล้ว ปีกคู่นั้นจะพาเจ้าไปได้ไกลแสนไกล	IslandGame.Quest.cs:455
+E	ฟ้าสงบลงแล้ว น่าเสียดายนิดๆ นะ! ผ้าคลุมพายุจะทำให้เจ้าเร็วดั่งสายฟ้า	IslandGame.Quest.cs:456
+E	ชุดเกราะผลึกจะสะท้อนคมดาบทุกเล่ม สวมมันให้ภูมิใจนะ	IslandGame.Quest.cs:457
+E	ฮ่าฮ่า! อ่าวนี้เป็นของพวกเราอีกครั้ง เข็มทิศนั่นจะพาเจ้าไปหาสมบัติได้ทุกเกาะ	IslandGame.Quest.cs:458
+E	ตรีศูลของกษัตริย์บาดาลกลับมาโลดแล่นอีกครั้ง! ใช้มันให้สมเกียรตินะ	IslandGame.Quest.cs:459
+E	ขอบคุณมากนะ! ถ้าผ่านมาอีก แวะมาทักทายกันได้เสมอ	IslandGame.Quest.cs:460
+E	กองไฟใหญ่ลุกโชนแล้ว ทั้งหมู่บ้านอุ่นสบาย รองเท้าหนามคู่นั้นจะพาเจ้าเดินบนน้ำแข็งได้มั่นคง	IslandGame.Quest.cs:461
+E	ติ๊กต่อก... ได้ยินไหม หอนาฬิกาเดินแล้ว! นาฬิกาแดดของเจ้าใช้หยุดเวลาได้เมื่อจวนตัว	IslandGame.Quest.cs:462
+E	โดมแน่นหนาแล้ว หายใจได้เต็มปอดเลย ระฆังดำน้ำจะพาเจ้าเก็บมุกในทะเลได้อีกมาก	IslandGame.Quest.cs:463
+E	ได้ยินไหม เสียงกระดิ่งกลับมาแล้ว ลมสงบลงเยอะเลย บอลลูนจะพาเรือเจ้าลอยพ้นปากฉลาม	IslandGame.Quest.cs:464
+E	ท่านเต่าสบายตัวขึ้นมากแล้ว ขอบใจนะหลาน ใบเรือผ้าใบจะพาเจ้าแล่นได้เร็วดั่งลม	IslandGame.Quest.cs:465
+E	ขอบใจที่ช่วยเกาะเห็ดนะ ถ้าโดนพิษ ใช้ยาแก้พิษได้เลย และโคมเห็ดจะส่องทางให้ในคืนมืด	IslandGame.Quest.cs:466
+E	ลูกสาวข้า น้องปุย หายเข้าไปในป่าเห็ดตั้งแต่เมื่อคืน! ป่ามีเห็ดหลอกกับแมงมุมสปอร์ ข้าออกไปเองไม่ได้ ช่วยตามหาที ข้าจะสอนวิธีทำยาแก้พิษให้	IslandGame.Quest.cs:482
+E	แมงมุมสปอร์ทำรังใกล้หมู่บ้าน ช่วยไล่มันแล้วเก็บสปอร์เรืองแสงมาให้ข้า ข้าจะสอนทำโคมเห็ดที่ส่องสว่างได้ทั้งคืน	IslandGame.Quest.cs:483
+T	รับภารกิจ: {0}	IslandGame.Quest.cs:487
+E	<color=#8fe38f><b>ทำครบแล้ว! ส่งภารกิจได้เลย</b></color>\n\n	IslandGame.Quest.cs:492
+T	ส่งภารกิจ: {0} ★	IslandGame.Quest.cs:493
+E	ยังทำไม่ครบ (ดูรายการด้านบน)	IslandGame.Quest.cs:493
+E	น้องปุยกลับถึงบ้านแล้ว! กลับไปคุยกับหมอโมราได้เลย	IslandGame.Quest.cs:506
+E	ช่างโป๊ะ	IslandGame.Quest.cs:514
+E	หมอโมรา	IslandGame.Quest.cs:519
+E	น้องปุย	IslandGame.Quest.cs:521
+E	ยายชบา	IslandGame.Quest.cs:527
+E	ปู่ลมพัด	IslandGame.Quest.cs:533
+E	แม่มุก	IslandGame.Quest.cs:539
+E	ลุงฟันเฟือง	IslandGame.Quest.cs:545
+E	พรานธารา	IslandGame.Quest.cs:551
+E	ดร.สมุทร	IslandGame.Quest.cs:557
+E	ลุงตาเดียว	IslandGame.Quest.cs:563
+E	ป้าเรือนทอง	IslandGame.Quest.cs:564
+E	เพชรา	IslandGame.Quest.cs:567
+E	อัสนี	IslandGame.Quest.cs:569
+E	ป้าผีเสื้อ	IslandGame.Quest.cs:571
+E	ติดพิษ!	IslandGame.Quest.cs:653
+E	ยังไม่ได้ติดพิษ เก็บยาไว้ก่อน	IslandGame.Quest.cs:660
+E	หายพิษแล้ว	IslandGame.Quest.cs:664
+E	  <color=#ffd84d>ส่งได้แล้ว!</color>	IslandGame.Quest.cs:731
 E	เซิร์ฟเวอร์เพิ่งเริ่มใหม่ - ตอนนี้เล่นออฟไลน์ กลับหน้าแรกแล้วเล่นออนไลน์อีกครั้งเพื่อเจอเพื่อน	IslandGame.Reconnect.cs:38
 E	ต่อเซิร์ฟเวอร์ไม่ได้ - ตอนนี้เล่นออฟไลน์ (กลับหน้าแรกเพื่อเล่นออนไลน์อีกครั้ง)	IslandGame.Reconnect.cs:47
-E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)	IslandGame.Reconnect.cs:94
-E	ต่อเซิร์ฟเวอร์ใหม่แล้ว	IslandGame.Reconnect.cs:102
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่ต้องเข้าสู่ระบบใหม่ (ตอนนี้เซฟอยู่ในเครื่องนี้)	IslandGame.Reconnect.cs:93
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่โหลดตัวละครไม่ได้ (ตอนนี้เซฟอยู่ในเครื่องนี้)	IslandGame.Reconnect.cs:110
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว	IslandGame.Reconnect.cs:118
 E	คุณหมดสติ! รอเพื่อนมาชุบชีวิต	IslandGame.Revive.cs:25
 E	หมดสติแล้ว! มาช่วยชุบชีวิตหน่อย (ยืนข้างๆ แล้วกด E ค้างไว้)	IslandGame.Revive.cs:26
 T	คุณฟื้นขึ้นมาแล้ว! ของและเลเวลยังอยู่ แต่เสีย {0} XP · ยังหิวและเหนื่อยอยู่ รีบหาอะไรกิน	IslandGame.Revive.cs:56
@@ -1536,10 +1563,10 @@ E	ตามหากระดิ่งลม	IslandGame.Sky.cs:112
 E	ลมสงบลง + เรียนทำบอลลูนลมร้อน	IslandGame.Sky.cs:115
 E	ฝูงนกกระดิ่งลมขโมยกระดิ่งศักดิ์สิทธิ์ของข้าไป ไม่มีเสียงกระดิ่ง ลมเลยพัดแรงไม่หยุด ช่วยไล่นกพวกนั้น แล้วเอาขนนกมาให้ข้าทำพู่กระดิ่งใหม่ ข้าจะสอนทำบอลลูนลมร้อนให้ เรือของเจ้าจะลอยเหนือคลื่น ฉลามกัดไม่ถึง	IslandGame.Sky.cs:125
 E	สัปหงก...	IslandGame.Sleep.cs:44
-T	พลังงาน {0} · สดชื่น! เร็ว/แรงขึ้น ({1} วิ)	IslandGame.Sleep.cs:62
-T	พลังงาน {0} · หมดแรง! ช้า อ่อนแรง สัปหงก ไปนอน	IslandGame.Sleep.cs:63
-T	พลังงาน {0} · ง่วง เดินและตีช้าลง	IslandGame.Sleep.cs:64
-T	พลังงาน {0}	IslandGame.Sleep.cs:65
+T	พลังงาน {0} · สดชื่น! เร็ว/แรงขึ้น ({1} วิ)	IslandGame.Sleep.cs:61
+T	พลังงาน {0} · หมดแรง! ช้า อ่อนแรง สัปหงก ไปนอน	IslandGame.Sleep.cs:62
+T	พลังงาน {0} · ง่วง เดินและตีช้าลง	IslandGame.Sleep.cs:63
+T	พลังงาน {0}	IslandGame.Sleep.cs:64
 E	อาคะ	IslandGame.Sticker.cs:11
 E	โมโมะ	IslandGame.Sticker.cs:11
 E	ยูรุ	IslandGame.Sticker.cs:11
@@ -1581,23 +1608,23 @@ E	หมู่บ้าน	IslandGame.Town.cs:16
 E	เมืองท่า	IslandGame.Town.cs:16
 E	นครรุ่งเรือง	IslandGame.Town.cs:16
 E	ดินแดนรกร้าง	IslandGame.Town.cs:16
-E	ดาว	IslandGame.Town.cs:69
-E	ฟ้าใส	IslandGame.Town.cs:69
-E	บุญมา	IslandGame.Town.cs:69
-E	แก้ว	IslandGame.Town.cs:69
-E	ทองดี	IslandGame.Town.cs:69
-E	ลำดวน	IslandGame.Town.cs:69
-E	สายลม	IslandGame.Town.cs:69
-E	จันทร์	IslandGame.Town.cs:69
-E	เถ้าแก่ทอง	IslandGame.Town.cs:90
-E	แม่ค้าบัว	IslandGame.Town.cs:90
-E	เกาะเราเจริญขึ้นทุกปีเลยนะ ตั้งแต่มีเรือแวะมาค้าขาย	IslandGame.Town.cs:98
-E	ตะเกียงตามทางช่วยไล่สัตว์ร้ายตอนกลางคืนได้ดีทีเดียว	IslandGame.Town.cs:99
-E	บ่อน้ำนั่นน้ำจืดสะอาด ดื่มได้เลย	IslandGame.Town.cs:100
-E	ได้ยินว่าเกาะไกลๆ มีเมืองใหญ่กว่านี้อีก	IslandGame.Town.cs:101
-E	แปลงผักของบ้านข้างๆ ออกผลดกทุกฤดู เก็บไปกินได้นะ	IslandGame.Town.cs:102
-E	ช่างโป๊ะเป็นช่างต่อเรือที่เก่งที่สุดในย่านนี้	IslandGame.Town.cs:103
-E	+30 น้ำ	IslandGame.Town.cs:112
+E	ดาว	IslandGame.Town.cs:83
+E	ฟ้าใส	IslandGame.Town.cs:83
+E	บุญมา	IslandGame.Town.cs:83
+E	แก้ว	IslandGame.Town.cs:83
+E	ทองดี	IslandGame.Town.cs:83
+E	ลำดวน	IslandGame.Town.cs:83
+E	สายลม	IslandGame.Town.cs:83
+E	จันทร์	IslandGame.Town.cs:83
+E	เถ้าแก่ทอง	IslandGame.Town.cs:104
+E	แม่ค้าบัว	IslandGame.Town.cs:104
+E	เกาะเราเจริญขึ้นทุกปีเลยนะ ตั้งแต่มีเรือแวะมาค้าขาย	IslandGame.Town.cs:112
+E	ตะเกียงตามทางช่วยไล่สัตว์ร้ายตอนกลางคืนได้ดีทีเดียว	IslandGame.Town.cs:113
+E	บ่อน้ำนั่นน้ำจืดสะอาด ดื่มได้เลย	IslandGame.Town.cs:114
+E	ได้ยินว่าเกาะไกลๆ มีเมืองใหญ่กว่านี้อีก	IslandGame.Town.cs:115
+E	แปลงผักของบ้านข้างๆ ออกผลดกทุกฤดู เก็บไปกินได้นะ	IslandGame.Town.cs:116
+E	ช่างโป๊ะเป็นช่างต่อเรือที่เก่งที่สุดในย่านนี้	IslandGame.Town.cs:117
+E	+30 น้ำ	IslandGame.Town.cs:126
 E	หมอก	IslandGame.Traits.cs:31
 E	ฟัน	IslandGame.Traits.cs:31
 E	ลม	IslandGame.Traits.cs:31
@@ -1699,15 +1726,15 @@ T	{0} มาเยี่ยมเกาะส่วนตัวของคุ�
 T	{0} แวะไปเยี่ยมเกาะส่วนตัวของคุณ (ตอนนี้คุณไม่อยู่บ้าน)	IslandGame.Visit.cs:292
 T	เกาะที่ {0} ({1})	IslandGame.Voyage.cs:43
 T	เกาะที่ {0}	IslandGame.Voyage.cs:43
-T	พายไปทางตะวันออก (D / ขวา) เพื่อไป{0} ระวังฉลามด้วย!	IslandGame.Voyage.cs:108
-E	 (ใช้พลัง R / ท่าพิเศษ T ได้)	IslandGame.Voyage.cs:108
-T	โล่ฟองกันไว้! (เหลือ {0})	IslandGame.Voyage.cs:292
-E	โล่ฟองแตกแล้ว!	IslandGame.Voyage.cs:292
-E	น้ำทะเลปั่นป่วน... งูทะเลยักษ์โผล่ขึ้นมาแล้ว! ตีมันตอนโผล่พ้นน้ำ หรือพายหนีไปให้ถึงฝั่ง	IslandGame.Voyage.cs:319
-T	ครีบนับสิบโผล่ขึ้นรอบเรือ... ฝูงฉลามคลั่ง {0} ตัวล้อมเข้ามาแล้ว! ปราบให้หมดเพื่อรับรางวัล หรือพายหนีให้ถึงฝั่ง	IslandGame.Voyage.cs:348
-T	ฝูงฉลามเหลืออีกครึ่งเดียว ({0} ตัว)!	IslandGame.Voyage.cs:361
-T	ปราบฝูงฉลามคลั่งได้ทั้ง {0} ตัว! ได้รางวัลจากฝูง	IslandGame.Voyage.cs:370
-E	ปราบงูทะเลยักษ์ได้แล้ว! ได้ไข่มุกกับเหรียญทองมาเพียบ	IslandGame.Voyage.cs:385
+T	พายไปทางตะวันออก (D / ขวา) เพื่อไป{0} ระวังฉลามด้วย!	IslandGame.Voyage.cs:109
+E	 (ใช้พลัง R / ท่าพิเศษ T ได้)	IslandGame.Voyage.cs:109
+T	โล่ฟองกันไว้! (เหลือ {0})	IslandGame.Voyage.cs:293
+E	โล่ฟองแตกแล้ว!	IslandGame.Voyage.cs:293
+E	น้ำทะเลปั่นป่วน... งูทะเลยักษ์โผล่ขึ้นมาแล้ว! ตีมันตอนโผล่พ้นน้ำ หรือพายหนีไปให้ถึงฝั่ง	IslandGame.Voyage.cs:320
+T	ครีบนับสิบโผล่ขึ้นรอบเรือ... ฝูงฉลามคลั่ง {0} ตัวล้อมเข้ามาแล้ว! ปราบให้หมดเพื่อรับรางวัล หรือพายหนีให้ถึงฝั่ง	IslandGame.Voyage.cs:351
+T	ฝูงฉลามเหลืออีกครึ่งเดียว ({0} ตัว)!	IslandGame.Voyage.cs:364
+T	ปราบฝูงฉลามคลั่งได้ทั้ง {0} ตัว! ได้รางวัลจากฝูง	IslandGame.Voyage.cs:373
+E	ปราบงูทะเลยักษ์ได้แล้ว! ได้ไข่มุกกับเหรียญทองมาเพียบ	IslandGame.Voyage.cs:388
 T	หิวจนจะไม่ไหวแล้ว! กิน{0}อัตโนมัติ	IslandGame.Warn.cs:53
 E	!! เลือดใกล้หมด !!  หนีจากศัตรู แล้วกินอาหารปิ้งหรือน้ำผึ้ง (F)	IslandGame.Warn.cs:76
 E	! เลือดน้อย !  ถอยออกมา กินอาหารปิ้งหรือน้ำผึ้ง (F) หรือนอนพัก	IslandGame.Warn.cs:77
@@ -1749,8 +1776,8 @@ E	หาดทราย ป่าเห็ด และเกาะหลัง�
 E	เกาะน้ำแข็ง พายุ และผลึกระยิบระยับ อากาศหนาวจัด	IslandGame.World.cs:22
 E	ป่าดิบ ชนเผ่า และภูเขาไฟคุกรุ่น สัตว์ดุร้าย	IslandGame.World.cs:23
 E	เกาะลอยฟ้า ฟองอากาศ และนครบาดาลใต้ทะเล	IslandGame.World.cs:24
-T	ต้องใช้เหรียญทอง {0} เพื่อย้ายเกาะส่วนตัว	IslandGame.World.cs:68
-T	ลากเกาะส่วนตัวไปตั้งที่{0}แล้ว! ทุกอย่างบนเกาะยังอยู่ครบ เพื่อนๆ จะเห็นบ้านคุณที่ทวีปนี้	IslandGame.World.cs:73
+T	ต้องใช้เหรียญทอง {0} เพื่อย้ายเกาะส่วนตัว	IslandGame.World.cs:84
+T	ลากเกาะส่วนตัวไปตั้งที่{0}แล้ว! ทุกอย่างบนเกาะยังอยู่ครบ เพื่อนๆ จะเห็นบ้านคุณที่ทวีปนี้	IslandGame.World.cs:89
 E	ขาดวัตถุดิบ	IslandGame.cs:106
 E	เชือก	IslandGame.cs:110
 E	ฟั่นใยพืชเข้าด้วยกัน	IslandGame.cs:110
@@ -1934,49 +1961,49 @@ E	ผลเหล็กกล้า	IslandGame.cs:401
 E	ผลแรงโน้มถ่วง	IslandGame.cs:402
 E	ผลดวงดาว	IslandGame.cs:402
 E	ผลกระแสน้ำลึก	IslandGame.cs:402
-E	ห้องลับใต้คุก มีแต่หีบสมบัติ	IslandGame.cs:584
-E	คุกใต้ทะเล: ปราบผู้คุมเพื่อเปิดบันไดลง · สู้ไม่ไหว เดินกลับไปที่แสงเพื่อขึ้นผิวน้ำ · ข้างในไม่มีการเซฟ	IslandGame.cs:584
-E	เข้าถ้ำแล้ว! ทางเดินเต็มไปด้วยสัตว์ร้าย เจ้าแห่งถ้ำรออยู่ลึกสุด · สู้ไม่ไหว เดินกลับมาที่แสงตรงปากถ้ำเพื่อออก	IslandGame.cs:585
-E	ออกจากถ้ำแล้ว	IslandGame.cs:586
-T	ในบ้าน{0} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก	IslandGame.cs:587
-E	ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น	IslandGame.cs:588
-E	กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่	IslandGame.cs:588
-T	กลับมาที่{0} (เกาะที่ {1}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป	IslandGame.cs:589
-T	ยินดีต้อนรับกลับ! {0} (เกาะที่ {1}) วันที่ {2}	IslandGame.cs:590
-T	หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้ว{0}เพื่อประดิษฐ์	IslandGame.cs:591
-T	เห็นฝั่งแล้ว! {0} (เกาะที่ {1}, {2}) {3}	IslandGame.cs:592
-T	 ได้ยินว่ามีจ่าฝูง{0}อยู่บนเกาะนี้!	IslandGame.cs:592
-E	ป่าเห็ดยักษ์ส่องแสงสลัว ระวังเห็ดที่ขยับได้! ไปหาช่างต่อเรือ แล้วไปหาหมอโมรากลางเกาะ	IslandGame.cs:601
-E	เกาะนี้คือกระดองเต่ายักษ์ที่กำลังว่ายน้ำ! เมื่อท่านเต่าดำน้ำ ที่ต่ำจะน้ำท่วม ไปหายายชบาที่กลางเกาะ	IslandGame.cs:602
-E	ลมหมุนยกเรือขึ้นมาถึงเกาะลอยฟ้า! ระวังลมกรรโชกพัดตกขอบเกาะ ไปหาปู่ลมพัดที่กลางเกาะ	IslandGame.cs:603
-E	เรือดำลงสู่เกาะในโดมอากาศใต้ทะเล! อากาศจะค่อยๆ หมด หายใจที่ช่องอากาศ แล้วไปหาแม่มุกที่กลางเกาะ	IslandGame.cs:604
-E	เวลาบนเกาะนี้วิ่งเร็วผิดปกติ! ระวังตุ๊กตาไขลาน มันขยับได้เฉพาะตอนที่เราไม่ได้มอง ไปหาลุงฟันเฟืองที่หอนาฬิกา	IslandGame.cs:605
-E	เกาะน้ำแข็งกลางทะเลอุ่น! ความหนาวจะกัดกินความอบอุ่น อยู่ใกล้กองไฟหรือบ่อน้ำร้อน และระวังลื่นบนพื้นน้ำแข็ง ไปหาพรานธาราที่กลางเกาะ	IslandGame.cs:606
-E	เรือดำลงสู่ก้นทะเล นครโบราณจมอยู่ตรงหน้า! ไม่มีโดมอากาศ อากาศหมดเร็ว หายใจที่หอยยักษ์ และระวังกระแสน้ำ ไปหา ดร.สมุทร ที่วิหาร	IslandGame.cs:607
-E	อ่าวของลูกเรือโครงกระดูก! ระวังปืนใหญ่จากเรือรบนอกฝั่ง หลบวงสีแดง หาพลั่วมาขุดสมบัติที่รอยกากบาท แล้วไปหาลุงตาเดียว	IslandGame.cs:608
-E	ทั้งเกาะระยิบระยับไปด้วยผลึก! กลางเกาะมีห้องนิรภัยที่ต้องใช้แสงเปิด หมุนกระจกทั้ง 3 บาน และไปหาช่างแก้วเพชรา	IslandGame.cs:609
-E	พายุไม่เคยหยุดบนเกาะนี้! ฟ้าผ่าลงมาตลอด หลบรอยสีเหลือง และซ่อมสายล่อฟ้าด้วยทองแดง ไปหานักประดิษฐ์อัสนี	IslandGame.cs:610
-E	ทุกอย่างบนเกาะนี้ตัวใหญ่ยักษ์! หญ้าสูงท่วมหัวกลายเป็นเขาวงกต อย่าไปตีมดงานถ้าไม่อยากโดนทั้งรังรุม ไปหาป้าผีเสื้อ	IslandGame.cs:611
-E	มีงูซ่อนอยู่ในหญ้า ช่างต่อเรือต้องการไม้ไผ่	IslandGame.cs:612
-E	หมูป่าเดินเพ่นพ่านบนเถ้าภูเขาไฟ ช่างต่อเรือต้องการออบซิเดียน	IslandGame.cs:613
-E	มีควันลอยขึ้นจากหมู่บ้านกลางเกาะ ไปทักทายชนเผ่ากันเถอะ!	IslandGame.cs:614
-E	สัตว์ที่นี่ดูแข็งแกร่งกว่าเดิม...	IslandGame.cs:615
-E	ช่างต่อเรือรออยู่ที่ชายหาด	IslandGame.cs:615
-E	เกาะป่าดิบ	IslandGame.cs:723
-E	เกาะภูเขาไฟ	IslandGame.cs:723
-E	เกาะชนเผ่า	IslandGame.cs:723
-E	เกาะเห็ดเรืองแสง	IslandGame.cs:723
-E	เกาะหลังเต่ายักษ์	IslandGame.cs:723
-E	เกาะลอยฟ้า	IslandGame.cs:723
-E	เกาะใต้ฟองอากาศ	IslandGame.cs:723
-E	เกาะนาฬิกาทราย	IslandGame.cs:723
-E	เกาะน้ำแข็ง	IslandGame.cs:723
-E	นครบาดาล	IslandGame.cs:723
-E	อ่าวโจรสลัด	IslandGame.cs:723
-E	เกาะผลึก	IslandGame.cs:723
-E	เกาะพายุ	IslandGame.cs:723
-E	เกาะแมลงยักษ์	IslandGame.cs:723
-E	เกาะเขตร้อน	IslandGame.cs:723
+E	ห้องลับใต้คุก มีแต่หีบสมบัติ	IslandGame.cs:585
+E	คุกใต้ทะเล: ปราบผู้คุมเพื่อเปิดบันไดลง · สู้ไม่ไหว เดินกลับไปที่แสงเพื่อขึ้นผิวน้ำ · ข้างในไม่มีการเซฟ	IslandGame.cs:585
+E	เข้าถ้ำแล้ว! ทางเดินเต็มไปด้วยสัตว์ร้าย เจ้าแห่งถ้ำรออยู่ลึกสุด · สู้ไม่ไหว เดินกลับมาที่แสงตรงปากถ้ำเพื่อออก	IslandGame.cs:586
+E	ออกจากถ้ำแล้ว	IslandGame.cs:587
+T	ในบ้าน{0} กด G เพื่อจัดวางเฟอร์นิเจอร์ ใช้โต๊ะช่างทำของ เดินไปที่พรมหน้าประตูเพื่อออก	IslandGame.cs:588
+E	ยินดีต้อนรับสู่เกาะส่วนตัว! ของขวัญต้อนรับอยู่ในกระเป๋าแล้ว อ่านป้ายข้างตัวเพื่อดูวิธีเล่น	IslandGame.cs:589
+E	กลับถึงเกาะส่วนตัวแล้ว ผักและสัตว์รอคุณอยู่	IslandGame.cs:589
+T	กลับมาที่{0} (เกาะที่ {1}) แล้ว ทุกอย่างยังอยู่เหมือนตอนที่จากไป	IslandGame.cs:590
+T	ยินดีต้อนรับกลับ! {0} (เกาะที่ {1}) วันที่ {2}	IslandGame.cs:591
+T	หาน้ำจืด (บ่อสีฟ้าอ่อน) และอาหาร เก็บวัตถุดิบ แล้ว{0}เพื่อประดิษฐ์	IslandGame.cs:592
+T	เห็นฝั่งแล้ว! {0} (เกาะที่ {1}, {2}) {3}	IslandGame.cs:593
+T	 ได้ยินว่ามีจ่าฝูง{0}อยู่บนเกาะนี้!	IslandGame.cs:593
+E	ป่าเห็ดยักษ์ส่องแสงสลัว ระวังเห็ดที่ขยับได้! ไปหาช่างต่อเรือ แล้วไปหาหมอโมรากลางเกาะ	IslandGame.cs:602
+E	เกาะนี้คือกระดองเต่ายักษ์ที่กำลังว่ายน้ำ! เมื่อท่านเต่าดำน้ำ ที่ต่ำจะน้ำท่วม ไปหายายชบาที่กลางเกาะ	IslandGame.cs:603
+E	ลมหมุนยกเรือขึ้นมาถึงเกาะลอยฟ้า! ระวังลมกรรโชกพัดตกขอบเกาะ ไปหาปู่ลมพัดที่กลางเกาะ	IslandGame.cs:604
+E	เรือดำลงสู่เกาะในโดมอากาศใต้ทะเล! อากาศจะค่อยๆ หมด หายใจที่ช่องอากาศ แล้วไปหาแม่มุกที่กลางเกาะ	IslandGame.cs:605
+E	เวลาบนเกาะนี้วิ่งเร็วผิดปกติ! ระวังตุ๊กตาไขลาน มันขยับได้เฉพาะตอนที่เราไม่ได้มอง ไปหาลุงฟันเฟืองที่หอนาฬิกา	IslandGame.cs:606
+E	เกาะน้ำแข็งกลางทะเลอุ่น! ความหนาวจะกัดกินความอบอุ่น อยู่ใกล้กองไฟหรือบ่อน้ำร้อน และระวังลื่นบนพื้นน้ำแข็ง ไปหาพรานธาราที่กลางเกาะ	IslandGame.cs:607
+E	เรือดำลงสู่ก้นทะเล นครโบราณจมอยู่ตรงหน้า! ไม่มีโดมอากาศ อากาศหมดเร็ว หายใจที่หอยยักษ์ และระวังกระแสน้ำ ไปหา ดร.สมุทร ที่วิหาร	IslandGame.cs:608
+E	อ่าวของลูกเรือโครงกระดูก! ระวังปืนใหญ่จากเรือรบนอกฝั่ง หลบวงสีแดง หาพลั่วมาขุดสมบัติที่รอยกากบาท แล้วไปหาลุงตาเดียว	IslandGame.cs:609
+E	ทั้งเกาะระยิบระยับไปด้วยผลึก! กลางเกาะมีห้องนิรภัยที่ต้องใช้แสงเปิด หมุนกระจกทั้ง 3 บาน และไปหาช่างแก้วเพชรา	IslandGame.cs:610
+E	พายุไม่เคยหยุดบนเกาะนี้! ฟ้าผ่าลงมาตลอด หลบรอยสีเหลือง และซ่อมสายล่อฟ้าด้วยทองแดง ไปหานักประดิษฐ์อัสนี	IslandGame.cs:611
+E	ทุกอย่างบนเกาะนี้ตัวใหญ่ยักษ์! หญ้าสูงท่วมหัวกลายเป็นเขาวงกต อย่าไปตีมดงานถ้าไม่อยากโดนทั้งรังรุม ไปหาป้าผีเสื้อ	IslandGame.cs:612
+E	มีงูซ่อนอยู่ในหญ้า ช่างต่อเรือต้องการไม้ไผ่	IslandGame.cs:613
+E	หมูป่าเดินเพ่นพ่านบนเถ้าภูเขาไฟ ช่างต่อเรือต้องการออบซิเดียน	IslandGame.cs:614
+E	มีควันลอยขึ้นจากหมู่บ้านกลางเกาะ ไปทักทายชนเผ่ากันเถอะ!	IslandGame.cs:615
+E	สัตว์ที่นี่ดูแข็งแกร่งกว่าเดิม...	IslandGame.cs:616
+E	ช่างต่อเรือรออยู่ที่ชายหาด	IslandGame.cs:616
+E	เกาะป่าดิบ	IslandGame.cs:724
+E	เกาะภูเขาไฟ	IslandGame.cs:724
+E	เกาะชนเผ่า	IslandGame.cs:724
+E	เกาะเห็ดเรืองแสง	IslandGame.cs:724
+E	เกาะหลังเต่ายักษ์	IslandGame.cs:724
+E	เกาะลอยฟ้า	IslandGame.cs:724
+E	เกาะใต้ฟองอากาศ	IslandGame.cs:724
+E	เกาะนาฬิกาทราย	IslandGame.cs:724
+E	เกาะน้ำแข็ง	IslandGame.cs:724
+E	นครบาดาล	IslandGame.cs:724
+E	อ่าวโจรสลัด	IslandGame.cs:724
+E	เกาะผลึก	IslandGame.cs:724
+E	เกาะพายุ	IslandGame.cs:724
+E	เกาะแมลงยักษ์	IslandGame.cs:724
+E	เกาะเขตร้อน	IslandGame.cs:724
 E	ผู้เล่น 	RemotePlayer.cs:33
 E	ฉลามคลั่ง	SeaCreature.cs:42
 E	ฉลาม	SeaCreature.cs:42
@@ -2012,13 +2039,19 @@ T	{0} ร้านช่างไม้	Villager.cs:53
 T	{0} ร้านรับซื้อของ	Villager.cs:54
 T	{0} ร้านอุปกรณ์ประมง	Villager.cs:55
 T	{0} ร้านสัตว์เลี้ยง	Villager.cs:56
-E	บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว	server.js:764
-E	ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่	server.js:882
-E	ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่	server.js:887
-E	ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค	server.js:893
-E	รหัสผ่านต้องยาวอย่างน้อย 4 ตัว	server.js:894
-E	ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ	server.js:895
-E	สมัครบัญชีใหม่มากเกินไปแล้ว ลองใหม่ภายหลัง	server.js:900
-E	ต้องเข้าสู่ระบบใหม่อีกครั้ง	server.js:919
-E	ไม่พบบัญชีนี้ (สมัครใหม่ได้เลย)	server.js:925
-E	รหัสผ่านไม่ถูกต้อง	server.js:931
+E	บัญชีนี้เข้าเล่นจากอีกเครื่อง/อีกแท็บแล้ว	server.js:1122
+E	ช้าลงหน่อย แล้วลองใหม่	server.js:1189
+E	ต้องเข้าสู่ระบบก่อน	server.js:1190
+E	ไม่มีตัวละครในช่องนี้	server.js:1192
+E	เลือกตัวละครอื่นได้หลังจากกลับหน้าแรก	server.js:1194
+E	ช่องนี้มีตัวละครอยู่แล้ว	server.js:1212
+E	ตัวละครนี้กำลังเล่นอยู่ ลบไม่ได้	server.js:1228
+E	ใส่รหัสผ่านผิดหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่	server.js:1357
+E	ชื่อบัญชีหรือรหัสผ่านไม่ถูกต้อง (ยังไม่มีบัญชี? กดสมัครได้เลย)	server.js:1358
+E	เข้าสู่ระบบถี่เกินไป รอสักครู่แล้วลองใหม่	server.js:1369
+E	ลองหลายครั้งเกินไป ปิดแล้วเปิดเกมใหม่	server.js:1383
+E	ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค	server.js:1394
+E	รหัสผ่านต้องยาวอย่างน้อย 	server.js:1395
+E	 ตัว	server.js:1395
+E	ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ	server.js:1396
+E	สมัครบัญชีใหม่มากเกินไปแล้ว ลองใหม่ภายหลัง	server.js:1401

@@ -107,7 +107,56 @@ public static class SaveSystem
     // v6: Tribe Island (biome stored per save), clothing. v4/v5 saves still load.
     public const int Version = 6;
     const int OldestReadable = 4;
-    public static string SavePath => Path.Combine(Application.persistentDataPath, "island_save.json");
+    public static string SavePath => Path.Combine(Application.persistentDataPath, "island_save" + Profile + ".json");
+
+    /// Whose save files these are: "" = playing without an account (the files as they always were),
+    /// else one of an account's characters (ProfileFor), each with files of its own on this device,
+    /// so it can be played offline too and catch the server up later (IslandGame.Chars.cs).
+    public static string Profile = "";
+    public static string ProfileFor(string charId)
+    {
+        var sb = new System.Text.StringBuilder("_c");
+        foreach (byte b in System.Text.Encoding.UTF8.GetBytes(charId.ToLowerInvariant())) sb.Append(b.ToString("x2"));
+        return sb.ToString();
+    }
+
+    static string PathOf(string name, string profile) => Path.Combine(Application.persistentDataPath, name + profile + ".json");
+
+    /// The no-account files move into a character's own (an account's save from before characters,
+    /// or progress played without an account taken into a new character). A file the character
+    /// already has is kept, and the no-account one goes aside (".moved") rather than being lost or
+    /// left for playing without an account. False if something couldn't be moved.
+    public static bool MoveGuestInto(string profile)
+    {
+        try
+        {
+            foreach (var n in new[] { "island_save", "island_home_keep" })
+            {
+                string from = PathOf(n, ""), to = PathOf(n, profile);
+                if (!File.Exists(from)) continue;
+                if (File.Exists(to)) { File.Copy(from, from + ".moved", true); File.Delete(from); continue; }
+                File.Copy(from, to);
+                File.Delete(from);
+            }
+            return true;
+        }
+        catch (Exception e) { Debug.LogWarning($"Moving the save failed: {e.Message}"); return false; }
+    }
+
+    /// A deleted character's files on this device.
+    public static void DeleteProfile(string profile)
+    {
+        try { foreach (var n in new[] { "island_save", "island_home_keep" }) { string f = PathOf(n, profile); if (File.Exists(f)) File.Delete(f); } }
+        catch (Exception e) { Debug.LogWarning($"Deleting the character's save failed: {e.Message}"); }
+    }
+
+    /// A character's save without making it the current one (the character screen's levels when offline).
+    public static SaveData ReadProfile(string profile)
+    {
+        string keep = Profile;
+        Profile = profile;
+        try { return Read(); } finally { Profile = keep; }
+    }
 
     public static bool HasSave => File.Exists(SavePath);
 
@@ -177,7 +226,7 @@ public static class SaveSystem
 
     /// The private island outlives a death on an adventure island: it's kept in its own small
     /// file and handed to the next run (IslandGame.Home.cs).
-    static string HomeKeepPath => Path.Combine(Application.persistentDataPath, "island_home_keep.json");
+    static string HomeKeepPath => PathOf("island_home_keep", Profile);
 
     public static void WriteHomeKeep(SaveData data)
     {

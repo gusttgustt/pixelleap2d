@@ -470,7 +470,7 @@ public partial class IslandGame
         if (title)
         {
             // keep the creator box in the middle of tall screens (phones held upright, tall windows)
-            Fill(new Rect(0, 0, W, H), new Color(0.02f, 0.08f, 0.15f, 0.55f));
+            Fill(new Rect(0, 0, W, H), new Color(0.02f, 0.08f, 0.15f, 0.3f));
             var keep = GUI.matrix;
             GUI.matrix *= Matrix4x4.Translate(new Vector3(0f, (H - 540f) / 2f, 0f));
             DrawTitle(W, 540f);
@@ -670,79 +670,6 @@ public partial class IslandGame
     }
 
     // ------------------------------------------------------------------ online UI
-    /// Title screen = character creator: name, looks, then play online or offline.
-    void DrawTitle(float W, float H)
-    {
-        var big = new GUIStyle(titleCenter) { fontSize = 36 };
-        ShadowLabel(new Rect(0, 28, W, 46), "Island Survival", big, new Color(1f, 0.9f, 0.55f));
-        ShadowLabel(new Rect(0, 72, W, 22), "ตั้งชื่อตัวละครของคุณ แล้วล่องเรือจากเกาะสู่เกาะไปกับเพื่อนๆ", labelCenter, new Color(1f, 1f, 1f, 0.8f));
-
-        var box = new Rect(W / 2f - 280, 104, 560, 390);
-        Fill(box, new Color(0.08f, 0.06f, 0.04f, 0.88f));
-        Fill(new Rect(box.x, box.y, box.width, 2), new Color(1f, 0.85f, 0.3f, 0.8f));
-        GUI.enabled = !connecting;
-
-        // --- preview: the character walking in place, turnable
-        var stage = new Rect(box.x + 20, box.y + 20, 170, 250);
-        Fill(stage, new Color(0.25f, 0.45f, 0.25f, 1f));
-        Fill(new Rect(stage.x, stage.yMax - 60, stage.width, 60), new Color(0.2f, 0.38f, 0.2f, 1f));
-        int[] walk = { 0, 1, 0, 2 };
-        int frame = PixelArt.WalkFrames(look.Code) == 4 ? 1 + (int)(Time.time * 8f) % 4 : walk[(int)(Time.time * 4f) % 4];
-        var sprite = PixelArt.Player(previewDir, frame, null, null, look.Code);
-        Icon(new Rect(stage.x + 15, stage.y + 15, 140, 230), sprite);
-        if (CrispGUI.Button(new Rect(stage.x, stage.yMax + 8, stage.width, 26), previewDir == 0 ? "หันหลัง" : "หันหน้า"))
-            previewDir = 1 - previewDir;
-
-        // --- choices
-        float x = box.x + 215, y = box.y + 20, w = 325;
-        ShadowLabel(new Rect(x, y, w, 20), "ชื่อ", label);
-        playerName = GUI.TextField(new Rect(x, y + 22, w, 26), playerName ?? "", 16, new GUIStyle(GUI.skin.textField) { fontSize = 15 });
-        y += 60;
-        if (!CharacterLook.CanChoose)
-        {
-            // ready-made characters only: all of them side by side, tap one to pick it
-            ShadowLabel(new Rect(x, y, w, 20), "ตัวละคร  <size=11>(แตะเพื่อเลือก)</size>", label);
-            DrawCharacterCards(x, y + 20, w, 96);
-            ShadowLabel(new Rect(x, y + 118, w, 18), "หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม", small, new Color(1f, 1f, 1f, 0.6f));
-            DrawAccount(x, box.y + 216, w); // log in to play the same character anywhere (IslandGame.Account.cs)
-        }
-        else
-        {
-        look.preset = Chooser(x, y, w, "ตัวละคร", look.preset, CharacterLook.Presets.Length, null, CharacterLook.Presets[look.preset]); y += 34;
-        if (look.preset > 0)
-        {
-            var note = new GUIStyle(small) { wordWrap = true };
-            ShadowLabel(new Rect(x, y, w, 60), "ตัวละครสำเร็จรูป: ปรับสีผม/เสื้อไม่ได้ และจะไม่เห็นหมวกหรือชุดที่สวมบนตัว (แต่ยังได้ค่าพลังเหมือนเดิม) — กด < เพื่อกลับไปปรับแต่งเอง", note, new Color(1f, 0.85f, 0.9f));
-        }
-        else
-        {
-        int g = Chooser(x, y, w, "เพศ", look.gender, CharacterLook.Genders.Length, null, CharacterLook.Genders[look.gender]); y += 30;
-        if (g != look.gender) { look.gender = g; look.style = g == 1 ? 1 : 0; } // switching gender also picks a fitting hair style
-        look.skin = Chooser(x, y, w, "สีผิว", look.skin, CharacterLook.Skins.Length, CharacterLook.Skins[look.skin], null); y += 30;
-        look.style = Chooser(x, y, w, "ทรงผม", look.style, CharacterLook.Styles.Length, null, CharacterLook.Styles[look.style]); y += 30;
-        look.hair = Chooser(x, y, w, "สีผม", look.hair, CharacterLook.Hairs.Length, CharacterLook.Hairs[look.hair], null); y += 30;
-        look.shirt = Chooser(x, y, w, "เสื้อ", look.shirt, CharacterLook.Shirts.Length, CharacterLook.Shirts[look.shirt], null); y += 30;
-        look.pants = Chooser(x, y, w, look.gender == 1 ? "กระโปรง" : "กางเกง", look.pants, CharacterLook.Pants.Length, CharacterLook.Pants[look.pants], null); y += 32;
-        if (CrispGUI.Button(new Rect(x, y, w, 26), "สุ่มหน้าตา")) look = CharacterLook.Random();
-        }
-        }
-
-        // --- play
-        var btn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
-        string acct = acctName ?? (SavedToken.Length > 0 ? SavedUser : "");
-        if (CrispGUI.Button(new Rect(box.x + 20, box.yMax - 54, 330, 36), acct.Length > 0 ? $"เล่นออนไลน์ (บัญชี {acct})" : "เล่นออนไลน์ (เจอผู้เล่นอื่น)", btn)) PlayOnline();
-        if (CrispGUI.Button(new Rect(box.x + 360, box.yMax - 54, 180, 36), "เล่นออฟไลน์", new GUIStyle(GUI.skin.button) { fontSize = 13 })) PlayOffline();
-        GUI.enabled = true;
-
-        var status = new GUIStyle(smallCenter) { wordWrap = true };
-        ShadowLabel(new Rect(box.x, box.yMax + 6, box.width, 34), netStatus, status, new Color(1f, 0.9f, 0.6f));
-        if (connecting && CrispGUI.Button(new Rect(W / 2f - 60, box.yMax + 40, 120, 24), "ยกเลิก")) PlayOffline();
-
-        ShadowLabel(new Rect(0, H - 22, W, 18), "ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น  ·  ล็อกอิน: เล่นตัวเดิมได้จากทุกเครื่อง", smallCenter, new Color(1f, 1f, 1f, 0.6f));
-        string built = BuildTimeText();
-        if (built != null) ShadowLabel(new Rect(14, 8, 320, 18), built, small, new Color(1f, 1f, 1f, 0.7f)); // top left, clear of the sound button
-    }
-
     static string buildTimeText, buildTimeEn;
     static readonly string[] ThaiMonths = { "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค." };
 
@@ -764,36 +691,6 @@ public partial class IslandGame
         if (buildTimeText.Length == 0) return null;
         if (Lang.English) return buildTimeEn; // no Thai in it: drawn as it is
         return buildTimeText;
-    }
-
-    /// The ready-made characters as cards in a row (Presets[1..]): each shows the character and
-    /// its name, the picked one walks and has a gold frame. Tap / click a card to pick it.
-    void DrawCharacterCards(float x, float y, float w, float h)
-    {
-        int n = CharacterLook.Presets.Length - 1;
-        const float gap = 6f;
-        float cw = (w - gap * (n - 1)) / n;
-        var name = new GUIStyle(smallCenter) { wordWrap = true, fontSize = 11 };
-        Vector2 mouse = Event.current.mousePosition;
-        for (int i = 1; i <= n; i++)
-        {
-            var r = new Rect(x + (i - 1) * (cw + gap), y, cw, h);
-            bool picked = look.preset == i, hover = GUI.enabled && r.Contains(mouse);
-            Fill(r, picked ? new Color(1f, 0.85f, 0.3f, 0.95f) : hover ? new Color(1f, 1f, 1f, 0.45f) : new Color(1f, 1f, 1f, 0.15f));
-            var inner = new Rect(r.x + 2, r.y + 2, r.width - 4, r.height - 4);
-            Fill(inner, picked ? new Color(0.25f, 0.45f, 0.25f, 1f) : new Color(0.16f, 0.26f, 0.16f, 1f));
-            int code = new CharacterLook { preset = i, gender = 1, style = 1 }.Code;
-            int frame = picked ? 1 + (int)(Time.time * 8f) % Mathf.Max(1, PixelArt.WalkFrames(code)) : 0;
-            var sprite = PixelArt.Player(0, frame, null, null, code);
-            if (sprite != null) Icon(new Rect(inner.x + 4, inner.y + 3, inner.width - 8, inner.height - 34), sprite);
-            ShadowLabel(new Rect(inner.x, inner.yMax - 30, inner.width, 28), CharacterLook.Presets[i], name,
-                picked ? new Color(1f, 0.9f, 0.55f) : new Color(1f, 1f, 1f, 0.8f));
-            if (CrispGUI.Button(r, GUIContent.none, GUIStyle.none) && !picked)
-            {
-                look = new CharacterLook { preset = i, gender = 1, style = 1 };
-                Sfx.Play("pickup", 0.3f);
-            }
-        }
     }
 
     /// One "< value >" row of the character creator. Shows a colour swatch or a text value.

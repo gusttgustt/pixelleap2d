@@ -765,6 +765,11 @@ E	หันหน้า	Turn front
 E	ชื่อ	Name
 E	ตัวละคร  <size=11>(แตะเพื่อเลือก)</size>	Character  <size=11>(tap to choose)</size>
 E	หมวกและชุดที่สวมจะไม่แสดงบนตัว แต่ยังได้ค่าพลังเหมือนเดิม	Worn hats and outfits don't show on this character, but their stats still count
+E	เลือกตัวละคร	Choose a character
+E	ชื่อตัวละคร	Character name
+E	บัญชีผู้เล่น	Player account
+E	เข้าสู่ระบบ  <size=11>(เล่นตัวเดิมได้จากทุกเครื่อง)</size>	Log in  <size=11>(play the same character on any device)</size>
+T	<b>{0}</b>  <size=11>· หมวก/ชุดที่สวมไม่แสดงบนตัว แต่ยังได้ค่าพลัง</size>	<b>{0}</b>  <size=11>· worn hats/outfits don't show, but stats still count</size>
 E	ตัวละคร	Character
 E	ตัวละครสำเร็จรูป: ปรับสีผม/เสื้อไม่ได้ และจะไม่เห็นหมวกหรือชุดที่สวมบนตัว (แต่ยังได้ค่าพลังเหมือนเดิม) — กด < เพื่อกลับไปปรับแต่งเอง	Ready-made character: hair and clothes colours can't be changed, and worn hats or outfits don't show (their stats still count) — press < to go back to customizing
 E	เพศ	Body
@@ -2020,3 +2025,52 @@ E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่�
 E	ต่อเซิร์ฟเวอร์ใหม่แล้ว	Reconnected
 T	+{0} XP (ลูกเรือ {1})	+{0} XP (crewmate {1})
 E	<color=#c9b8ff>ล้มสัตว์ร้าย: ลูกเรือที่อยู่ด้วยกันได้ XP ครึ่งหนึ่ง</color>	<color=#c9b8ff>Defeat a creature: crewmates with you get half the XP</color>
+E	เซิร์ฟเวอร์ไม่ตอบการเข้าสู่ระบบ ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	The server didn't answer the login. Try again, or play offline
+E	เซิร์ฟเวอร์นี้ยังไม่รองรับตัวละครหลายตัว	This server doesn't support multiple characters yet
+E	ยกเลิกแล้ว (เล่นออฟไลน์ได้)	Cancelled (you can play offline)
+T	สร้าง {0} แล้ว	Created {0}
+E	ลบตัวละครแล้ว	Character deleted
+E	กำลังสร้างตัวละคร...	Creating character...
+E	กำลังโหลดตัวละคร...	Loading character...
+E	โหลดตัวละครไม่สำเร็จ	Couldn't load the character
+T	เข้าเล่นเป็น {0} (บัญชี {1})	Playing as {0} (account {1})
+E	เข้าสู่ระบบอีกครั้งเพื่อเล่นออนไลน์	Log in again to play online
+T	เล่นออฟไลน์เป็น {0} - เซฟในเครื่องนี้ แล้วส่งขึ้นบัญชีตอนเล่นออนไลน์ครั้งหน้า	Playing {0} offline - saved on this device, sent to your account next time you play online
+E	เลือกตัวละครก่อน	Pick a character first
+E	ตั้งชื่อให้ตัวละครนี้ก่อน	Name this character first
+E	หนึ่งบัญชีสร้างได้ 3 ตัวละคร · เล่นได้ทั้งออนไลน์และออฟไลน์	Up to 3 characters per account · play online or offline
+E	ยังไม่มีบัญชี? สมัครบัญชีใหม่	No account? Sign up
+E	ไม่อยากสมัคร? เล่นแบบไม่ล็อกอินได้ (เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น)	Don't want to sign up? Play without logging in (saved in this browser only)
+E	เล่นแบบไม่ล็อกอิน	Play without account
+E	ตัวละครเดิม (ยังไม่มีชื่อ)	Your character (no name yet)
+T	เลเวล {0}	Level {0}
+E	สร้างตัวละคร	Create character
+T	ช่องที่ {0}	Slot {0}
+E	ยังไม่มีรายชื่อตัวละครในเครื่องนี้ - เล่นออนไลน์เพื่อโหลด	No character list on this device yet - play online to load it
+E	<color=#9dff9d>ออนไลน์</color>	<color=#9dff9d>online</color>
+E	<color=#ffcf8a>ออฟไลน์</color>	<color=#ffcf8a>offline</color>
+T	บัญชี <b>{0}</b>  ·  {1}	Account <b>{0}</b>  ·  {1}
+E	กดอีกครั้งเพื่อลบ	Press again to delete
+E	ลบตัวละคร	Delete character
+E	ตัวละครนี้	this character
+T	จะลบ {0} และความคืบหน้าทั้งหมด - กดอีกครั้งเพื่อยืนยัน	This deletes {0} and all their progress - press again to confirm
+E	ต้องออนไลน์ก่อนถึงจะลบตัวละครได้	You need to be online to delete a character
+E	กำลังลบ...	Deleting...
+E	ตั้งชื่อให้ตัวละครนี้ (ใช้ชื่อนี้ตลอดไป)	Name this character (it keeps this name)
+T	สร้างตัวละคร  <size=11>(ช่องที่ {0})</size>	Create character  <size=11>(slot {0})</size>
+E	ไม่ล็อกอิน: เซฟอยู่ในเบราว์เซอร์นี้เท่านั้น ถ้าล้างเบราว์เซอร์หรือเปลี่ยนเครื่องจะเริ่มใหม่ — สมัครบัญชีเพื่อเล่นตัวเดิมได้ทุกเครื่อง	Without an account: saved in this browser only. Clearing the browser or changing devices starts over - sign up to keep your character everywhere
+E	‹ กลับไปหน้าเข้าสู่ระบบ	‹ Back to login
+E	ชื่อและหน้าตาจะผูกกับตัวละครนี้ เปลี่ยนภายหลังไม่ได้ · การสร้างตัวละครต้องต่อเซิร์ฟเวอร์	The name and look stay with this character and can't be changed later · creating needs the server
+E	‹ กลับไปเลือกตัวละคร	‹ Back to characters
+E	ตั้งชื่อตัวละครก่อน	Name the character first
+E	เข้าสู่ระบบอีกครั้งเพื่อสร้างตัวละคร	Log in again to create a character
+E	ต่อเซิร์ฟเวอร์ไม่ได้ - กด "เล่นออฟไลน์" เพื่อเล่นตัวนี้ในเครื่องนี้ หรือลองออนไลน์ใหม่อีกครั้ง	Can't reach the server - press "Play offline" to play this character on this device, or try online again
+E	หลุดจากเซิร์ฟเวอร์ - ลองใหม่อีกครั้ง หรือเล่นออฟไลน์	Disconnected from the server - try again, or play offline
+E	ต่อเซิร์ฟเวอร์ใหม่แล้ว แต่โหลดตัวละครไม่ได้ (ตอนนี้เซฟอยู่ในเครื่องนี้)	Back online, but the character couldn't be loaded (saving on this device for now)
+E	ต้องเข้าสู่ระบบก่อน	Log in first
+E	ไม่มีตัวละครในช่องนี้	There's no character in this slot
+E	เลือกตัวละครอื่นได้หลังจากกลับหน้าแรก	Go back to the title screen to pick another character
+E	ช่องนี้มีตัวละครอยู่แล้ว	This slot already has a character
+E	ตัวละครนี้กำลังเล่นอยู่ ลบไม่ได้	This character is being played and can't be deleted
+E	ช้าลงหน่อย แล้วลองใหม่	Slow down a little, then try again
+T	ย้ายความคืบหน้าจากการเล่นแบบไม่ล็อกอิน (เลเวล {0}) มาเป็นของตัวนี้	Move the progress from playing without an account (level {0}) into this character

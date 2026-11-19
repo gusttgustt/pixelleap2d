@@ -124,7 +124,7 @@ public partial class IslandGame
     };
 
     int tutStep = -1; // -1 = not loaded yet
-    const string TutKey = "tut_first_steps";
+    static string TutKey => "tut_first_steps" + SaveSystem.Profile; // per character
 
     bool TutorialActive => tutStep >= 0 && tutStep < TutSteps.Length && !atHome && voyage == null && island == 1 && raftLevel == 0 && !visiting;
     Item? TutorialRecipe => TutorialActive ? TutSteps[tutStep].craft : null;
