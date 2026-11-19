@@ -20,8 +20,22 @@ public partial class IslandGame
     float IslandRadiusFactor => atHome ? 0.36f : 0.30f + 0.12f * Mathf.Clamp01((island - 1) / 40f);
 
     /// Creature strength from the island's level (replaces the old 4-island laps).
-    public float EnemyHpScale => (1f + 0.07f * (island - 1)) * ContinentHpScale;        // each continent tougher (IslandGame.Continent.cs)
-    public float EnemyDamageScale => (1f + 0.035f * (island - 1)) * ContinentDmgScale;
+    /// The first continent climbs island by island; every later one carries on from where the one
+    /// before it ended (its island 20, the boss) and climbs to its own end. So creatures get
+    /// steadily stronger with the recommended level (continent 2 island 1 is Lv 21, just past
+    /// continent 1's last island), instead of dropping back at the start of every new continent.
+    /// The end of each continent (its boss island) stays as strong as before.
+    public float EnemyHpScale => EnemyScale(0.07f, ContinentHp);
+    public float EnemyDamageScale => EnemyScale(0.035f, ContinentDmg);
+
+    float EnemyScale(float perIsland, float[] perContinent)
+    {
+        float lap = 1f + perIsland * (island - 1);
+        if (atHome || Cont == 0) return lap * (atHome ? 1f : perContinent[0]);
+        float end = 1f + perIsland * (IslandsPerContinent - 1); // a continent's last island
+        float along = Mathf.Clamp01(island / (float)IslandsPerContinent);
+        return end * Mathf.Lerp(perContinent[Cont - 1], perContinent[Cont], along);
+    }
 
     // ------------------------------------------------------------------ building the settlement
     /// On a freshly made island: everything its people have built, on a ring around the middle
