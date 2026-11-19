@@ -2074,3 +2074,8 @@ E	ช่องนี้มีตัวละครอยู่แล้ว	This 
 E	ตัวละครนี้กำลังเล่นอยู่ ลบไม่ได้	This character is being played and can't be deleted
 E	ช้าลงหน่อย แล้วลองใหม่	Slow down a little, then try again
 T	ย้ายความคืบหน้าจากการเล่นแบบไม่ล็อกอิน (เลเวล {0}) มาเป็นของตัวนี้	Move the progress from playing without an account (level {0}) into this character
+E	กดอีกครั้งเพื่อยืนยัน	Press again to confirm
+E	กลับหน้าเลือกตัวละคร	Back to character select
+E	กลับหน้าแรก	Back to title screen
+E	กดอีกครั้งเพื่อกลับ - เกมจะเซฟก่อนออก	Press again to go back - the game saves first
+E	กำลังเซฟ...	Saving...

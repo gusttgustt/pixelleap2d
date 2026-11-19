@@ -82,6 +82,14 @@ public class UpdateChecker : MonoBehaviour
         GUI.color = Color.white;
     }
 
+    /// Reloads the page (a fresh address, so the newest build): the game opens on the title screen.
+    public static void ReloadPage()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        IS_ReloadPage();
+#endif
+    }
+
     static void Reload()
     {
         if (IslandGame.I != null) IslandGame.I.SaveGame(); // keep progress across the reload

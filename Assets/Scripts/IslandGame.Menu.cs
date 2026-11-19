@@ -46,7 +46,46 @@ public partial class IslandGame
                 items.Add(($"ใครออนไลน์ / ย้าย CH{channel} (O)", new Color(0.6f, 1f, 0.65f), ToggleWho));
             }
         }
+        // back to the title screen (another character, or log out): pressed twice, saves first
+        bool armed = Time.time < titleArmUntil;
+        items.Add((armed ? "กดอีกครั้งเพื่อยืนยัน" : charId != null ? "กลับหน้าเลือกตัวละคร" : "กลับหน้าแรก",
+            armed ? new Color(1f, 0.6f, 0.5f) : new Color(0.8f, 0.82f, 0.88f), BackToTitleKey));
         return items;
+    }
+
+    // ------------------------------------------------------------------ back to the title screen
+    float titleArmUntil;     // pressed once: press again before this to go
+    bool leaving;            // saving, then the page reloads (to the title screen)
+    float leaveUntil;        // ... the server's answer is waited for until this
+
+    void BackToTitleKey()
+    {
+        if (leaving) return;
+        if (Time.time >= titleArmUntil)
+        {
+            titleArmUntil = Time.time + 4f;
+            menuOpen = true; // stays open for the second press
+            Hint("กดอีกครั้งเพื่อกลับ - เกมจะเซฟก่อนออก", 4f);
+            return;
+        }
+        titleArmUntil = 0f;
+        leaving = true;
+        leaveUntil = Time.time + 6f;
+        SaveGame();
+        if (LoggedIn) { cloudDirty = true; cloudPushT = 0f; } // the server gets this save before the page goes
+        Hint("กำลังเซฟ...", 6f);
+    }
+
+    /// Every frame in the game: once the save has reached the server (or there's no server to
+    /// wait for, or it takes too long), the page reloads and opens on the title screen.
+    void TickLeave()
+    {
+        if (!leaving) return;
+        bool sent = !LoggedIn || cloudStale || (!cloudDirty && !cloudWaiting);
+        if (!sent && Time.time < leaveUntil) return;
+        leaving = false;
+        SaveGame(); // anything since the first save stays on this device (and goes up next time)
+        UpdateChecker.ReloadPage();
     }
 
     /// Late in OnGUI (on top of the HUD): the ☰ button for the mouse, and the open menu either way.
