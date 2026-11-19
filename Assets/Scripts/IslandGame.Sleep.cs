@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// Sleep matters: energy (พลังงาน) runs down while you're awake, faster at night. Tired, you
 /// walk and swing slower; worn out, you hit weaker and nod off now and then; empty, it starts to
-/// cost health. A night's sleep fills it up and leaves you well rested (สดชื่น) for a while: a
+/// cost health. Every sleep fills it up, and a whole night leaves you well rested (สดชื่น) for a while: a
 /// little faster, stronger and quicker to heal. A bed in your house rests you best, a shelter a
 /// bit less; a short nap is possible in the day when you're tired.
 public partial class IslandGame
@@ -11,7 +11,7 @@ public partial class IslandGame
     float restedT;               // seconds of "well rested" left
     float nodT = 12f;            // till the next nod-off when worn out
 
-    const float EnergySeconds = 420f;  // awake time from full to empty (about a day and three quarters)
+    const float EnergySeconds = 840f;  // awake time from full to empty (about three and a half days; twice what it was)
     const float TiredAt = 30f, WornAt = 10f;
 
     bool Tired => energy < TiredAt;
@@ -49,8 +49,7 @@ public partial class IslandGame
     /// Asleep: how much energy comes back and how long you stay well rested.
     void Rest(bool bed, bool wholeNight)
     {
-        float to = bed ? 100f : 85f;
-        energy = wholeNight ? Mathf.Max(energy, to) : Mathf.Min(100f, energy + (bed ? 45f : 35f));
+        energy = 100f; // any sleep fills it up: a nap, a shelter, a night cut short online
         if (wholeNight) restedT = bed ? DayLength : DayLength * 0.5f;
     }
 
