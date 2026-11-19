@@ -96,8 +96,8 @@ public partial class IslandGame : MonoBehaviour
     // ------------------------------------------------------------------ tuning
     public const int Size = 44;            // map is Size x Size tiles
     const float DayLength = 240f;          // seconds per full day
-    const float StarveSeconds = 300f;      // full -> empty hunger
-    const float ThirstSeconds = 220f;      // full -> empty thirst
+    const float StarveSeconds = 450f;      // full -> empty hunger (7.5 min; was 300)
+    const float ThirstSeconds = 330f;      // full -> empty thirst (5.5 min; was 220)
     const float InteractRange = 1.45f; // grid units: things just below you on screen count as close too
     const float AutosaveInterval = 30f;
     const float RespawnInterval = 15f;     // how often a new stick / rock may appear
