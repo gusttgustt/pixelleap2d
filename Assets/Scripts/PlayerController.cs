@@ -36,7 +36,8 @@ public class PlayerController : MonoBehaviour
         Vector3 w = IslandGame.GridToWorld(g) - IslandGame.GridToWorld(grid);
         if (w.sqrMagnitude < 0.0001f) return;
         facing = (g - grid).normalized;
-        if (Mathf.Abs(w.y) > 0.05f) dir = w.y > 0 ? 1 : 0;
+        if (HasSide && Mathf.Abs(w.x) > Mathf.Abs(w.y)) dir = 2; // more beside you than above or below: turn side on
+        else if (Mathf.Abs(w.y) > 0.05f) dir = w.y > 0 ? 1 : 0;
         if (Mathf.Abs(w.x) > 0.02f) sr.flipX = w.x < 0;
         idleT = 0f; // stand up to do it
     }
@@ -52,7 +53,10 @@ public class PlayerController : MonoBehaviour
     /// Play a one-shot pose such as PixelArt.AttackAnim, then go back to standing / walking.
     public void PlayAction(int anim, float fps)
     {
-        int n = PixelArt.ActionFrames(IslandGame.I.lookCode, anim);
+        int look = IslandGame.I.lookCode;
+        // a pose drawn only side on (chopping): turn side on to do it
+        if (dir != 2 && !PixelArt.HasPose(look, dir, anim) && PixelArt.HasPose(look, 2, anim)) dir = 2;
+        int n = PixelArt.ActionFrames(look, anim, dir);
         if (n == 0) return;
         action = anim; actionFrames = n; actionFps = fps; actionT = 0f;
         if (anim == PixelArt.AttackAnim) Squash(1.12f, 0.9f);
@@ -68,7 +72,7 @@ public class PlayerController : MonoBehaviour
         if (game.dead)
         {
             deadT += dt;
-            int n = PixelArt.ActionFrames(game.lookCode, PixelArt.DeathAnim);
+            int n = PixelArt.ActionFrames(game.lookCode, PixelArt.DeathAnim, dir);
             return n > 0 ? PixelArt.DeathAnim + Mathf.Min(n - 1, (int)(deadT * 8f)) : frame; // stays down on the last frame
         }
         deadT = 0f;
@@ -90,7 +94,8 @@ public class PlayerController : MonoBehaviour
             dir = 0;
             return PixelArt.SitAnim + Mathf.Min(sit - 1, (int)((idleT - SitDelay) * 8f));
         }
-        int idle = PixelArt.ActionFrames(game.lookCode, PixelArt.IdleAnim);
+        if (dir == 2 && !PixelArt.HasPose(game.lookCode, 2, PixelArt.IdleAnim)) return 0; // no side-on breathing: stand still
+        int idle = PixelArt.ActionFrames(game.lookCode, PixelArt.IdleAnim, dir);
         if (idle <= 1) return idle > 0 ? PixelArt.IdleAnim : 0;
         int k = (int)(idleT * 5f) % (2 * idle - 2); // back and forth: 0 1 2 3 4 3 2 1 ...
         return PixelArt.IdleAnim + (k < idle ? k : 2 * idle - 2 - k);
@@ -98,6 +103,8 @@ public class PlayerController : MonoBehaviour
 
     // What other players need to draw this player (sent over the network).
     public int Dir => dir;
+    /// The look has its own side-on art (ready-made characters with it); others turn only front / back.
+    static bool HasSide => PixelArt.HasPose(IslandGame.I.lookCode, 2, 0);
     public int Frame { get; private set; }
     public bool Flip => sr != null && sr.flipX;
     public SpriteRenderer Renderer => sr;
@@ -136,10 +143,11 @@ public class PlayerController : MonoBehaviour
                 else if (CanStand(grid + new Vector2(0f, d.y))) grid.y += d.y;
 
                 facing = d.normalized;
-                if (Mathf.Abs(input.y) > 0.2f) dir = input.y > 0 ? 1 : 0;
+                if (HasSide && Mathf.Abs(input.x) > Mathf.Abs(input.y)) dir = 2; // mostly left / right: walk side on
+                else if (Mathf.Abs(input.y) > 0.2f) dir = input.y > 0 ? 1 : 0;
                 if (Mathf.Abs(input.x) > 0.2f) sr.flipX = input.x < 0;
                 animT += Time.deltaTime * 8f;
-                frame = 1 + (int)animT % PixelArt.WalkFrames(IslandGame.I.lookCode);
+                frame = 1 + (int)animT % PixelArt.WalkFrames(IslandGame.I.lookCode, dir);
             }
             else
             {

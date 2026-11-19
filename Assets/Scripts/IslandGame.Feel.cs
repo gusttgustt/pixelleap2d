@@ -49,6 +49,26 @@ public partial class IslandGame
     }
 
     /// Turn the player to look at what they're using.
+    /// The pose for working a node, matching its prompt (Prompt in IslandGame.Hud.cs): an axe
+    /// swing for chopping and digging ore, bending down to pick up for gathering, the attack
+    /// swing for the rest (shaking a tree without an axe). Characters without that pose play
+    /// the attack swing instead.
+    int SwingAnim(WorldNode n)
+    {
+        int anim = n.kind switch
+        {
+            NodeKind.Tree => HasAxe ? PixelArt.ChopAnim : PixelArt.AttackAnim,
+            NodeKind.FruitTree or NodeKind.Bush => n.available ? PixelArt.GatherAnim : HasAxe ? PixelArt.ChopAnim : PixelArt.AttackAnim,
+            NodeKind.Stump or NodeKind.Bamboo or NodeKind.GiantGrass or NodeKind.CopperOre => PixelArt.ChopAnim,
+            NodeKind.Grass or NodeKind.Stick or NodeKind.Rock or NodeKind.Obsidian or NodeKind.GlowShroom or NodeKind.GlowTree
+                or NodeKind.Shell or NodeKind.CloudPlant or NodeKind.Drop or NodeKind.Farm or NodeKind.Kelp or NodeKind.CoralNode
+                or NodeKind.Oyster or NodeKind.SandCrystal or NodeKind.DigSpot or NodeKind.CrystalCluster or NodeKind.GiantFlower
+                or NodeKind.LostBundle or NodeKind.IceCrystal or NodeKind.Plot => PixelArt.GatherAnim,
+            _ => PixelArt.AttackAnim,
+        };
+        return PixelArt.ActionFrames(lookCode, anim, 2) > 0 ? anim : PixelArt.AttackAnim;
+    }
+
     void FaceTarget()
     {
         if (player == null) return;

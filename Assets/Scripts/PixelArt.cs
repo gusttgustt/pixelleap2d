@@ -2398,7 +2398,8 @@ public static partial class PixelArt
         c.Rect(10, 0, 1, 4, Color.white); c.Set(10, 0, Hex("#2a1a10")); c.Set(11, 1, Color.white); // feather
     }
 
-    /// The player. dir 0 = facing camera, 1 = facing away. frame 0 = idle, 1/2 = walk.
+    /// The player. dir 0 = facing camera, 1 = facing away, 2 = side on (drawn facing right,
+    /// flipX for left; only ready-made characters have it). frame 0 = idle, 1/2 = walk.
     /// hat / outfit change the look (null = nothing worn).
     public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null, int look = 0)
     {
@@ -2406,11 +2407,11 @@ public static partial class PixelArt
         string preset = pl.PresetId;
         if (preset != null)
         {
-            var ps = PresetPlayer(preset, pl.PresetScale, dir, frame)
-                  ?? (frame >= IdleAnim ? PresetPlayer(preset, pl.PresetScale, 0, frame) : null) // a pose drawn only from the front
-                  ?? PresetPlayer(preset, pl.PresetScale, dir, 0); // a pose it lacks: just stand
+            var ps = PresetPose(preset, pl.PresetScale, dir, frame)
+                  ?? PresetPose(preset, pl.PresetScale, dir, 0); // a pose it lacks: just stand
             if (ps != null) return ps; // missing art falls back to the build-your-own look
         }
+        if (dir > 1) dir = 0; // the build-your-own look has no side view
         if (frame > 2) frame = 0; // action poses exist only for ready-made characters
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
         if (hat != null) key += "_" + hat.Value.ToString().ToLowerInvariant();
@@ -2476,33 +2477,60 @@ public static partial class PixelArt
 
     /// How many walk frames the player's look has: frames 1..N, 0 is standing.
     /// Ready-made characters have 4, the build-your-own look 2.
-    public static int WalkFrames(int look)
+    public static int WalkFrames(int look, int dir = 0)
     {
         var pl = CharacterLook.FromCode(look);
-        return pl.PresetId != null && PresetPlayer(pl.PresetId, pl.PresetScale, 0, 4) != null ? 4 : 2;
+        if (pl.PresetId == null) return 2;
+        if (dir == 2 && PresetPlayer(pl.PresetId, pl.PresetScale, 2, 1) != null) // side walk: as many as were drawn
+        {
+            int n = 1;
+            while (n < IdleAnim - 1 && PresetPlayer(pl.PresetId, pl.PresetScale, 2, n + 1) != null) n++;
+            return n;
+        }
+        return PresetPlayer(pl.PresetId, pl.PresetScale, 0, 4) != null ? 4 : 2;
     }
 
     // Action poses of ready-made characters, as player frame numbers (sent over the
     // network like walk frames): IdleAnim+0.., AttackAnim+0.., and so on.
-    public const int IdleAnim = 10, AttackAnim = 20, HurtAnim = 30, DeathAnim = 40, SitAnim = 50;
+    public const int IdleAnim = 10, AttackAnim = 20, HurtAnim = 30, DeathAnim = 40, SitAnim = 50, ChopAnim = 60, GatherAnim = 70;
 
-    /// How many frames an action pose has for this look (0 = it has none, e.g. build-your-own).
-    public static int ActionFrames(int look, int anim)
+    /// How many frames an action pose has for this look, seen from dir (0 = it has none,
+    /// e.g. build-your-own). A pose drawn from one side only counts from any side.
+    public static int ActionFrames(int look, int anim, int dir = 0)
     {
         var pl = CharacterLook.FromCode(look);
         if (pl.PresetId == null) return 0;
         int n = 0;
-        while (n < 10 && PresetPlayer(pl.PresetId, pl.PresetScale, 0, anim + n) != null) n++;
+        while (n < 10 && PresetPose(pl.PresetId, pl.PresetScale, dir, anim + n) != null) n++;
         return n;
     }
 
-    /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back>_<frame>.png).
+    /// Whether this look has its own art for frame seen from dir (no borrowing from another side).
+    public static bool HasPose(int look, int dir, int frame)
+    {
+        var pl = CharacterLook.FromCode(look);
+        return pl.PresetId != null && PresetPlayer(pl.PresetId, pl.PresetScale, dir, frame) != null;
+    }
+
+    /// A ready-made character's frame seen from dir, borrowing another side's art when it
+    /// was not drawn from this one: no side view -> the front one; an action pose drawn
+    /// from one side only -> side on, then front.
+    static Sprite PresetPose(string id, int scale, int dir, int frame)
+    {
+        var s = PresetPlayer(id, scale, dir, frame);
+        if (s != null) return s;
+        if (dir == 2) return PresetPlayer(id, scale, 0, frame);
+        if (frame < IdleAnim) return null;
+        return PresetPlayer(id, scale, 2, frame) ?? PresetPlayer(id, scale, 0, frame);
+    }
+
+    /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back|side>_<frame>.png).
     /// The art has its feet 2 world px (2 * scale art px) above the bottom edge, like the
     /// generated player. scale = art pixels per world pixel (2 for double-detail art).
     /// Worn hats and outfits are not drawn on it.
     static Sprite PresetPlayer(string id, int scale, int dir, int frame)
     {
-        string key = $"hero_{id}_{(dir == 0 ? "front" : "back")}_{frame}";
+        string key = $"hero_{id}_{(dir == 0 ? "front" : dir == 2 ? "side" : "back")}_{frame}";
         if (cache.TryGetValue(key, out var s)) return s;
         var tex = Resources.Load<Texture2D>("Sprites/" + key);
         if (tex != null)

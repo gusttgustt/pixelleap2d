@@ -243,7 +243,7 @@ public partial class IslandGame
             {
                 lastInteract = Time.time;
                 FaceTarget();
-                if (!once) player.PlayAction(PixelArt.AttackAnim, 16f); // chop / mine / pick: same swing
+                if (!once) player.PlayAction(SwingAnim(target), 16f); // chop, pick or swing
                 interactPressed = pressed;
                 Interact(target);
                 interactPressed = true;
