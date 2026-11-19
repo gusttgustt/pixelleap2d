@@ -471,6 +471,10 @@ function onMessage(socket, text) {
       // a game from before save versions sends none: taken as before. Otherwise the save must build
       // on the newest one, or it would put back progress another device has already moved past.
       if (m.ver !== undefined && (m.ver | 0) !== cur) { send(socket, { t: "saveold", ver: cur }); return; }
+      // a save the game can't have made: quietly not kept (the account keeps its last good one).
+      // The game is told it was saved, so a changed game gets no hint of what gave it away.
+      const bad = checkSave(socket.acct, text);
+      if (bad) { noteCheat(socket, bad); send(socket, { t: "saved", ver: cur }); return; }
       const ver = cur + 1;
       saveVersions.set(socket.acct, ver);
       const lv = trustLevel(socket, saveLevel(text));
@@ -565,7 +569,8 @@ function onMessage(socket, text) {
       // a friend harvested on your farm: you get the same (only from someone on your farm, a handful at a time)
       const s = clients.get(m.to | 0);
       if (!s || s === socket || !onHomeOf(socket, s.pid)) return;
-      m.hits = Math.max(0, Math.min(m.hits | 0, 20));
+      if (!bucket(socket, "giftBucket", GIFT_RATE, GIFT_BURST)) return; // no faster than hands can harvest
+      m.hits = Math.max(0, Math.min(m.hits | 0, 8)); // one harvest: at most 5 crops + 3 from skills
       if (m.hits > 0) { m.name = socket.name; send(s, m); }
       return;
     }
@@ -656,6 +661,7 @@ setInterval(() => {
   for (const [k, t] of authNext) if (t < now) authNext.delete(k);
 }, 60 * 1000).unref();
 const HOST_ONLY = new Set(["en", "dmg", "kill", "clock"]);
+const GIFT_RATE = 1, GIFT_BURST = 8;   // farm gifts ("hgift") one visitor may send per second
 const NODE_EVENTS = new Set(["deplete", "remove", "stump", "hits", "set"]); // what ApplyEvent knows
 const EVENT_RATE = 6, EVENT_BURST = 40; // world changes one player may send per second
 const SPAWNS_PER_PLAYER = 300;        // things one address may build on an island that are remembered
@@ -841,6 +847,71 @@ function guestLevel(socket, claimed) {
   return allowLevel(socket, socket.guestLv, claimed);
 }
 
+// ---------- what a save can hold ----------
+// The save is the player's own game written down, so the server can't replay it. What it can check
+// is what no real game can reach: more skill points than levels, shrines, caves and bosses give;
+// a boat better than the islands reached need; a save played with the web dev keys ("?dev=1").
+// A save that breaks one is not kept (checkSave), and the account is marked (noteCheat): it shows
+// on the server log, and it leaves the wanted board. To forgive one: remove its "cheats" fields
+// from data/accounts.json while the server is stopped.
+// Older accounts that were already past a limit (before these checks) aren't caught for that: only
+// a save that goes further past it than the account's last kept save is turned away.
+const ISLANDS_PER_CONTINENT = 20, CONTINENTS = 4; // IslandGame.Continent.cs
+const SKILL_SLACK = 2;                // a point or two of room (a level and a reward landing in one save)
+const saveFacts = new Map();          // account -> what its last kept save held (saveFactsOf)
+
+/// What a save holds that can be checked, or null if it isn't a save at all.
+function saveFactsOf(text) {
+  let d;
+  try { d = JSON.parse(text); } catch (e) { return null; }
+  if (!d || typeof d !== "object") return null;
+  const n = v => Number.isFinite(+v) ? +v : 0;
+  const flags = new Set(Array.isArray(d.flags) ? d.flags.map(String) : []);
+  let shrines = 0, caves = 0, alphas = 0, cbosses = 0;
+  for (const f of flags) {
+    if (/^shrine\d+$/.test(f)) shrines++;
+    else if (/^caveboss/.test(f)) caves++;
+    else if (/^alpha\d+$/.test(f)) alphas++;
+    else if (/^cboss\d+$/.test(f)) cbosses++;
+  }
+  // skill points: one a level, one a shrine / cave lord / pack leader, three a continent boss, two the prison's prisoner zero
+  const earned = Math.max(0, n(d.level) - 1) + shrines + caves + alphas + 3 * cbosses + (flags.has("prison0") ? 2 : 0);
+  const skills = Array.isArray(d.skills) ? d.skills.reduce((a, v) => a + Math.max(0, n(v)), 0) : 0;
+  const spent = skills + Math.max(0, n(d.mastery)) + Math.max(0, n(d.skillPoints));
+  // the boat: Lv N sails one island past N; the levels go on from one continent to the next (19 each)
+  const reach = Array.isArray(d.reach) && d.reach.length ? d.reach.map(n) : [Math.max(n(d.farthest), n(d.island))];
+  let boatMax = 1;
+  for (let c = 0; c < Math.min(reach.length, CONTINENTS); c++)
+    if (reach[c] > 0) boatMax = Math.max(boatMax, c * (ISLANDS_PER_CONTINENT - 1) + Math.min(reach[c], ISLANDS_PER_CONTINENT));
+  return { dev: flags.has("dev"), skillOver: spent - earned - SKILL_SLACK, boatOver: n(d.raftLevel) - boatMax };
+}
+
+/// Why this save can't be from a real game, or null if it can.
+function checkSave(key, text) {
+  if (!text) return null; // no save (the character died): fine
+  const now = saveFactsOf(text);
+  if (!now) return "not a save";
+  let was = saveFacts.get(key);
+  if (was === undefined) {
+    const kept = readSave(key);
+    was = kept.save ? saveFactsOf(kept.save) : null;
+  }
+  const over = (k) => now[k] > Math.max(0, was ? was[k] : 0);
+  const why = now.dev ? "played with the dev keys" : over("skillOver") ? "skill points +" + now.skillOver + " past what it earned"
+            : over("boatOver") ? "boat " + now.boatOver + " levels past its islands" : null;
+  if (!why) saveFacts.set(key, now);
+  return why;
+}
+
+/// A save was turned away: the log says so, the account remembers it, and it leaves the wanted board.
+function noteCheat(socket, why) {
+  const acc = accounts[socket.acct];
+  if (Date.now() - (socket.cheatLogAt || 0) > 60000) { socket.cheatLogAt = Date.now(); log("! " + socket.name + " (" + socket.ip + "): save not kept - " + why); }
+  if (!acc) return;
+  if (acc.cheatWhy !== why) { acc.cheats = (acc.cheats | 0) + 1; acc.cheatWhy = why; acc.cheatAt = Date.now(); saveAccountsSoon(); }
+  if (board["a:" + socket.acct]) { delete board["a:" + socket.acct]; saveBoardSoon(); }
+}
+
 /// The level in an account's save (the save's own "level", near its start), or 0 if none.
 function saveLevel(text) {
   const m = /"level":(\d+)/.exec(String(text || "").slice(0, 4000));
@@ -943,6 +1014,7 @@ function setBounty(socket, m) {
   // the board everyone sees: logged-in players only (a guest's name isn't theirs to keep), and a
   // bounty rises no faster than the game can raise it, so a changed game can't top the board at once
   if (!socket.acct) return;
+  if ((accounts[socket.acct] || {}).cheats) return; // a save of theirs was turned away (noteCheat)
   const key = boardKey(socket), old = board[key];
   let b = Math.max(0, Math.min(2000000000, Math.floor(+m.hits || 0)));
   const was = old ? old.b : 0, now = Date.now();

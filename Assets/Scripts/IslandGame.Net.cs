@@ -165,6 +165,7 @@ public partial class IslandGame
         ClearRemotes();
         inRoom = false;
         hostId = 0;
+        bossAskedHere.Clear(); // a new island: everyone may ask its host once (bossAskedAt keeps the minute)
         if (voyage != null || !atHome) ApplyPendingChannel(); // sailing to a friend in another channel (IslandGame.Channel.cs)
         if (atHome && !serverHomes && voyage == null) { if (Online) Send(new NetMsg { t = "leave" }); return; } // an older server has no rooms for private islands: you're alone at home
         if (Online) Send(new NetMsg { t = "join", island = RoomKey }); // a private island has a room of its own (IslandGame.Visit.cs)
@@ -231,6 +232,23 @@ public partial class IslandGame
         if (IsHost || !Shared) return;
         int n = BossesINeed(true);
         if (n != 0) Send(new NetMsg { t = "hit", to = hostId, id = 0, ev = "need", dmg = n });
+    }
+
+    // A changed game could keep asking, to have the continent boss back again and again for its
+    // materials without ever sailing away. So the host answers each player once per visit (until
+    // they leave the island), and never sooner than a minute after the last time for them.
+    const float BossAskEvery = 60f;
+    readonly HashSet<int> bossAskedHere = new HashSet<int>();
+    readonly Dictionary<int, float> bossAskedAt = new Dictionary<int, float>();
+
+    /// The host: a player on this island asked for the bosses it still needs.
+    void BossNeedFrom(int who, int need)
+    {
+        if (!IsHost || !remotes.ContainsKey(who) || bossAskedHere.Contains(who)) return;
+        if (bossAskedAt.TryGetValue(who, out float at) && Time.unscaledTime - at < BossAskEvery) return;
+        bossAskedHere.Add(who);
+        bossAskedAt[who] = Time.unscaledTime;
+        SpawnBossesFor(need);
     }
 
     /// The host: bring back the bosses someone here still needs (each only if it isn't here already).
@@ -302,6 +320,7 @@ public partial class IslandGame
                     AddChat("", voyage != null ? $"เรือของ {gone.playerName} แล่นออกไปแล้ว" : $"{gone.playerName} ออกจากเกาะไปแล้ว");
                     if (gone != null) Destroy(gone.gameObject);
                     remotes.Remove(m.from);
+                    bossAskedHere.Remove(m.from); // when they land again, the boss may come back for them
                 }
                 break;
 
@@ -352,7 +371,7 @@ public partial class IslandGame
 
             case "hit": // someone hit one of my creatures (I'm the host)
                 if (!IsHost) break;
-                if (m.ev == "need") { SpawnBossesFor((int)m.dmg & 127); break; } // a player here still has to fight these
+                if (m.ev == "need") { BossNeedFrom(m.from, (int)m.dmg & 127); break; } // a player here still has to fight these
                 var target = enemies.Find(e => e != null && !e.puppet && e.netId == m.id);
                 if (target == null) break;
                 if (m.ev == "catch") { CatchFromNet(target, m.from); break; } // a pet net (IslandGame.Pet.cs)

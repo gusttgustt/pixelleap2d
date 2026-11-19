@@ -160,6 +160,7 @@ public partial class IslandGame
         cloudPushT -= dt;
         if (cloudWaiting && (cloudWaitT -= dt) <= 0f) cloudWaiting = false; // no answer: try again
         if (!cloudDirty || !LoggedIn || cloudStale || cloudWaiting || cloudPushT > 0f) return;
+        if (Flag(DevSaveFlag)) { cloudDirty = false; return; } // played with the dev keys: stays on this device (IslandGame.Quest.cs)
         cloudDirty = false;
         cloudPushT = 8f; // at most every 8 seconds (the game autosaves every 30)
         cloudWaiting = true; cloudWaitT = 20f; // the next save builds on the version this one gets

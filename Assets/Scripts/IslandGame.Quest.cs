@@ -23,6 +23,7 @@ public partial class IslandGame
     readonly Dictionary<string, int> questKills = new Dictionary<string, int>();
 
     public bool Flag(string f) => flags.Contains(f);
+    const string DevSaveFlag = "dev"; // this save played with the web dev keys (SaveQuests)
     bool Accepted(Quest q) => flags.Contains("acc:" + q.id);
     bool Done(Quest q) => flags.Contains("done:" + q.id);
     int Kills(Quest q, EnemyKind k) => questKills.TryGetValue(q.id + "|" + (int)k, out var n) ? n : 0;
@@ -693,6 +694,9 @@ public partial class IslandGame
     // ------------------------------------------------------------------ save
     void SaveQuests(SaveData d)
     {
+        // A save that played with the web dev keys is marked for good: it never goes to the account
+        // (IslandGame.Account.cs), and the server turns it away too (Server/server.js checkSave).
+        if (WebDev) flags.Add(DevSaveFlag);
         d.flags.AddRange(flags);
         foreach (var kv in questKills) d.questKills.Add(kv.Key + "|" + kv.Value);
     }

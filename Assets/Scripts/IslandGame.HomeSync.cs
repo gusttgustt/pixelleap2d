@@ -181,7 +181,10 @@ public partial class IslandGame
     {
         if (m.hits <= 0 || m.kind < 0 || m.kind >= System.Enum.GetValues(typeof(Item)).Length) return;
         var it = (Item)m.kind;
-        int n = Mathf.Min(m.hits, 20);
+        // only what a farm gives (crops, milk, eggs), and no more than one harvest can: a changed
+        // game on the visitor's side can't hand out boss materials or gold this way
+        if (it is not (Item.Tomato or Item.Wheat or Item.Carrot or Item.Milk or Item.Egg)) return;
+        int n = Mathf.Min(m.hits, 8);
         inv[it] = Count(it) + n;
         AutoHotbar(it);
         string who = string.IsNullOrEmpty(m.name) ? "เพื่อน" : m.name;

@@ -11,9 +11,12 @@ public partial class IslandGame
     float auraT;
 
     // ------------------------------------------------------------------ testing the effects
-    static bool? devMode;
-    /// Only in the editor, or on the web with "?dev=1" in the address.
-    static bool DevMode => devMode ??= Application.isEditor || (Application.absoluteURL ?? "").Contains("dev=1");
+    static bool? webDev;
+    /// On the web with "?dev=1" in the address (anyone can type that, so see DevMode and SaveQuests).
+    static bool WebDev => webDev ??= !Application.isEditor && (Application.absoluteURL ?? "").Contains("dev=1");
+    /// The dev keys: in the editor, or on the web with "?dev=1" while not online. Online they'd
+    /// let anyone level up at once or drop a shared boss for the whole island.
+    bool DevMode => Application.isEditor || WebDev && !Online;
 
     /// Dev keys: F1 next fruit, F2 power level up (wraps 5 -> 1), F3 creatures around you,
     /// F4 slow motion on / off (to look at the effects). At sea F3 calls up the sea monster.
