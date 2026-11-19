@@ -227,7 +227,7 @@ public partial class IslandGame
     /// material, and a hand with its own trouble (creatures, a feast, a lost child, the king...).
     Quest BoatQuest()
     {
-        int L = Mathf.Max(1, raftLevel), t = tier;
+        int L = Mathf.Clamp(raftLevel, 1, IslandsPerContinent), t = tier; // materials stop growing past Lv 20
         var q = new Quest
         {
             id = $"boat{island}_{raftLevel}",
@@ -361,7 +361,7 @@ public partial class IslandGame
         switch (v.role)
         {
             case VillagerRole.Shipwright:
-                return raftLevel > 0 && raftLevel < farthest ? BoatQuest() : null;
+                return raftLevel > 0 && raftLevel < BoatNeed ? BoatQuest() : null;
             case VillagerRole.Doctor:
                 foreach (var q in DoctorQuests()) if (!Done(q)) return q;
                 return null;

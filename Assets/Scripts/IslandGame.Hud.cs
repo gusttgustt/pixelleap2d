@@ -510,7 +510,7 @@ public partial class IslandGame
                     : raftLevel == 0 ? "เป้าหมาย: สร้างแพแล้วล่องไปเกาะถัดไป"
                     : ReachOn(Cont) >= IslandsPerContinent && !ContinentCleared(Cont) ? $"เป้าหมาย: ปราบบอสทวีปที่เกาะ {IslandsPerContinent} เพื่อเปิด{(Cont + 1 < Continents ? ContinentNames[Cont + 1] : "ความสำเร็จสูงสุด")}"
                     : ReachOn(Cont) >= IslandsPerContinent ? (Cont + 1 < Continents ? $"เป้าหมาย: ผ่าน{ContinentName}แล้ว! ล่องเรือไป{ContinentNames[Cont + 1]} (แผนที่ทะเล)" : "เป้าหมาย: ผ่านครบทุกทวีปแล้ว ล่าบอสทวีปเพื่อทำอุปกรณ์ให้ครบ")
-                    : raftLevel < farthest ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {farthest} แล้วไปเกาะใหม่"
+                    : raftLevel < BoatNeed ? $"เป้าหมาย: คุยกับช่างต่อเรือ เพื่ออัปเกรดเรือเป็น Lv {BoatNeed} แล้วไปเกาะใหม่"
                     : $"เป้าหมาย: {BoatName(raftLevel)} Lv {raftLevel} พร้อมแล้ว - ไปเกาะใหม่ที่ {farthest + 1}";
         float infoY = 136f;
         if (TutorialActive) infoY = DrawTutorial(W, H, infoY, s); // first steps, one at a time (IslandGame.Feel.cs)

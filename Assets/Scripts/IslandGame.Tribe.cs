@@ -129,7 +129,7 @@ public partial class IslandGame
                 break;
 
             case VillagerRole.Elder:
-                d.text = text ?? (raftLevel < island
+                d.text = text ?? (raftLevel < BoatNeed
                     ? "อา นักเดินเรือ ยิ่งไปไกลทะเลยิ่งดุ ทอผ้าทำใบเรือสิ แพที่มีใบเรือผ้าทอจะแล่นฝ่าคลื่นแรงได้"
                     : "แพของเจ้าแข็งแรงดี ไปเถิด ขอให้คลื่นลมเป็นใจ");
                 bool canHeal = elderHealDay != Day;

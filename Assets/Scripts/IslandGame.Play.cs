@@ -1057,7 +1057,7 @@ public partial class IslandGame
         {
             RefreshRaftUpgrade(r);
             if (raftLevel == 0) { why = "ต้องสร้างแพก่อน"; return false; }
-            if (raftLevel >= farthest) { why = $"เรือ Lv {raftLevel} พร้อมไปเกาะใหม่แล้ว"; return false; }
+            if (raftLevel >= BoatNeed) { why = $"เรือ Lv {raftLevel} พร้อมไปเกาะใหม่แล้ว"; return false; }
             var raft = RaftNode;
             if (raft == null || (raft.grid - player.grid).magnitude > 2.2f) { why = "ต้องยืนข้างแพ"; return false; }
         }
@@ -1216,6 +1216,7 @@ public partial class IslandGame
     {
         int L = Mathf.Max(1, raftLevel);
         r.name = $"อัปเกรดเรือเป็น Lv {L + 1}";
+        L = Mathf.Min(L, IslandsPerContinent); // materials stop growing past Lv 20
         (r.cost, r.desc) = biome switch
         {
             Biome.Jungle => (new[] { (Item.Bamboo, 8 + 2 * L), (Item.Rope, 4 + L), (Item.Wood, 4) }, "ตัวแพไม้ไผ่: เบาและเร็วขึ้น"),
@@ -1247,7 +1248,7 @@ public partial class IslandGame
     };
 
     /// Bonuses from raft upgrades while at sea.
-    float RaftSpeedBonus => 0.1f * Mathf.Max(0, raftLevel - 1);
+    float RaftSpeedBonus => 0.1f * Mathf.Clamp(raftLevel - 1, 0, IslandsPerContinent - 1); // +190% at most (Lv 20): later continents' upgrades are for reach
     float RaftArmor => Mathf.Min(0.4f, 0.08f * Mathf.Max(0, raftLevel - 1));
 
     /// Using your boat opens the sea chart: sail back to any island you've visited, or on to a new one.

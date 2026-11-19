@@ -37,7 +37,7 @@ public partial class IslandGame
         if (friends) Hint(Online ? "บ้านเพื่อนอยู่ด้านล่างแผนที่ เลือกทวีปด้านบนเพื่อดูบ้านเพื่อนที่อื่น" : "การไปบ้านเพื่อนต้องเล่นออนไลน์", 3.5f);
     }
 
-    bool CanReachNew(int c) => raftLevel > 0 && raftLevel >= ReachOn(c);
+    bool CanReachNew(int c) => raftLevel > 0 && raftLevel >= BoatNeedOn(c); // IslandGame.World.cs
 
     enum ChartState { Here, Visited, Next, Locked, Fog }
 
@@ -295,7 +295,7 @@ public partial class IslandGame
                 ChartState.Next => "<color=#ffe27a>ยังไม่เคยไป</color> · ออกสำรวจเกาะใหม่ ไม่รู้ว่ามีอะไรรออยู่ เตรียมอาหารและน้ำให้พร้อม" + cross,
                 ChartState.Locked when !ContinentOpen(chartC) => $"<color=#ff9a8a>{ContinentLockWhy(chartC)}</color>",
                 ChartState.Locked => raftLevel <= 0 ? "<color=#ff9a8a>ยังไม่เคยไป</color> · ต้องมีแพหรือเรือก่อน"
-                    : $"<color=#ff9a8a>ยังไม่เคยไป</color> · คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ให้ช่างต่อเรืออัปเกรดเป็น Lv {ReachOn(chartC)} ก่อน",
+                    : $"<color=#ff9a8a>ยังไม่เคยไป</color> · คลื่นแรงเกินไปสำหรับเรือ Lv {raftLevel} ให้ช่างต่อเรืออัปเกรดเป็น Lv {BoatNeedOn(chartC)} ก่อน",
                 _ => $"<color=#e6ecf2>ยังไม่เคยไป</color> · อยู่ไกลเกินกว่าจะไปถึงตอนนี้ ต้องไปให้ถึงเกาะที่ {chartSel - 1} ก่อน",
             };
             if (chartSel == IslandsPerContinent) text += ContinentCleared(chartC)

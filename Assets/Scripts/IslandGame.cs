@@ -475,6 +475,7 @@ public partial class IslandGame : MonoBehaviour
         tier = atHome ? 0 : (island - 1) / 15;
         seed = data.seed;
         raftLevel = data.raftLevel;
+        KeepBoatReach(); // IslandGame.World.cs
         boatLook = data.boatLook;
         learned.Clear();
         foreach (int l in data.learned) learned.Add((Item)l);

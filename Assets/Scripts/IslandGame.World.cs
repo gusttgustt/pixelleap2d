@@ -58,6 +58,22 @@ public partial class IslandGame
     /// Islands reached on a continent (0 = never been there).
     int ReachOn(int c) => reach[Mathf.Clamp(c, 0, Continents - 1)];
 
+    /// The boat level that sails past the farthest island reached on continent c. The levels go on
+    /// from one continent to the next (a continent's 20 islands take 19 upgrades), so a new
+    /// continent needs a better boat too: Lv 19 from the first continent reaches the second one's
+    /// first island, Lv 20 its second, and so on.
+    int BoatNeedOn(int c) => Mathf.Clamp(c, 0, Continents - 1) * (IslandsPerContinent - 1) + ReachOn(c);
+    int BoatNeed => BoatNeedOn(Cont);
+
+    /// Saves from before the levels went on across continents: whatever was reached already stays
+    /// reachable (the boat is raised to what getting there would have taken), the rest needs upgrades.
+    void KeepBoatReach()
+    {
+        if (raftLevel <= 0) return;
+        for (int c = 0; c < Continents; c++)
+            if (ReachOn(c) > 0) raftLevel = Mathf.Max(raftLevel, BoatNeedOn(c) - 1);
+    }
+
     // ------------------------------------------------------------------ moving your island
     const int MoveHomeCost = 150;
 
