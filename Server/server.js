@@ -409,6 +409,8 @@ function onMessage(socket, text) {
   if (m.t === "hello") {
     if (socket.pid) return;
     clearTimeout(socket.helloTimer);
+    const banned = banOfSocket(socket); // a banned address (a banned account is turned away at login)
+    if (banned) { log("! banned address " + socket.ip + " turned away"); kickOut(socket, banText(banned)); return; }
     if (!roomForPlayer(socket)) { socket.destroy(); return; } // the game goes offline and tries again later
     socket.pid = nextId++;
     socket.baseName = cleanText(m.name, 16) || "Islander";
@@ -425,6 +427,7 @@ function onMessage(socket, text) {
 
   if (m.t === "chat") {
     m.text = cleanText(m.text, 80); if (!m.text) return; // nothing oversized, no rich-text tags
+    if (mutedSocket(socket)) return; // muted (the "mute" command): it reaches no one
     if (!bucket(socket, "chatBucket", CHAT_RATE, CHAT_BURST)) return; // nor a flood over the whole room
   }
   if (m.t === "hit") {
@@ -443,6 +446,7 @@ function onMessage(socket, text) {
 
   switch (m.t) {
     case "join": {
+      if (!socket.acct && mod.guestsOff) { kickOut(socket, GUESTS_OFF); return; } // "guests off": accounts only
       const island = (m.island | 0) || 1; // below 0: someone's private island (not remembered)
       if (island < 0 && !mayEnterHome(socket, Math.floor(-island / 2))) {
         // someone else's private island needs its owner online and sharing it (as "visit" does), and a
@@ -1107,6 +1111,8 @@ function readSave(key) {
 }
 
 function authOk(socket, acc, kind) {
+  const ban = activeEntry(mod.bans, "a:" + keyOf(acc.name)) || activeEntry(mod.bans, "ip:" + socket.ip);
+  if (ban) { send(socket, { t: "auth", hits: 0, why: banText(ban) }); log("! banned " + acc.name + " (" + socket.ip + ") tried to log in"); return; }
   const token = crypto.randomBytes(24).toString("hex");
   acc.tokens = (acc.tokens || []).concat(hashToken(token)).slice(-8); // up to 8 devices stay logged in
   acc.at = Date.now();
@@ -1134,6 +1140,165 @@ function authOk(socket, acc, kind) {
     send(socket, { t: "auth", hits: 1, name: acc.name, ev: token, text: data.save || "", room: data.keep || "", ver: saveVersion(socket.ckey) });
   }
   log("  " + socket.name + " logged in as " + acc.name);
+}
+
+// ---------- moderation (type commands in the "Island server" window; "help" lists them) ----------
+// Bans and mutes are by account (a logged-in player, whichever character) or by address (someone
+// playing without an account). They're kept in DATA_DIR/moderation.json (backed up with the rest),
+// with two switches: no new accounts, and accounts only (no playing without one).
+let mod = { bans: {}, mutes: {}, registerOff: false, guestsOff: false };
+{
+  const file = path.join(DATA_DIR, "moderation.json");
+  try { const m = JSON.parse(fs.readFileSync(file, "utf8")) || {}; mod = { bans: m.bans || {}, mutes: m.mutes || {}, registerOff: !!m.registerOff, guestsOff: !!m.guestsOff }; }
+  catch (e) { if (fs.existsSync(file)) { try { fs.renameSync(file, file + ".broken"); } catch (e2) {} console.log("! moderation.json was broken: starting with no bans (old one kept as moderation.json.broken)"); } }
+}
+function saveMod() { try { writeFileSafe(path.join(DATA_DIR, "moderation.json"), JSON.stringify(mod, null, 1)); } catch (e) { log("! moderation not saved: " + e.message); } }
+
+/// The ban or mute under that key ("a:<account>" / "ip:<address>") if it's still on.
+function activeEntry(list, key) {
+  const e = list[key];
+  if (!e) return null;
+  if (e.until && Date.now() > e.until) { delete list[key]; saveMod(); return null; }
+  return e;
+}
+const banOfSocket = s => activeEntry(mod.bans, "ip:" + s.ip) || (s.acct ? activeEntry(mod.bans, "a:" + s.acct) : null);
+const mutedSocket = s => !!(activeEntry(mod.mutes, "ip:" + s.ip) || (s.acct && activeEntry(mod.mutes, "a:" + s.acct)));
+const thTime = t => new Date(t).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
+const banText = e => "ถูกระงับการเล่นออนไลน์" + (e.until ? " ถึง " + thTime(e.until) : " ถาวร") + (e.why ? " - เหตุผล: " + e.why : "");
+const GUESTS_OFF = "ตอนนี้เซิร์ฟเวอร์เปิดให้เฉพาะผู้เล่นที่มีบัญชี - สมัครหรือเข้าสู่ระบบก่อน";
+const REGISTER_OFF = "ปิดรับสมัครบัญชีใหม่ชั่วคราว ลองใหม่ภายหลัง";
+
+/// Tells the game why, then closes the connection (the game shows it and stays offline).
+function kickOut(socket, why) {
+  send(socket, { t: "kicked", why });
+  socket.acct = null; socket.ckey = null; // nothing more reaches an account from it
+  setTimeout(() => { socket.destroy(); drop(socket); }, 300);
+}
+
+/// Who a command means: "#12" (the id in "who"), an address, an account name, or the name a
+/// player shows in the game (a character's name finds its account).
+function findTarget(arg) {
+  arg = String(arg || "").trim();
+  const online = [...clients.values()];
+  if (/^#\d+$/.test(arg)) {
+    const s = clients.get(+arg.slice(1));
+    return s ? { sockets: [s], acct: s.acct || null, ip: s.ip } : null;
+  }
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(arg) || (arg.includes(":") && /^[0-9a-f:]+$/i.test(arg)))
+    return { sockets: online.filter(s => s.ip === arg), acct: null, ip: arg };
+  const k = keyOf(arg);
+  if (accounts[k]) { const ss = online.filter(s => s.acct === k); return { sockets: ss, acct: k, ip: ss[0] ? ss[0].ip : null }; }
+  const ss = online.filter(s => keyOf(s.baseName) === k || keyOf(s.name) === k);
+  if (!ss.length) return null;
+  return { sockets: ss, acct: ss[0].acct || null, ip: ss[0].ip };
+}
+
+/// "ban x 24 spamming" -> { target: "x", num: 24, why: "spamming" } (the number is optional).
+function parseArgs(rest) {
+  const parts = rest.trim().split(/\s+/);
+  const target = parts.shift() || "";
+  let num = null;
+  if (parts.length && /^\d+(\.\d+)?$/.test(parts[0])) num = +parts.shift();
+  return { target, num, why: cleanText(parts.join(" "), 100) };
+}
+
+const MOD_HELP = [
+  "commands (type here, then Enter):",
+  "  who                          everyone online: #id, name, account, address",
+  "  kick <who> [reason]          disconnect (they can come back)",
+  "  ban <who> [hours] [reason]   ban the account (no account: the address); no hours = forever",
+  "  banip <who> [hours] [reason] ban the address, whoever plays from it",
+  "  unban <account|address>",
+  "  mute <who> [minutes]         their chat stops reaching anyone (default 60 min, 0 = forever)",
+  "  unmute <who>",
+  "  bans                         bans and mutes in force",
+  "  register on|off              new accounts allowed / not",
+  "  guests on|off                playing without an account allowed / not",
+  "  say <text>                   a message to everyone online",
+  "  <who> = #id from who, an account name, a player's name, or an address",
+].join("\n");
+
+function modCommand(line) {
+  const m = /^(\S+)\s*(.*)$/.exec(String(line).trim());
+  if (!m) return;
+  const cmd = m[1].toLowerCase(), rest = m[2];
+  const out = s => console.log(s);
+  const describe = t => (t.acct ? "account " + (accounts[t.acct] || {}).name : "address " + t.ip) + (t.sockets.length ? " (" + t.sockets.length + " online)" : "");
+  switch (cmd) {
+    case "help": case "?": out(MOD_HELP); return;
+    case "who": {
+      const list = [...clients.values()];
+      if (!list.length) { out("nobody online"); return; }
+      for (const s of list) out("  #" + s.pid + "  " + s.name + "  " + (s.acct ? "account " + (accounts[s.acct] || {}).name + (s.slot >= 0 ? " slot " + (s.slot + 1) : "") : "(no account)") + "  " + s.ip + (s.playing ? "" : "  (title screen)") + (mutedSocket(s) ? "  MUTED" : ""));
+      return;
+    }
+    case "kick": {
+      const a = parseArgs(rest), t = findTarget(a.target);
+      if (!t || !t.sockets.length) { out("not online: " + a.target); return; }
+      for (const s of t.sockets) kickOut(s, "ถูกเตะออกจากเซิร์ฟเวอร์" + (a.why ? " - เหตุผล: " + a.why : ""));
+      log("* kicked " + describe(t)); return;
+    }
+    case "ban": case "banip": {
+      const a = parseArgs(rest), t = findTarget(a.target);
+      if (!t) { out("not found: " + a.target + " (an account name, #id from who, a player's name or an address)"); return; }
+      const byIp = cmd === "banip" || !t.acct;
+      if (byIp && !t.ip) { out("no address known for " + a.target + " (not online): use banip with the address"); return; }
+      const key = byIp ? "ip:" + t.ip : "a:" + t.acct;
+      const e = { why: a.why, at: Date.now(), until: a.num ? Date.now() + a.num * 3600000 : 0 };
+      mod.bans[key] = e; saveMod();
+      const hit = [...clients.values()].filter(s => byIp ? s.ip === t.ip : s.acct === t.acct);
+      for (const s of hit) kickOut(s, banText(e));
+      if (!byIp && board["a:" + t.acct]) { for (const k of Object.keys(board)) if (k === "a:" + t.acct || k.startsWith("a:" + t.acct + "#")) delete board[k]; saveBoardSoon(); }
+      log("* banned " + key + (e.until ? " until " + thTime(e.until) : " forever") + (e.why ? " (" + e.why + ")" : "") + ", " + hit.length + " disconnected");
+      return;
+    }
+    case "unban": {
+      const arg = rest.trim(), keys = [ "a:" + keyOf(arg), "ip:" + arg ].filter(k => mod.bans[k]);
+      if (!keys.length) { out("no ban for " + arg + " (see bans)"); return; }
+      for (const k of keys) delete mod.bans[k];
+      saveMod(); log("* unbanned " + keys.join(", ")); return;
+    }
+    case "mute": {
+      const a = parseArgs(rest), t = findTarget(a.target);
+      if (!t) { out("not found: " + a.target); return; }
+      if (!t.acct && !t.ip) { out("no address known for " + a.target); return; }
+      const key = t.acct ? "a:" + t.acct : "ip:" + t.ip, mins = a.num === null ? 60 : a.num;
+      mod.mutes[key] = { at: Date.now(), until: mins ? Date.now() + mins * 60000 : 0, why: a.why };
+      saveMod(); log("* muted " + key + (mins ? " for " + mins + " min" : " forever")); return;
+    }
+    case "unmute": {
+      const arg = rest.trim(), t = findTarget(arg);
+      const keys = [ "a:" + keyOf(arg), "ip:" + arg, t && t.acct ? "a:" + t.acct : "", t && t.ip ? "ip:" + t.ip : "" ].filter(k => k && mod.mutes[k]);
+      if (!keys.length) { out("not muted: " + arg); return; }
+      for (const k of keys) delete mod.mutes[k];
+      saveMod(); log("* unmuted " + keys.join(", ")); return;
+    }
+    case "bans": {
+      const show = (title, list) => { const ks = Object.keys(list).filter(k => activeEntry(list, k)); out(title + (ks.length ? "" : " none")); for (const k of ks) { const e = list[k]; out("  " + k + "  " + (e.until ? "until " + thTime(e.until) : "forever") + (e.why ? "  (" + e.why + ")" : "")); } };
+      show("bans:", mod.bans); show("mutes:", mod.mutes);
+      out("new accounts: " + (mod.registerOff ? "OFF" : "on") + "   playing without an account: " + (mod.guestsOff ? "OFF" : "on"));
+      return;
+    }
+    case "register": case "guests": {
+      const v = rest.trim().toLowerCase();
+      if (v !== "on" && v !== "off") { out("use: " + cmd + " on|off"); return; }
+      if (cmd === "register") mod.registerOff = v === "off"; else mod.guestsOff = v === "off";
+      saveMod();
+      if (cmd === "guests" && v === "off") { const g = [...clients.values()].filter(s => !s.acct && s.playing); for (const s of g) kickOut(s, GUESTS_OFF); log("* playing without an account: OFF (" + g.length + " disconnected)"); }
+      else log("* " + (cmd === "register" ? "new accounts" : "playing without an account") + ": " + v.toUpperCase());
+      return;
+    }
+    case "say": {
+      const text = cleanText(rest, 80);
+      if (!text) { out("use: say <text>"); return; }
+      for (const s of clients.values()) send(s, { t: "chat", from: 0, name: "[ประกาศ]", text });
+      log("* said: " + text); return;
+    }
+    default: out("unknown command: " + cmd + "  (help lists them)");
+  }
+}
+if (process.stdin && process.stdin.readable) {
+  try { require("readline").createInterface({ input: process.stdin }).on("line", l => { try { modCommand(l); } catch (e) { console.log("! " + e.message); } }); } catch (e) {}
 }
 
 // ---------- characters ----------
@@ -1391,6 +1556,7 @@ async function onAccount(socket, m) {
   socket.authBusy = true;
   try {
     if (m.t === "register") {
+      if (mod.registerOff) { send(socket, { t: "auth", hits: 0, why: REGISTER_OFF }); return; } // "register off"
       if (!/^[\p{L}\p{M}\p{N}_.\-]{3,20}$/u.test(name)) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีต้องยาว 3-20 ตัว (ตัวอักษร ตัวเลข _ . -) ห้ามเว้นวรรค" }); return; }
       if (pass.length < MIN_PASS) { send(socket, { t: "auth", hits: 0, why: "รหัสผ่านต้องยาวอย่างน้อย " + MIN_PASS + " ตัว" }); return; } // (accounts made before keep theirs)
       if (accounts[key]) { send(socket, { t: "auth", hits: 0, why: "ชื่อบัญชีนี้มีคนใช้แล้ว ลองชื่ออื่น หรือกดเข้าสู่ระบบ" }); return; }
@@ -1494,5 +1660,6 @@ server.listen(PORT, "127.0.0.1", () => {
   log("  game connects to  ws://127.0.0.1:" + PORT + "/ws");
   log("  web build at      http://127.0.0.1:" + PORT + "/  (from " + WEB_ROOT + ")");
   log("  accounts in       " + DATA_DIR + " (" + Object.keys(accounts).length + " players)");
+  log("  type help here for kick / ban / mute / register / guests / say");
   backupNow("server start");
 });

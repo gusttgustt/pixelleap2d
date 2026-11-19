@@ -2079,3 +2079,7 @@ E	กลับหน้าเลือกตัวละคร	Back to character
 E	กลับหน้าแรก	Back to title screen
 E	กดอีกครั้งเพื่อกลับ - เกมจะเซฟก่อนออก	Press again to go back - the game saves first
 E	กำลังเซฟ...	Saving...
+E	ตอนนี้เซิร์ฟเวอร์เปิดให้เฉพาะผู้เล่นที่มีบัญชี - สมัครหรือเข้าสู่ระบบก่อน	The server is open to players with an account only right now - sign up or log in first
+E	ปิดรับสมัครบัญชีใหม่ชั่วคราว ลองใหม่ภายหลัง	New accounts are closed for now - try again later
+E	ถูกเตะออกจากเซิร์ฟเวอร์	Kicked from the server
+E	[ประกาศ]	[Notice]

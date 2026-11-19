@@ -333,7 +333,10 @@ public partial class IslandGame
             case "who": OnWho(m); break;           // everyone online and where (IslandGame.Who.cs)
             case "saved": OnSaved(m); break;       // the account save was taken (IslandGame.Account.cs)
             case "saveold": OnSaveOld(m); break;   // ... or refused: another device has newer progress
-            case "kicked": kickedWhy = string.IsNullOrEmpty(m.why) ? "บัญชีนี้เข้าเล่นจากที่อื่นแล้ว" : m.why; acctName = null; break; // saves stop going to the account
+            case "kicked":
+                kickedWhy = string.IsNullOrEmpty(m.why) ? "บัญชีนี้เข้าเล่นจากที่อื่นแล้ว" : m.why; acctName = null; // saves stop going to the account
+                if (title) { TitleConnectFailed(kickedWhy); kickedWhy = null; } // on the title screen: say why (a ban, the server's rules)
+                break;
 
             case "p":
                 if (inRoom && voyage == null) AddRemote(m.from, m.name).Apply(m);
@@ -411,9 +414,11 @@ public partial class IslandGame
             case "chat":
                 m.text = CleanPlayerText(m.text, 80); // whatever the server let through: short, no rich-text tags
                 if (m.text.Length == 0) break;
-                string who = remotes.TryGetValue(m.from, out var talker) && talker != null ? talker.playerName : "?";
+                // from 0 = the server itself (an announcement typed in the server window: "say")
+                string who = m.from == 0 && !string.IsNullOrEmpty(m.name) ? CleanPlayerText(m.name, 20)
+                           : remotes.TryGetValue(m.from, out var talker) && talker != null ? talker.playerName : "?";
                 AddChat(who, m.text);
-                if (talker != null) { talker.chat = m.text; talker.chatUntil = Time.time + 6f; }
+                if (m.from != 0 && remotes.TryGetValue(m.from, out var speaker) && speaker != null) { speaker.chat = m.text; speaker.chatUntil = Time.time + 6f; }
                 Sfx.Play("pickup", 0.2f);
                 break;
         }
