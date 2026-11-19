@@ -171,9 +171,9 @@ public partial class IslandGame
     }
 
     /// Captain Blackbones guards his beached ship until someone beats him.
-    void SpawnCaptain()
+    void SpawnCaptain(bool forOthers = false)
     {
-        if (biome != Biome.Pirate || Flag("captain" + island) || !IsHost) return;
+        if (biome != Biome.Pirate || !forOthers && Flag("captain" + island) || !IsHost) return;
         if (enemies.Exists(e => e != null && e.kind == EnemyKind.Captain)) return;
         var ship = nodes.Find(n => n != null && n.kind == NodeKind.PirateShip);
         Vector2 at = WalkableNear(ship != null ? ship.grid + (Center - ship.grid).normalized * 2.2f : FarFrom(ShipwrightSpot(), Center));

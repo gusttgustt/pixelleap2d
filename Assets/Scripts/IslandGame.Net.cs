@@ -202,7 +202,47 @@ public partial class IslandGame
             // take over the creatures we could see
             foreach (var e in enemies) if (e != null && e.puppet) { e.puppet = false; enemyCounter = Mathf.Max(enemyCounter, e.netId); }
             Hint("ตอนนี้คุณเป็นคนดูแลสัตว์บนเกาะนี้", 3f);
+            SpawnBossesFor(BossesINeed(false)); // the old host may have beaten the boss I still have to fight
         }
+    }
+
+    // ---- bosses online: the host's game runs them, and the host only makes the ones it hasn't
+    // beaten itself. So whoever lands after the host beat it would find no boss and be stuck on its
+    // quest: on joining, each player tells the host which bosses it still needs (sent as a "hit"
+    // with ev "need", a kind the server already passes on), and the host brings those back.
+    const int NeedKing = 1, NeedQueen = 2, NeedThunderbird = 4, NeedCaptain = 8, NeedKraken = 16, NeedContinent = 64;
+
+    /// The bosses on this island I haven't beaten (and, landing on a continent's last island, its boss: it's always back).
+    int BossesINeed(bool landing)
+    {
+        if (atHome || inCave || voyage != null) return 0;
+        int n = 0;
+        if (biome == Biome.Mushroom && !Flag("king" + island)) n |= NeedKing;
+        if (biome == Biome.Insect && !Flag("queen" + island)) n |= NeedQueen;
+        if (biome == Biome.Storm && !Flag("thunderbird" + island)) n |= NeedThunderbird;
+        if (biome == Biome.Pirate && !Flag("captain" + island)) n |= NeedCaptain;
+        if (biome == Biome.Sunken && !Flag("kraken" + island)) n |= NeedKraken;
+        if (landing && OnBossIsland) n |= NeedContinent;
+        return n;
+    }
+
+    void SendBossNeeds()
+    {
+        if (IsHost || !Shared) return;
+        int n = BossesINeed(true);
+        if (n != 0) Send(new NetMsg { t = "hit", to = hostId, id = 0, ev = "need", dmg = n });
+    }
+
+    /// The host: bring back the bosses someone here still needs (each only if it isn't here already).
+    void SpawnBossesFor(int need)
+    {
+        if (!IsHost || need == 0 || atHome || inCave || voyage != null) return;
+        if ((need & NeedKing) != 0) SpawnBoss(true);
+        if ((need & NeedQueen) != 0) SpawnQueen(true);
+        if ((need & NeedThunderbird) != 0) SpawnThunderbird(true);
+        if ((need & NeedCaptain) != 0) SpawnCaptain(true);
+        if ((need & NeedKraken) != 0) SpawnKraken(true);
+        if ((need & NeedContinent) != 0 && ContinentBossHere == null) SpawnContinentBoss();
     }
 
     // ------------------------------------------------------------------ messages in
@@ -237,6 +277,7 @@ public partial class IslandGame
                     foreach (var e in enemies) if (e != null && !e.puppet) Destroy(e.gameObject);
                     enemies.RemoveAll(e => e == null || !e.puppet);
                     bossSeen = false; // our continent boss made way for the host's: it didn't fall (IslandGame.ContinentBoss.cs)
+                    SendBossNeeds();  // ... and the host may have beaten it already: ask for the ones I still need
                 }
                 if (m.players != null) foreach (var p in m.players) AddRemote(p.id, p.name);
                 if (inCave) CaveRoomCheck(m); // someone else's group got into this cave first (IslandGame.Cave.cs)
@@ -266,6 +307,7 @@ public partial class IslandGame
 
             case "host":
                 SetHost(m.host);
+                SendBossNeeds(); // a new host: it may not have the boss I'm here for
                 break;
 
             // visiting private islands (IslandGame.Visit.cs)
@@ -310,6 +352,7 @@ public partial class IslandGame
 
             case "hit": // someone hit one of my creatures (I'm the host)
                 if (!IsHost) break;
+                if (m.ev == "need") { SpawnBossesFor((int)m.dmg & 127); break; } // a player here still has to fight these
                 var target = enemies.Find(e => e != null && !e.puppet && e.netId == m.id);
                 if (target == null) break;
                 if (m.ev == "catch") { CatchFromNet(target, m.from); break; } // a pet net (IslandGame.Pet.cs)

@@ -95,9 +95,9 @@ public partial class IslandGame
         return y + 16f;
     }
 
-    void SpawnThunderbird()
+    void SpawnThunderbird(bool forOthers = false)
     {
-        if (biome != Biome.Storm || Flag("thunderbird" + island) || !IsHost) return;
+        if (biome != Biome.Storm || !forOthers && Flag("thunderbird" + island) || !IsHost) return;
         if (enemies.Exists(e => e != null && e.kind == EnemyKind.Thunderbird)) return;
         Vector2 at = FarFrom(ShipwrightSpot(), Center);
         var e = new GameObject("Thunderbird").AddComponent<Enemy>();

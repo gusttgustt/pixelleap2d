@@ -629,9 +629,9 @@ public partial class IslandGame
 
     // ------------------------------------------------------------------ boss
     /// The Mushroom King waits on his island until someone beats him.
-    void SpawnBoss()
+    void SpawnBoss(bool forOthers = false)
     {
-        if (biome != Biome.Mushroom || Flag("king" + island) || !IsHost) return;
+        if (biome != Biome.Mushroom || !forOthers && Flag("king" + island) || !IsHost) return;
         if (enemies.Exists(e => e != null && e.kind == EnemyKind.ShroomKing)) return;
         // far from the landing, the village and where the child got lost
         Vector2 at = FarFrom(ShipwrightSpot(), Center, FarFrom(ShipwrightSpot(), Center));

@@ -51,9 +51,9 @@ public partial class IslandGame
         RemoveShared(n); // a path opens
     }
 
-    void SpawnQueen()
+    void SpawnQueen(bool forOthers = false)
     {
-        if (biome != Biome.Insect || Flag("queen" + island) || !IsHost) return;
+        if (biome != Biome.Insect || !forOthers && Flag("queen" + island) || !IsHost) return;
         if (enemies.Exists(e => e != null && e.kind == EnemyKind.AntQueen)) return;
         var hill = nodes.Find(n => n != null && n.kind == NodeKind.Anthill);
         Vector2 at = WalkableNear(hill != null ? hill.grid + new Vector2(1.6f, 0.6f) : FarFrom(ShipwrightSpot(), Center));

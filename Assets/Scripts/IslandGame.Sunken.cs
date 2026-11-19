@@ -99,9 +99,9 @@ public partial class IslandGame
     }
 
     /// The Kraken waits in its temple until someone beats it.
-    void SpawnKraken()
+    void SpawnKraken(bool forOthers = false)
     {
-        if (biome != Biome.Sunken || Flag("kraken" + island) || !IsHost) return;
+        if (biome != Biome.Sunken || !forOthers && Flag("kraken" + island) || !IsHost) return;
         if (enemies.Exists(e => e != null && e.kind == EnemyKind.Kraken)) return;
         Vector2 at = WalkableNear(Center + new Vector2(1.6f, 1.6f));
         var e = new GameObject("Kraken").AddComponent<Enemy>();
