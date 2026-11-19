@@ -265,7 +265,8 @@ public partial class IslandGame
         target = null; enemyTarget = null; villagerTarget = null; pond = null; seaSpot = null;
         Vector2 pg = player.grid;
 
-        float bestEnemy = InteractRange;
+        // a weapon in hand reaches further: spears and lances most, blades a little (WeaponSwing.ExtraReach)
+        float bestEnemy = InteractRange + WeaponSwing.ExtraReach(weapon != null && Count(weapon.Value) > 0 ? weapon : null);
         foreach (var e in enemies)
         {
             if (e == null || e.Disguised) continue;
@@ -702,6 +703,7 @@ public partial class IslandGame
         Vector3 at = e.transform.position;
         int dmg = RollDamage(at);
         Sfx.Play("hit", 0.6f);
+        player.QueueHit(at); // impact star and sparks when the swing gets there (WeaponSwing.cs)
         if (e.puppet)
         {
             // Online, not the host: show the hit, let the host's game decide (it replies "kill").

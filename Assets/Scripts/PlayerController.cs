@@ -24,9 +24,13 @@ public class PlayerController : MonoBehaviour
         grid = g;
         sr = gameObject.AddComponent<SpriteRenderer>();
         GroundShadow.Attach(sr); // IslandGame.Feel.cs
+        weaponSwing = WeaponSwing.Attach(sr);
         height = IslandGame.I.HeightAt(g);
         Apply(0);
     }
+
+    /// My blow lands on something at `at`: its impact shows when the swing gets there.
+    public void QueueHit(Vector3 at) => weaponSwing.QueueHit(at);
 
     public void Flash() { hurtT = 0.2f; PlayAction(PixelArt.HurtAnim, 14f); Squash(0.85f, 1.12f); }
 
@@ -36,10 +40,26 @@ public class PlayerController : MonoBehaviour
         Vector3 w = IslandGame.GridToWorld(g) - IslandGame.GridToWorld(grid);
         if (w.sqrMagnitude < 0.0001f) return;
         facing = (g - grid).normalized;
-        if (HasSide && Mathf.Abs(w.x) > Mathf.Abs(w.y)) dir = 2; // more beside you than above or below: turn side on
-        else if (Mathf.Abs(w.y) > 0.05f) dir = w.y > 0 ? 1 : 0;
+        dir = TurnTo(new Vector2(w.x, w.y * 2f), 0.1f); // world y is squashed by half on screen: undo it, like input
         if (Mathf.Abs(w.x) > 0.02f) sr.flipX = w.x < 0;
         idleT = 0f; // stand up to do it
+    }
+
+    /// Which way to show the character for a direction v (screen space, y up, before the iso
+    /// squash, like the move input). With 45 degree art: eight ways, split at 22.5 degrees;
+    /// with side art: four; otherwise just front / back. A small vertical part keeps the
+    /// current front / back.
+    int TurnTo(Vector2 v, float minY)
+    {
+        float ax = Mathf.Abs(v.x), ay = Mathf.Abs(v.y);
+        if (HasDiag && ax > 0.01f && ay > 0.01f)
+        {
+            float t = ay / ax; // tan of the angle above / below horizontal
+            if (t > 0.4142f && t < 2.4142f) return v.y > 0 ? PixelArt.DirBackDiag : PixelArt.DirFrontDiag;
+        }
+        if (HasSide && ax > ay) return 2; // more beside you than above or below: side on
+        if (ay > minY) return v.y > 0 ? 1 : 0;
+        return dir > 1 ? 0 : dir;
     }
 
     // A quick squash and stretch that settles back: swings, hits and landings get some weight.
@@ -47,16 +67,24 @@ public class PlayerController : MonoBehaviour
     public void Squash(float x, float y) => squash = new Vector2(x, y);
 
     // Action poses (ready-made characters only; the build-your-own look has none and skips them).
-    int action = -1, actionFrames;
+    int action = -1, actionFrames, restoreDir = -1;
+    WeaponSwing weaponSwing;
+    float swingT = -1f, swingDur; // seconds into the attack the held weapon is drawn for (-1 = none)
     float actionT, actionFps, idleT, deadT;
 
     /// Play a one-shot pose such as PixelArt.AttackAnim, then go back to standing / walking.
     public void PlayAction(int anim, float fps)
     {
         int look = IslandGame.I.lookCode;
-        // a pose drawn only side on (chopping): turn side on to do it
-        if (dir != 2 && !PixelArt.HasPose(look, dir, anim) && PixelArt.HasPose(look, 2, anim)) dir = 2;
+        // a pose drawn only side on (chopping, a 45 degree punch): turn side on to do it,
+        // then turn back to the 45 degree view when it's done
+        if (dir != 2 && !PixelArt.HasPose(look, dir, anim) && PixelArt.HasPose(look, 2, anim))
+        {
+            if (dir > 2) restoreDir = dir;
+            dir = 2;
+        }
         int n = PixelArt.ActionFrames(look, anim, dir);
+        if (anim == PixelArt.AttackAnim) { swingT = 0f; swingDur = n > 0 ? n / fps : 0.35f; } // the held weapon swings with it, pose or not
         if (n == 0) return;
         action = anim; actionFrames = n; actionFps = fps; actionT = 0f;
         if (anim == PixelArt.AttackAnim) Squash(1.12f, 0.9f);
@@ -83,6 +111,8 @@ public class PlayerController : MonoBehaviour
             int i = (int)(actionT * actionFps);
             if (i < actionFrames) return action + i;
             action = -1;
+            if (restoreDir >= 0 && dir == 2) dir = restoreDir;
+            restoreDir = -1;
         }
         if (frame != 0) { idleT = 0f; return frame; }
         idleT += dt;
@@ -94,7 +124,7 @@ public class PlayerController : MonoBehaviour
             dir = 0;
             return PixelArt.SitAnim + Mathf.Min(sit - 1, (int)((idleT - SitDelay) * 8f));
         }
-        if (dir == 2 && !PixelArt.HasPose(game.lookCode, 2, PixelArt.IdleAnim)) return 0; // no side-on breathing: stand still
+        if (dir >= 2 && !PixelArt.HasPose(game.lookCode, dir, PixelArt.IdleAnim)) return 0; // no side-on / 45 degree breathing: stand still
         int idle = PixelArt.ActionFrames(game.lookCode, PixelArt.IdleAnim, dir);
         if (idle <= 1) return idle > 0 ? PixelArt.IdleAnim : 0;
         int k = (int)(idleT * 5f) % (2 * idle - 2); // back and forth: 0 1 2 3 4 3 2 1 ...
@@ -105,6 +135,8 @@ public class PlayerController : MonoBehaviour
     public int Dir => dir;
     /// The look has its own side-on art (ready-made characters with it); others turn only front / back.
     static bool HasSide => PixelArt.HasPose(IslandGame.I.lookCode, 2, 0);
+    /// ... and 45 degree art (both turned toward and away from the camera).
+    static bool HasDiag => PixelArt.HasPose(IslandGame.I.lookCode, PixelArt.DirFrontDiag, 0) && PixelArt.HasPose(IslandGame.I.lookCode, PixelArt.DirBackDiag, 0);
     public int Frame { get; private set; }
     public bool Flip => sr != null && sr.flipX;
     public SpriteRenderer Renderer => sr;
@@ -143,8 +175,7 @@ public class PlayerController : MonoBehaviour
                 else if (CanStand(grid + new Vector2(0f, d.y))) grid.y += d.y;
 
                 facing = d.normalized;
-                if (HasSide && Mathf.Abs(input.x) > Mathf.Abs(input.y)) dir = 2; // mostly left / right: walk side on
-                else if (Mathf.Abs(input.y) > 0.2f) dir = input.y > 0 ? 1 : 0;
+                dir = TurnTo(input, 0.2f); // eight ways with 45 degree art, else side on / front / back
                 if (Mathf.Abs(input.x) > 0.2f) sr.flipX = input.x < 0;
                 animT += Time.deltaTime * 8f;
                 frame = 1 + (int)animT % PixelArt.WalkFrames(IslandGame.I.lookCode, dir);
@@ -207,5 +238,12 @@ public class PlayerController : MonoBehaviour
         var col = hurtT > 0f ? new Color(1f, 0.45f, 0.45f) : IslandGame.I.Bubbled ? new Color(0.75f, 0.95f, 1f) : Color.white;
         if (IslandGame.I.Invisible) col.a = 0.35f + 0.1f * Mathf.Sin(Time.time * 8f);
         sr.color = col;
+
+        // the weapon in hand, swung toward what you hit
+        if (swingT >= 0f) { swingT += Time.deltaTime; if (swingT > swingDur) swingT = -1f; }
+        var game = IslandGame.I;
+        Item? w = game.weapon != null && game.Count(game.weapon.Value) > 0 ? game.weapon : null;
+        Vector2 toward = IslandGame.GridToWorld(grid + facing) - flat;
+        weaponSwing.Show(w, swingT < 0f || game.dead ? -1f : swingT / Mathf.Max(0.01f, swingDur), toward, dir == 1 || dir == PixelArt.DirBackDiag);
     }
 }

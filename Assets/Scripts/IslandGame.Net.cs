@@ -440,6 +440,7 @@ public partial class IslandGame
                 hat = hat.HasValue ? (int)hat.Value + 1 : 0, outfit = outfit.HasValue ? (int)outfit.Value + 1 : 0,
                 lv = level, name = playerName, look = lookCode, pet = ActivePetSave != null ? ActivePetSave.code + 1 : 0,
                 dn = downed ? 1 : 0, aw = Awakened ? (int)power : 0,
+                wp = weapon != null && Count(weapon.Value) > 0 ? (int)weapon.Value + 1 : 0,
             });
         }
         if (!IsHost || remotes.Count == 0) return;

@@ -20,6 +20,9 @@ public class RemotePlayer : MonoBehaviour
     SpriteRenderer sr;
     int petCode = -1;
     Pet pet;
+    WeaponSwing weaponSwing;     // their weapon, drawn while they attack (on land)
+    Item? weapon;
+    float swingT = -1f, swingDur;
 
     // At sea (IslandGame.Voyage.cs): their boat, with them standing on the deck.
     public bool atSea;
@@ -40,7 +43,7 @@ public class RemotePlayer : MonoBehaviour
             boatSr.transform.SetParent(transform);
             boatSr.enabled = false;
         }
-        else GroundShadow.Attach(sr);
+        else { GroundShadow.Attach(sr); weaponSwing = WeaponSwing.Attach(sr); }
         sr.enabled = false; // until the first position arrives
     }
 
@@ -75,6 +78,17 @@ public class RemotePlayer : MonoBehaviour
         seen = true;
         sr.enabled = true;
         dir = m.d;
+        // an attack pose starting: swing their weapon through it here (updates come only ~10 a
+        // second, too few to follow the pose frame by frame)
+        bool attacking = m.f >= PixelArt.AttackAnim && m.f < PixelArt.AttackAnim + 10;
+        bool wasAttacking = frame >= PixelArt.AttackAnim && frame < PixelArt.AttackAnim + 10;
+        if (attacking && (!wasAttacking || m.f < frame))
+        {
+            int n = PixelArt.ActionFrames(Mathf.Max(0, m.look), PixelArt.AttackAnim, m.d);
+            swingDur = Mathf.Max(0.25f, n / 16f);
+            swingT = (m.f - PixelArt.AttackAnim) / 16f;
+        }
+        weapon = m.wp > 0 ? (Item)(m.wp - 1) : (Item?)null;
         frame = m.f;
         flip = m.fl == 1;
         hat = m.hat > 0 ? (Item)(m.hat - 1) : (Item?)null;
@@ -140,5 +154,14 @@ public class RemotePlayer : MonoBehaviour
         sr.sortingOrder = IslandGame.SortOrder(flat.y);
         sr.sprite = PixelArt.Player(dir, frame, hat, outfit, look);
         sr.flipX = flip;
+
+        if (swingT >= 0f) { swingT += Time.deltaTime; if (swingT > swingDur) swingT = -1f; }
+        float side = flip ? -1f : 1f;
+        Vector2 toward = dir switch // where they face, on screen
+        {
+            0 => Vector2.down, 1 => Vector2.up, 2 => new Vector2(side, 0f),
+            PixelArt.DirFrontDiag => new Vector2(side, -0.5f), _ => new Vector2(side, 0.5f),
+        };
+        weaponSwing.Show(downed ? null : weapon, swingT < 0f ? -1f : swingT / swingDur, toward, dir == 1 || dir == PixelArt.DirBackDiag);
     }
 }

@@ -2398,8 +2398,9 @@ public static partial class PixelArt
         c.Rect(10, 0, 1, 4, Color.white); c.Set(10, 0, Hex("#2a1a10")); c.Set(11, 1, Color.white); // feather
     }
 
-    /// The player. dir 0 = facing camera, 1 = facing away, 2 = side on (drawn facing right,
-    /// flipX for left; only ready-made characters have it). frame 0 = idle, 1/2 = walk.
+    /// The player. dir 0 = facing camera, 1 = facing away, 2 = side on, 3 / 4 = turned 45 degrees
+    /// toward / away from the camera (all drawn facing right, flipX for left; only ready-made
+    /// characters have them). frame 0 = idle, 1/2 = walk.
     /// hat / outfit change the look (null = nothing worn).
     public static Sprite Player(int dir, int frame, Item? hat = null, Item? outfit = null, int look = 0)
     {
@@ -2411,7 +2412,7 @@ public static partial class PixelArt
                   ?? PresetPose(preset, pl.PresetScale, dir, 0); // a pose it lacks: just stand
             if (ps != null) return ps; // missing art falls back to the build-your-own look
         }
-        if (dir > 1) dir = 0; // the build-your-own look has no side view
+        if (dir > 1) dir = dir == DirBackDiag ? 1 : 0; // the build-your-own look has no side or 45 degree view
         if (frame > 2) frame = 0; // action poses exist only for ready-made characters
         string key = $"player_{(dir == 0 ? "front" : "back")}_{frame}";
         if (hat != null) key += "_" + hat.Value.ToString().ToLowerInvariant();
@@ -2481,10 +2482,10 @@ public static partial class PixelArt
     {
         var pl = CharacterLook.FromCode(look);
         if (pl.PresetId == null) return 2;
-        if (dir == 2 && PresetPlayer(pl.PresetId, pl.PresetScale, 2, 1) != null) // side walk: as many as were drawn
+        if (dir >= 2 && PresetPlayer(pl.PresetId, pl.PresetScale, dir, 1) != null) // side / 45 degree walk: as many as were drawn
         {
             int n = 1;
-            while (n < IdleAnim - 1 && PresetPlayer(pl.PresetId, pl.PresetScale, 2, n + 1) != null) n++;
+            while (n < IdleAnim - 1 && PresetPlayer(pl.PresetId, pl.PresetScale, dir, n + 1) != null) n++;
             return n;
         }
         return PresetPlayer(pl.PresetId, pl.PresetScale, 0, 4) != null ? 4 : 2;
@@ -2514,23 +2515,29 @@ public static partial class PixelArt
 
     /// A ready-made character's frame seen from dir, borrowing another side's art when it
     /// was not drawn from this one: no side view -> the front one; an action pose drawn
-    /// from one side only -> side on, then front.
+    /// from one side only -> side on, then front. A 45 degree view without the frame
+    /// borrows the side-on one, then the front (or back, turned away).
     static Sprite PresetPose(string id, int scale, int dir, int frame)
     {
         var s = PresetPlayer(id, scale, dir, frame);
         if (s != null) return s;
         if (dir == 2) return PresetPlayer(id, scale, 0, frame);
+        if (dir > 2) return PresetPlayer(id, scale, 2, frame) ?? PresetPlayer(id, scale, dir == DirBackDiag ? 1 : 0, frame);
         if (frame < IdleAnim) return null;
         return PresetPlayer(id, scale, 2, frame) ?? PresetPlayer(id, scale, 0, frame);
     }
 
-    /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back|side>_<frame>.png).
+    /// Player directions beyond front (0), back (1) and side on (2): turned 45 degrees toward
+    /// the camera or away from it, drawn facing right (flipX for left). Ready-made characters only.
+    public const int DirFrontDiag = 3, DirBackDiag = 4;
+
+    /// A ready-made character drawn by hand (Resources/Sprites/hero_<id>_<front|back|side|se|ne>_<frame>.png).
     /// The art has its feet 2 world px (2 * scale art px) above the bottom edge, like the
     /// generated player. scale = art pixels per world pixel (2 for double-detail art).
     /// Worn hats and outfits are not drawn on it.
     static Sprite PresetPlayer(string id, int scale, int dir, int frame)
     {
-        string key = $"hero_{id}_{(dir == 0 ? "front" : dir == 2 ? "side" : "back")}_{frame}";
+        string key = $"hero_{id}_{dir switch { 0 => "front", 2 => "side", DirFrontDiag => "se", DirBackDiag => "ne", _ => "back" }}_{frame}";
         if (cache.TryGetValue(key, out var s)) return s;
         var tex = Resources.Load<Texture2D>("Sprites/" + key);
         if (tex != null)

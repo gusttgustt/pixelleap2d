@@ -951,7 +951,7 @@ function playerUpdate(m) {
     lv: int(m.lv, 1, MAX_LEVEL), look: int(m.look, 0, 2000000), aw: int(m.aw, 0, 255),
   };
   if (sea) { p.kind = int(m.kind, 0, 255); p.hits = int(m.hits, 0, 1); }
-  else { p.pet = int(m.pet, 0, 100000); p.dn = int(m.dn, 0, 1); }
+  else { p.pet = int(m.pet, 0, 100000); p.dn = int(m.dn, 0, 1); p.wp = int(m.wp, 0, 4096); }
   return p;
 }
 

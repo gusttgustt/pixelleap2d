@@ -209,6 +209,7 @@ public class NetMsg
     public int dn;                 // 1 = this player is knocked out, waiting to be revived (IslandGame.Revive.cs)
     public int ver;                // the account save's version (auth / save / saved / saveold, IslandGame.Account.cs)
     public int aw;                 // awakened fruit power (IslandGame.Awaken.cs): 0 = none, else (int)Power
+    public int wp;                 // the weapon in hand + 1 (0 = bare hands), drawn when they attack (WeaponSwing.cs)
     public NetEnemy[] en;
     public NetEvent[] events;
     public NetPeer[] players;
